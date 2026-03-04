@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import Keycloak, { KeycloakInitOptions } from 'keycloak-js';
+import { KeycloakTokenParsed } from 'keycloak-js';
 
 type AuthContextValue = {
   keycloak: Keycloak | null;
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    const tokenParsed: any = keycloak?.tokenParsed ?? null;
+    const tokenParsed = (keycloak?.tokenParsed as KeycloakTokenParsed) ?? null;
     const rawRoles: string[] = tokenParsed?.realm_access?.roles ?? [];
 
     return {
