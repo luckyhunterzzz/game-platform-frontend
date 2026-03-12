@@ -25,7 +25,7 @@ function formatPublishedAt(
   labels: {
     notPublishedYet: string;
     invalidDate: string;
-  }
+  },
 ): string {
   if (!value) {
     return labels.notPublishedYet;
@@ -71,32 +71,32 @@ export default function PublicationCard({
     messages.publicationStatus[publication.status as PublicationStatus];
 
   return (
-    <article className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-sm backdrop-blur-sm">
+    <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm backdrop-blur-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+        <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
           {publicationTypeLabel}
         </span>
 
         {publication.pinned && (
-          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">
+          <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
             {messages.publications.pinned}
           </span>
         )}
 
         {showStatus && (
-          <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+          <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-1 text-xs font-semibold text-[var(--foreground-muted)]">
             {publicationStatusLabel}
           </span>
         )}
       </div>
 
-      <h3 className="mb-3 break-words text-xl font-semibold text-white">
+      <h3 className="mb-3 break-words text-xl font-semibold text-[var(--foreground)]">
         {publication.title}
       </h3>
 
       {content ? (
         <div className="min-w-0 space-y-2">
-          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-white/80 [overflow-wrap:anywhere]">
+          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--foreground-muted)] [overflow-wrap:anywhere]">
             {displayedContent}
           </p>
 
@@ -113,12 +113,12 @@ export default function PublicationCard({
           )}
         </div>
       ) : (
-        <p className="text-sm italic text-white/50">
+        <p className="text-sm italic text-[var(--foreground-soft)]">
           {messages.publications.noDescription}
         </p>
       )}
 
-      <div className="mt-4 text-xs text-white/50">
+      <div className="mt-4 text-xs text-[var(--foreground-soft)]">
         {messages.publications.publishedAt}: {formattedPublishedAt}
       </div>
     </article>

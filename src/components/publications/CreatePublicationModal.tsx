@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { enGB, ru } from 'date-fns/locale';
 
@@ -214,17 +214,17 @@ export default function CreatePublicationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4">
+      <div className="w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-2xl font-semibold text-white">
+          <h3 className="text-2xl font-semibold text-[var(--foreground)]">
             {messages.createPublicationModal.title}
           </h3>
 
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg border border-white/10 px-3 py-1 text-sm text-white/70 transition hover:bg-white/5"
+            className="rounded-lg border border-[var(--border)] px-3 py-1 text-sm text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             {messages.createPublicationModal.close}
           </button>
@@ -232,42 +232,42 @@ export default function CreatePublicationModal({
 
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-white/80">
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
               {messages.createPublicationModal.titleLabel}
             </label>
             <input
               value={form.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/30"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
               placeholder={messages.createPublicationModal.titlePlaceholder}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-white/80">
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
               {messages.createPublicationModal.contentLabel}
             </label>
             <textarea
               value={form.content ?? ''}
               onChange={(e) => handleChange('content', e.target.value)}
               rows={6}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/30"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
               placeholder={messages.createPublicationModal.contentPlaceholder}
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
+              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
                 {messages.createPublicationModal.typeLabel}
               </label>
               <select
                 value={form.type}
                 onChange={(e) => handleChange('type', e.target.value as PublicationType)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
               >
                 {Object.values(PublicationType).map((type) => (
-                  <option key={type} value={type} className="bg-slate-900">
+                  <option key={type} value={type}>
                     {messages.publicationType[type]}
                   </option>
                 ))}
@@ -275,16 +275,16 @@ export default function CreatePublicationModal({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
+              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
                 {messages.createPublicationModal.statusLabel}
               </label>
               <select
                 value={form.status}
                 onChange={(e) => handleStatusChange(e.target.value as PublicationStatus)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
               >
                 {AVAILABLE_CREATE_STATUSES.map((status) => (
-                  <option key={status} value={status} className="bg-slate-900">
+                  <option key={status} value={status}>
                     {messages.publicationStatus[status]}
                   </option>
                 ))}
@@ -294,7 +294,7 @@ export default function CreatePublicationModal({
 
           {isScheduled && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
+              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
                 {messages.createPublicationModal.scheduledAtLabel}
               </label>
 
@@ -313,18 +313,18 @@ export default function CreatePublicationModal({
                 maxTime={maxSelectableTime}
                 placeholderText={messages.createPublicationModal.scheduledPlaceholder}
                 wrapperClassName="gp-datepicker-wrapper"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
                 calendarClassName="gp-datepicker"
                 popperClassName="gp-datepicker-popper"
               />
 
-              <p className="mt-2 text-xs text-white/50">
+              <p className="mt-2 text-xs text-[var(--foreground-soft)]">
                 {messages.createPublicationModal.scheduledHint}
               </p>
             </div>
           )}
 
-          <label className="flex items-center gap-3 text-sm text-white/80">
+          <label className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
             <input
               type="checkbox"
               checked={form.pinned}
@@ -334,7 +334,7 @@ export default function CreatePublicationModal({
           </label>
 
           {errorMessage && (
-            <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">
+            <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">
               {errorMessage}
             </div>
           )}
@@ -343,7 +343,7 @@ export default function CreatePublicationModal({
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5"
+              className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             >
               {messages.createPublicationModal.cancel}
             </button>
@@ -352,7 +352,7 @@ export default function CreatePublicationModal({
               type="button"
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting
                 ? messages.createPublicationModal.submitting
