@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { useEffect, useMemo, useState } from 'react';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { enGB, ru } from 'date-fns/locale';
 
+import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import {
   type CreatePublicationRequest,
@@ -22,6 +23,9 @@ const AVAILABLE_CREATE_STATUSES = [
   PublicationStatus.DRAFT,
   PublicationStatus.SCHEDULED,
 ];
+
+registerLocale('ru', ru);
+registerLocale('en-GB', enGB);
 
 function createDefaultForm(): CreatePublicationRequest {
   return {
@@ -80,12 +84,21 @@ function roundUpToNextQuarterHour(date: Date): Date {
   return result;
 }
 
+function mapLocaleToDateFormat(locale: 'ru' | 'en'): string {
+  return locale === 'ru' ? 'dd.MM.yyyy HH:mm' : 'dd/MM/yyyy HH:mm';
+}
+
+function mapLocaleToDatePickerLocale(locale: 'ru' | 'en'): 'ru' | 'en-GB' {
+  return locale === 'ru' ? 'ru' : 'en-GB';
+}
+
 export default function CreatePublicationModal({
   open,
   onClose,
   onCreated,
 }: CreatePublicationModalProps) {
   const { apiPostJson } = useApi();
+  const { locale, messages } = useI18n();
 
   const [form, setForm] = useState<CreatePublicationRequest>(createDefaultForm());
   const [submitting, setSubmitting] = useState(false);
@@ -151,19 +164,19 @@ export default function CreatePublicationModal({
 
       if (form.status === PublicationStatus.SCHEDULED) {
         if (!form.publishedAt) {
-          setErrorMessage('Для отложенной публикации нужно указать дату и время.');
+          setErrorMessage(messages.createPublicationModal.scheduledDateRequired);
           return;
         }
 
         const scheduledAt = new Date(form.publishedAt);
 
         if (Number.isNaN(scheduledAt.getTime())) {
-          setErrorMessage('Некорректная дата публикации.');
+          setErrorMessage(messages.createPublicationModal.scheduledDateInvalid);
           return;
         }
 
         if (scheduledAt <= new Date()) {
-          setErrorMessage('Дата публикации должна быть в будущем.');
+          setErrorMessage(messages.createPublicationModal.scheduledDateFuture);
           return;
         }
       }
@@ -189,7 +202,7 @@ export default function CreatePublicationModal({
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage('Не удалось создать публикацию.');
+        setErrorMessage(messages.createPublicationModal.createError);
       }
     } finally {
       setSubmitting(false);
@@ -204,42 +217,50 @@ export default function CreatePublicationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
       <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-2xl font-semibold text-white">Создать публикацию</h3>
+          <h3 className="text-2xl font-semibold text-white">
+            {messages.createPublicationModal.title}
+          </h3>
 
           <button
             type="button"
             onClick={handleClose}
             className="rounded-lg border border-white/10 px-3 py-1 text-sm text-white/70 transition hover:bg-white/5"
           >
-            Закрыть
+            {messages.createPublicationModal.close}
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-white/80">Заголовок</label>
+            <label className="mb-2 block text-sm font-medium text-white/80">
+              {messages.createPublicationModal.titleLabel}
+            </label>
             <input
               value={form.title}
               onChange={(e) => handleChange('title', e.target.value)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/30"
-              placeholder="Введите заголовок"
+              placeholder={messages.createPublicationModal.titlePlaceholder}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-white/80">Текст</label>
+            <label className="mb-2 block text-sm font-medium text-white/80">
+              {messages.createPublicationModal.contentLabel}
+            </label>
             <textarea
               value={form.content ?? ''}
               onChange={(e) => handleChange('content', e.target.value)}
               rows={6}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/30"
-              placeholder="Введите текст публикации"
+              placeholder={messages.createPublicationModal.contentPlaceholder}
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">Тип</label>
+              <label className="mb-2 block text-sm font-medium text-white/80">
+                {messages.createPublicationModal.typeLabel}
+              </label>
               <select
                 value={form.type}
                 onChange={(e) => handleChange('type', e.target.value as PublicationType)}
@@ -247,14 +268,16 @@ export default function CreatePublicationModal({
               >
                 {Object.values(PublicationType).map((type) => (
                   <option key={type} value={type} className="bg-slate-900">
-                    {type}
+                    {messages.publicationType[type]}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">Статус</label>
+              <label className="mb-2 block text-sm font-medium text-white/80">
+                {messages.createPublicationModal.statusLabel}
+              </label>
               <select
                 value={form.status}
                 onChange={(e) => handleStatusChange(e.target.value as PublicationStatus)}
@@ -262,7 +285,7 @@ export default function CreatePublicationModal({
               >
                 {AVAILABLE_CREATE_STATUSES.map((status) => (
                   <option key={status} value={status} className="bg-slate-900">
-                    {status}
+                    {messages.publicationStatus[status]}
                   </option>
                 ))}
               </select>
@@ -272,7 +295,7 @@ export default function CreatePublicationModal({
           {isScheduled && (
             <div>
               <label className="mb-2 block text-sm font-medium text-white/80">
-                Дата и время публикации
+                {messages.createPublicationModal.scheduledAtLabel}
               </label>
 
               <DatePicker
@@ -280,20 +303,23 @@ export default function CreatePublicationModal({
                 onChange={(date: Date | null) =>
                   handleChange('publishedAt', toIsoStringOrNull(date))
                 }
+                locale={mapLocaleToDatePickerLocale(locale)}
                 showTimeSelect
                 timeIntervals={15}
-                timeCaption="Время"
-                dateFormat="dd.MM.yyyy HH:mm"
+                timeCaption={messages.createPublicationModal.timeCaption}
+                dateFormat={mapLocaleToDateFormat(locale)}
                 minDate={now}
                 minTime={minSelectableTime}
                 maxTime={maxSelectableTime}
-                placeholderText="Выберите дату и время"
+                placeholderText={messages.createPublicationModal.scheduledPlaceholder}
+                wrapperClassName="gp-datepicker-wrapper"
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none"
-                calendarClassName="rounded-xl border border-white/10 bg-slate-900 text-white"
+                calendarClassName="gp-datepicker"
+                popperClassName="gp-datepicker-popper"
               />
 
               <p className="mt-2 text-xs text-white/50">
-                Выберите дату и время в будущем.
+                {messages.createPublicationModal.scheduledHint}
               </p>
             </div>
           )}
@@ -304,7 +330,7 @@ export default function CreatePublicationModal({
               checked={form.pinned}
               onChange={(e) => handleChange('pinned', e.target.checked)}
             />
-            Закрепить публикацию
+            {messages.createPublicationModal.pinnedLabel}
           </label>
 
           {errorMessage && (
@@ -319,7 +345,7 @@ export default function CreatePublicationModal({
               onClick={handleClose}
               className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5"
             >
-              Отмена
+              {messages.createPublicationModal.cancel}
             </button>
 
             <button
@@ -328,7 +354,9 @@ export default function CreatePublicationModal({
               disabled={!canSubmit}
               className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Создание...' : 'Создать'}
+              {submitting
+                ? messages.createPublicationModal.submitting
+                : messages.createPublicationModal.submit}
             </button>
           </div>
         </div>

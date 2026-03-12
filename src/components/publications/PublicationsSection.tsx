@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import type { PublicationFeedResponse, PublicationItem } from '@/lib/types/publication';
 import CreatePublicationModal from './CreatePublicationModal';
@@ -13,6 +14,7 @@ const SUCCESS_MESSAGE_TIMEOUT_MS = 4000;
 export default function PublicationsSection() {
   const { apiJson } = useApi();
   const { roles, authenticated } = useAuth();
+  const { messages } = useI18n();
 
   const [items, setItems] = useState<PublicationItem[]>([]);
   const [page, setPage] = useState(0);
@@ -66,14 +68,14 @@ export default function PublicationsSection() {
         } else if (error instanceof Error) {
           setErrorMessage(error.message);
         } else {
-          setErrorMessage('Не удалось загрузить публикации.');
+          setErrorMessage(messages.publications.loadError);
         }
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [apiJson],
+    [apiJson, messages.publications.loadError],
   );
 
   useEffect(() => {
@@ -92,16 +94,18 @@ export default function PublicationsSection() {
 
   const handleCreated = async () => {
     await loadPage(0, false);
-    showTemporarySuccess('Публикация успешно создана.');
+    showTemporarySuccess(messages.publications.createSuccess);
   };
 
   return (
     <section className="mx-auto mt-10 w-full max-w-5xl px-4">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white">Publications</h2>
+          <h2 className="text-3xl font-bold text-white">
+            {messages.publications.title}
+          </h2>
           <p className="mt-2 text-sm text-white/60">
-            Новости, события и полезные материалы сообщества.
+            {messages.publications.subtitle}
           </p>
         </div>
 
@@ -111,7 +115,7 @@ export default function PublicationsSection() {
               type="button"
               className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-200"
             >
-              Published
+              {messages.publications.publishedTab}
             </button>
 
             <button
@@ -119,7 +123,7 @@ export default function PublicationsSection() {
               disabled
               className="cursor-not-allowed rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/40"
             >
-              Drafts
+              {messages.publications.draftsTab}
             </button>
 
             <button
@@ -127,7 +131,7 @@ export default function PublicationsSection() {
               disabled
               className="cursor-not-allowed rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/40"
             >
-              Scheduled
+              {messages.publications.scheduledTab}
             </button>
 
             <button
@@ -135,7 +139,7 @@ export default function PublicationsSection() {
               onClick={() => setIsCreateOpen(true)}
               className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-400/15"
             >
-              Создать публикацию
+              {messages.publications.createButton}
             </button>
           </div>
         )}
@@ -149,17 +153,19 @@ export default function PublicationsSection() {
 
       {loading ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
-          Загрузка публикаций...
+          {messages.publications.loading}
         </div>
       ) : errorMessage ? (
         <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-6 text-sm text-red-200">
-          Ошибка загрузки: {errorMessage}
+          {messages.publications.loadError}: {errorMessage}
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-          <h3 className="text-lg font-semibold text-white">Пока публикаций нет</h3>
+          <h3 className="text-lg font-semibold text-white">
+            {messages.publications.emptyTitle}
+          </h3>
           <p className="mt-2 text-sm text-white/60">
-            Новые новости и события появятся здесь позже.
+            {messages.publications.emptyDescription}
           </p>
         </div>
       ) : (
@@ -178,7 +184,9 @@ export default function PublicationsSection() {
             disabled={loadingMore}
             className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loadingMore ? 'Загрузка...' : 'Показать еще'}
+            {loadingMore
+              ? messages.publications.loadingMore
+              : messages.publications.loadMore}
           </button>
         </div>
       )}

@@ -1,7 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { PublicationItem } from '@/lib/types/publication';
+import { useI18n } from '@/lib/i18n/i18n-context';
+import type {
+  PublicationItem,
+  PublicationStatus,
+  PublicationType,
+} from '@/lib/types/publication';
 
 type PublicationCardProps = {
   publication: PublicationItem;
@@ -10,18 +15,29 @@ type PublicationCardProps = {
 
 const PREVIEW_LENGTH = 260;
 
-function formatPublishedAt(value?: string | null): string {
+function mapLocaleToDateLocale(locale: 'ru' | 'en'): string {
+  return locale === 'ru' ? 'ru-RU' : 'en-GB';
+}
+
+function formatPublishedAt(
+  value: string | null | undefined,
+  locale: 'ru' | 'en',
+  labels: {
+    notPublishedYet: string;
+    invalidDate: string;
+  }
+): string {
   if (!value) {
-    return 'Еще не опубликовано';
+    return labels.notPublishedYet;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return 'Некорректная дата';
+    return labels.invalidDate;
   }
 
-  return date.toLocaleString('ru-RU', {
+  return date.toLocaleString(mapLocaleToDateLocale(locale), {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -31,6 +47,7 @@ export default function PublicationCard({
   publication,
   showStatus = false,
 }: PublicationCardProps) {
+  const { locale, messages } = useI18n();
   const [expanded, setExpanded] = useState(false);
 
   const content = publication.content?.trim() ?? '';
@@ -42,24 +59,33 @@ export default function PublicationCard({
     return `${content.slice(0, PREVIEW_LENGTH)}...`;
   }, [content, expanded, isLongContent]);
 
-  const formattedPublishedAt = formatPublishedAt(publication.publishedAt);
+  const formattedPublishedAt = formatPublishedAt(publication.publishedAt, locale, {
+    notPublishedYet: messages.publications.notPublishedYet,
+    invalidDate: messages.publications.invalidDate,
+  });
+
+  const publicationTypeLabel =
+    messages.publicationType[publication.type as PublicationType];
+
+  const publicationStatusLabel =
+    messages.publicationStatus[publication.status as PublicationStatus];
 
   return (
     <article className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-sm backdrop-blur-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">
-          {publication.type}
+          {publicationTypeLabel}
         </span>
 
         {publication.pinned && (
           <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-200">
-            PINNED
+            {messages.publications.pinned}
           </span>
         )}
 
         {showStatus && (
           <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
-            {publication.status}
+            {publicationStatusLabel}
           </span>
         )}
       </div>
@@ -80,16 +106,20 @@ export default function PublicationCard({
               onClick={() => setExpanded((prev) => !prev)}
               className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200"
             >
-              {expanded ? 'Свернуть' : 'Показать все'}
+              {expanded
+                ? messages.publications.showLess
+                : messages.publications.showMore}
             </button>
           )}
         </div>
       ) : (
-        <p className="text-sm italic text-white/50">Без описания</p>
+        <p className="text-sm italic text-white/50">
+          {messages.publications.noDescription}
+        </p>
       )}
 
       <div className="mt-4 text-xs text-white/50">
-        Дата публикации: {formattedPublishedAt}
+        {messages.publications.publishedAt}: {formattedPublishedAt}
       </div>
     </article>
   );
