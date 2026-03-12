@@ -9,10 +9,28 @@ export type Messages = {
     userId: string;
     login: string;
     logout: string;
+    themeLight: string;
+    themeDark: string;
+    themeSystem: string;
   };
   common: {
     languageEnglish: string;
     languageRussian: string;
+  };
+  home: {
+    heroSubtitle: string;
+    menuTitle: string;
+    menuPageOne: string;
+    menuPageTwo: string;
+    navHeroes: string;
+    navEvents: string;
+    navGuides: string;
+    navAlliances: string;
+    diagnosticsTitle: string;
+    diagnosticsPublicTest: string;
+    diagnosticsAdminTest: string;
+    diagnosticsNoAccess: string;
+    diagnosticsUnknownError: string;
   };
   publications: {
     title: string;

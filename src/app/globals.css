@@ -1,9 +1,54 @@
 @import "tailwindcss";
 @import "react-datepicker/dist/react-datepicker.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+html.light {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --foreground-muted: rgba(15, 23, 42, 0.82);
+  --foreground-soft: rgba(15, 23, 42, 0.64);
+
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --surface-hover: rgba(15, 23, 42, 0.08);
+
+  --border: rgba(15, 23, 42, 0.14);
+
+  --card-bg: rgba(255, 255, 255, 0.86);
+  --input-bg: rgba(255, 255, 255, 0.96);
+
+  --datepicker-bg: #ffffff;
+  --datepicker-header-bg: #e2e8f0;
+  --datepicker-border: rgba(15, 23, 42, 0.14);
+  --datepicker-text: #0f172a;
+  --datepicker-muted: rgba(15, 23, 42, 0.45);
+  --datepicker-hover: rgba(34, 211, 238, 0.14);
+  --datepicker-selected-bg: rgba(34, 211, 238, 0.9);
+  --datepicker-selected-text: #083344;
+}
+
+html.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --foreground-muted: rgba(248, 250, 252, 0.8);
+  --foreground-soft: rgba(248, 250, 252, 0.58);
+
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-strong: #0f172a;
+  --surface-hover: rgba(255, 255, 255, 0.08);
+
+  --border: rgba(255, 255, 255, 0.1);
+
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(255, 255, 255, 0.05);
+
+  --datepicker-bg: rgb(2 6 23);
+  --datepicker-header-bg: rgb(15 23 42);
+  --datepicker-border: rgba(255, 255, 255, 0.1);
+  --datepicker-text: rgba(255, 255, 255, 0.88);
+  --datepicker-muted: rgba(255, 255, 255, 0.25);
+  --datepicker-hover: rgba(34, 211, 238, 0.12);
+  --datepicker-selected-bg: rgba(34, 211, 238, 0.9);
+  --datepicker-selected-text: rgb(8 47 73);
 }
 
 @theme inline {
@@ -11,13 +56,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 html {
@@ -28,6 +66,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 /* DatePicker wrapper */
@@ -49,25 +90,25 @@ body {
 
 /* Main popup */
 .gp-datepicker {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--datepicker-border) !important;
   border-radius: 16px !important;
   overflow: hidden !important;
-  background-color: rgb(2 6 23) !important;
-  color: white !important;
+  background-color: var(--datepicker-bg) !important;
+  color: var(--datepicker-text) !important;
   font-family: inherit !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Header */
 .gp-datepicker .react-datepicker__header {
-  background-color: rgb(15 23 42) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: var(--datepicker-header-bg) !important;
+  border-bottom: 1px solid var(--datepicker-border) !important;
 }
 
 .gp-datepicker .react-datepicker__current-month,
 .gp-datepicker .react-datepicker-time__header,
 .gp-datepicker .react-datepicker-year-header {
-  color: white !important;
+  color: var(--foreground) !important;
   font-weight: 600;
 }
 
@@ -75,7 +116,7 @@ body {
 .gp-datepicker .react-datepicker__day-name,
 .gp-datepicker .react-datepicker__day,
 .gp-datepicker .react-datepicker__time-name {
-  color: rgba(255, 255, 255, 0.88) !important;
+  color: var(--datepicker-text) !important;
 }
 
 .gp-datepicker .react-datepicker__day:hover,
@@ -83,15 +124,15 @@ body {
 .gp-datepicker .react-datepicker__month-text:hover,
 .gp-datepicker .react-datepicker__quarter-text:hover,
 .gp-datepicker .react-datepicker__year-text:hover {
-  background-color: rgba(34, 211, 238, 0.12) !important;
+  background-color: var(--datepicker-hover) !important;
   border-radius: 10px !important;
 }
 
 .gp-datepicker .react-datepicker__day--selected,
 .gp-datepicker .react-datepicker__day--keyboard-selected,
 .gp-datepicker .react-datepicker__time-list-item--selected {
-  background-color: rgba(34, 211, 238, 0.9) !important;
-  color: rgb(8 47 73) !important;
+  background-color: var(--datepicker-selected-bg) !important;
+  color: var(--datepicker-selected-text) !important;
   border-radius: 10px !important;
   font-weight: 700 !important;
 }
@@ -99,18 +140,19 @@ body {
 .gp-datepicker .react-datepicker__day--disabled,
 .gp-datepicker .react-datepicker__month-text--disabled,
 .gp-datepicker .react-datepicker__quarter-text--disabled,
-.gp-datepicker .react-datepicker__year-text--disabled {
-  color: rgba(255, 255, 255, 0.25) !important;
+.gp-datepicker .react-datepicker__year-text--disabled,
+.gp-datepicker .react-datepicker__time-list-item--disabled {
+  color: var(--datepicker-muted) !important;
 }
 
 .gp-datepicker .react-datepicker__day--today {
   font-weight: 700;
-  color: rgb(103 232 249) !important;
+  color: rgb(34 211 238) !important;
 }
 
 /* Navigation */
 .gp-datepicker .react-datepicker__navigation-icon::before {
-  border-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: var(--foreground) !important;
 }
 
 .gp-datepicker .react-datepicker__triangle {
@@ -119,11 +161,11 @@ body {
 
 /* Time column */
 .gp-datepicker .react-datepicker__time-container {
-  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-left: 1px solid var(--datepicker-border) !important;
 }
 
 .gp-datepicker .react-datepicker__time {
-  background-color: rgb(2 6 23) !important;
+  background-color: var(--datepicker-bg) !important;
 }
 
 .gp-datepicker .react-datepicker__time-box {
@@ -131,13 +173,9 @@ body {
 }
 
 .gp-datepicker .react-datepicker__time-list {
-  background-color: rgb(2 6 23) !important;
+  background-color: var(--datepicker-bg) !important;
 }
 
 .gp-datepicker .react-datepicker__time-list-item {
-  color: rgba(255, 255, 255, 0.88) !important;
-}
-
-.gp-datepicker .react-datepicker__time-list-item--disabled {
-  color: rgba(255, 255, 255, 0.25) !important;
+  color: var(--datepicker-text) !important;
 }

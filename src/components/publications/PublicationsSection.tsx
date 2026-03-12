@@ -101,10 +101,10 @@ export default function PublicationsSection() {
     <section className="mx-auto mt-10 w-full max-w-5xl px-4">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white">
+          <h2 className="text-3xl font-bold text-[var(--foreground)]">
             {messages.publications.title}
           </h2>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-[var(--foreground-soft)]">
             {messages.publications.subtitle}
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function PublicationsSection() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-200"
+              className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300"
             >
               {messages.publications.publishedTab}
             </button>
@@ -121,7 +121,7 @@ export default function PublicationsSection() {
             <button
               type="button"
               disabled
-              className="cursor-not-allowed rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/40"
+              className="cursor-not-allowed rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] opacity-70"
             >
               {messages.publications.draftsTab}
             </button>
@@ -129,7 +129,7 @@ export default function PublicationsSection() {
             <button
               type="button"
               disabled
-              className="cursor-not-allowed rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/40"
+              className="cursor-not-allowed rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] opacity-70"
             >
               {messages.publications.scheduledTab}
             </button>
@@ -137,7 +137,7 @@ export default function PublicationsSection() {
             <button
               type="button"
               onClick={() => setIsCreateOpen(true)}
-              className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-400/15"
+              className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15"
             >
               {messages.publications.createButton}
             </button>
@@ -146,25 +146,25 @@ export default function PublicationsSection() {
       </div>
 
       {successMessage && (
-        <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-200">
+        <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-300">
           {successMessage}
         </div>
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--foreground-muted)]">
           {messages.publications.loading}
         </div>
       ) : errorMessage ? (
-        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-6 text-sm text-red-200">
+        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-6 text-sm text-red-300">
           {messages.publications.loadError}: {errorMessage}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
-          <h3 className="text-lg font-semibold text-white">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+          <h3 className="text-lg font-semibold text-[var(--foreground)]">
             {messages.publications.emptyTitle}
           </h3>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-sm text-[var(--foreground-soft)]">
             {messages.publications.emptyDescription}
           </p>
         </div>
@@ -182,7 +182,7 @@ export default function PublicationsSection() {
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loadingMore
               ? messages.publications.loadingMore
