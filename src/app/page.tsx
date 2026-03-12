@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Navbar';
 import { useApi } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import PublicationsSection from '@/components/publications/PublicationsSection';
 
 export default function HomePage() {
   const [log, setLog] = useState<unknown>(null);
@@ -65,6 +66,8 @@ export default function HomePage() {
             </button>
           ))}
         </div>
+
+        <PublicationsSection />
 
         <div className="w-full max-w-2xl bg-slate-900/50 border border-slate-800 rounded-2xl p-8 backdrop-blur-sm">
           <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
