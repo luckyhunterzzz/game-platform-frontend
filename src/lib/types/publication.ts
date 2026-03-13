@@ -43,6 +43,12 @@ export interface CreatePublicationRequest {
   imageObjectKey?: string | null;
 }
 
+export interface ImageUploadResponse {
+  bucket: string;
+  objectKey: string;
+  url: string;
+}
+
 export interface ErrorResponse {
   timestamp: string;
   status: number;

@@ -57,7 +57,7 @@ export function useApi() {
     async <TResponse,>(path: string, init: RequestInit = {}): Promise<TResponse> => {
       const headers = new Headers(init.headers);
 
-      if (!headers.has('Content-Type') && init.body) {
+      if (!headers.has('Content-Type') && init.body && !(init.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
       }
 
@@ -113,9 +113,25 @@ export function useApi() {
     [apiJson],
   );
 
+  const apiPostFormData = useCallback(
+    async <TResponse,>(
+      path: string,
+      formData: FormData,
+      init: RequestInit = {},
+    ): Promise<TResponse> => {
+      return apiJson<TResponse>(path, {
+        ...init,
+        method: 'POST',
+        body: formData,
+      });
+    },
+    [apiJson],
+  );
+
   return {
     apiFetch,
     apiJson,
     apiPostJson,
+    apiPostFormData,
   };
 }

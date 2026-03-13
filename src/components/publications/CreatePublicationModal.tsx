@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { enGB, ru } from 'date-fns/locale';
 
@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import {
   type CreatePublicationRequest,
+  type ImageUploadResponse,
   PublicationStatus,
   PublicationType,
 } from '@/lib/types/publication';
@@ -23,6 +24,8 @@ const AVAILABLE_CREATE_STATUSES = [
   PublicationStatus.DRAFT,
   PublicationStatus.SCHEDULED,
 ];
+
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 registerLocale('ru', ru);
 registerLocale('en-GB', enGB);
@@ -92,16 +95,49 @@ function mapLocaleToDatePickerLocale(locale: 'ru' | 'en'): 'ru' | 'en-GB' {
   return locale === 'ru' ? 'ru' : 'en-GB';
 }
 
+function getImageSectionText(locale: 'ru' | 'en') {
+  if (locale === 'ru') {
+    return {
+      label: 'Картинка',
+      hint: 'Поддерживаются PNG, JPEG, WEBP. Максимум 5 MB.',
+      uploading: 'Загрузка изображения...',
+      uploaded: 'Изображение загружено',
+      remove: 'Удалить изображение',
+      invalidType: 'Можно загружать только PNG, JPEG или WEBP.',
+      uploadError: 'Не удалось загрузить изображение.',
+      uploadErrorBlock: 'Сначала исправьте ошибку загрузки изображения: удалите файл или загрузите новый.',
+    };
+  }
+
+  return {
+    label: 'Image',
+    hint: 'Supported: PNG, JPEG, WEBP. Maximum size: 5 MB.',
+    uploading: 'Uploading image...',
+    uploaded: 'Image uploaded',
+    remove: 'Remove image',
+    invalidType: 'Only PNG, JPEG or WEBP images are allowed.',
+    uploadError: 'Failed to upload image.',
+    uploadErrorBlock: 'Fix the image upload error first: remove the file or upload another one.',
+  };
+}
+
 export default function CreatePublicationModal({
   open,
   onClose,
   onCreated,
 }: CreatePublicationModalProps) {
-  const { apiPostJson } = useApi();
+  const { apiPostJson, apiPostFormData } = useApi();
   const { locale, messages } = useI18n();
+  const imageText = getImageSectionText(locale);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState<CreatePublicationRequest>(createDefaultForm());
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isScheduled = form.status === PublicationStatus.SCHEDULED;
@@ -118,15 +154,68 @@ export default function CreatePublicationModal({
   const maxSelectableTime = scheduledDate ? endOfDay(scheduledDate) : endOfDay(now);
 
   const canSubmit = useMemo(() => {
-    if (submitting) return false;
+    if (submitting || uploadingImage) return false;
     if (form.title.trim().length === 0) return false;
     if (isScheduled && !form.publishedAt) return false;
+    if (imageUploadError) return false;
     return true;
-  }, [form.title, form.publishedAt, isScheduled, submitting]);
+  }, [form.title, form.publishedAt, isScheduled, submitting, uploadingImage, imageUploadError]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  const revokePreviewUrl = (url: string | null) => {
+    if (url?.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const resetUploadedImageState = () => {
+    revokePreviewUrl(uploadedImageUrl);
+    setUploadedImageUrl(null);
+    setUploadedFileName(null);
+    setImageUploadError(null);
+
+    setForm((prev) => ({
+      ...prev,
+      imageBucket: null,
+      imageObjectKey: null,
+    }));
+
+    resetFileInput();
+  };
+
+  useEffect(() => {
+    return () => {
+      revokePreviewUrl(uploadedImageUrl);
+    };
+  }, [uploadedImageUrl]);
 
   const resetForm = () => {
+    revokePreviewUrl(uploadedImageUrl);
     setForm(createDefaultForm());
+    setUploadedImageUrl(null);
+    setUploadedFileName(null);
+    setImageUploadError(null);
     setErrorMessage(null);
+    setUploadingImage(false);
+    resetFileInput();
   };
 
   const handleClose = () => {
@@ -155,8 +244,78 @@ export default function CreatePublicationModal({
     }));
   };
 
+  const clearUploadedImage = () => {
+    resetUploadedImageState();
+    setErrorMessage(null);
+  };
+
+  const handleImageSelected = async (file: File | null) => {
+    if (!file) {
+      resetUploadedImageState();
+      return;
+    }
+
+    setErrorMessage(null);
+    setImageUploadError(null);
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      resetUploadedImageState();
+      setImageUploadError(imageText.invalidType);
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiPostFormData<ImageUploadResponse>(
+        '/api/v1/admin/media/images',
+        formData,
+      );
+
+      revokePreviewUrl(uploadedImageUrl);
+
+      setUploadedImageUrl(response.url);
+      setUploadedFileName(file.name);
+      setImageUploadError(null);
+
+      setForm((prev) => ({
+        ...prev,
+        imageBucket: response.bucket,
+        imageObjectKey: response.objectKey,
+      }));
+    } catch (error) {
+      revokePreviewUrl(uploadedImageUrl);
+
+      setUploadedImageUrl(null);
+      setUploadedFileName(file.name);
+      setForm((prev) => ({
+        ...prev,
+        imageBucket: null,
+        imageObjectKey: null,
+      }));
+
+      if (error instanceof ApiError) {
+        setImageUploadError(error.message);
+      } else if (error instanceof Error) {
+        setImageUploadError(error.message);
+      } else {
+        setImageUploadError(imageText.uploadError);
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting || uploadingImage || imageUploadError) {
+      if (imageUploadError) {
+        setErrorMessage(imageText.uploadErrorBlock);
+      }
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -184,8 +343,6 @@ export default function CreatePublicationModal({
       const payload: CreatePublicationRequest = {
         ...form,
         publishedAt: form.status === PublicationStatus.SCHEDULED ? form.publishedAt : null,
-        imageBucket: null,
-        imageObjectKey: null,
       };
 
       await apiPostJson<CreatePublicationRequest, unknown>(
@@ -214,132 +371,198 @@ export default function CreatePublicationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-2xl font-semibold text-[var(--foreground)]">
-            {messages.createPublicationModal.title}
-          </h3>
+    <div className="fixed inset-0 z-50 bg-black/65 px-4 py-4 sm:py-6">
+      <div className="flex min-h-full items-center justify-center">
+        <div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
+            <h3 className="text-2xl font-semibold text-[var(--foreground)]">
+              {messages.createPublicationModal.title}
+            </h3>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-lg border border-[var(--border)] px-3 py-1 text-sm text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-          >
-            {messages.createPublicationModal.close}
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-              {messages.createPublicationModal.titleLabel}
-            </label>
-            <input
-              value={form.title}
-              onChange={(e) => handleChange('title', e.target.value)}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-              placeholder={messages.createPublicationModal.titlePlaceholder}
-            />
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-lg border border-[var(--border)] px-3 py-1 text-sm text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            >
+              {messages.createPublicationModal.close}
+            </button>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-              {messages.createPublicationModal.contentLabel}
-            </label>
-            <textarea
-              value={form.content ?? ''}
-              onChange={(e) => handleChange('content', e.target.value)}
-              rows={6}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-              placeholder={messages.createPublicationModal.contentPlaceholder}
-            />
+          <div className="overflow-y-auto px-6 py-5">
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                  {messages.createPublicationModal.titleLabel}
+                </label>
+                <input
+                  value={form.title}
+                  onChange={(e) => handleChange('title', e.target.value)}
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                  placeholder={messages.createPublicationModal.titlePlaceholder}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                  {messages.createPublicationModal.contentLabel}
+                </label>
+                <textarea
+                  value={form.content ?? ''}
+                  onChange={(e) => handleChange('content', e.target.value)}
+                  rows={6}
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                  placeholder={messages.createPublicationModal.contentPlaceholder}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                  {imageText.label}
+                </label>
+
+                <div className="space-y-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(e) => void handleImageSelected(e.target.files?.[0] ?? null)}
+                    disabled={uploadingImage || submitting}
+                    className="block w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-400/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-emerald-300"
+                  />
+
+                  <p className="text-xs text-[var(--foreground-soft)]">{imageText.hint}</p>
+
+                  {uploadingImage && (
+                    <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm text-emerald-300">
+                      {imageText.uploading}
+                    </div>
+                  )}
+
+                  {imageUploadError && (
+                    <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">
+                      {imageUploadError}
+                    </div>
+                  )}
+
+                  {uploadedImageUrl && (
+                    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={uploadedImageUrl}
+                        alt={uploadedFileName ?? 'Uploaded preview'}
+                        className="max-h-72 w-full object-contain bg-black/20"
+                      />
+
+                      <div className="flex items-center justify-between gap-3 p-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[var(--foreground)]">
+                            {imageText.uploaded}
+                          </p>
+                          <p className="truncate text-xs text-[var(--foreground-soft)]">
+                            {uploadedFileName ?? ''}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={clearUploadedImage}
+                          disabled={uploadingImage || submitting}
+                          className="shrink-0 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {imageText.remove}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                    {messages.createPublicationModal.typeLabel}
+                  </label>
+                  <select
+                    value={form.type}
+                    onChange={(e) => handleChange('type', e.target.value as PublicationType)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
+                  >
+                    {Object.values(PublicationType).map((type) => (
+                      <option key={type} value={type}>
+                        {messages.publicationType[type]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                    {messages.createPublicationModal.statusLabel}
+                  </label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => handleStatusChange(e.target.value as PublicationStatus)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
+                  >
+                    {AVAILABLE_CREATE_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {messages.publicationStatus[status]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {isScheduled && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                    {messages.createPublicationModal.scheduledAtLabel}
+                  </label>
+
+                  <DatePicker
+                    selected={scheduledDate}
+                    onChange={(date: Date | null) =>
+                      handleChange('publishedAt', toIsoStringOrNull(date))
+                    }
+                    locale={mapLocaleToDatePickerLocale(locale)}
+                    showTimeSelect
+                    timeIntervals={15}
+                    timeCaption={messages.createPublicationModal.timeCaption}
+                    dateFormat={mapLocaleToDateFormat(locale)}
+                    minDate={now}
+                    minTime={minSelectableTime}
+                    maxTime={maxSelectableTime}
+                    placeholderText={messages.createPublicationModal.scheduledPlaceholder}
+                    wrapperClassName="gp-datepicker-wrapper"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                    calendarClassName="gp-datepicker"
+                    popperClassName="gp-datepicker-popper"
+                  />
+
+                  <p className="mt-2 text-xs text-[var(--foreground-soft)]">
+                    {messages.createPublicationModal.scheduledHint}
+                  </p>
+                </div>
+              )}
+
+              <label className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                <input
+                  type="checkbox"
+                  checked={form.pinned}
+                  onChange={(e) => handleChange('pinned', e.target.checked)}
+                />
+                {messages.createPublicationModal.pinnedLabel}
+              </label>
+
+              {errorMessage && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">
+                  {errorMessage}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                {messages.createPublicationModal.typeLabel}
-              </label>
-              <select
-                value={form.type}
-                onChange={(e) => handleChange('type', e.target.value as PublicationType)}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
-              >
-                {Object.values(PublicationType).map((type) => (
-                  <option key={type} value={type}>
-                    {messages.publicationType[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                {messages.createPublicationModal.statusLabel}
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => handleStatusChange(e.target.value as PublicationStatus)}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
-              >
-                {AVAILABLE_CREATE_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {messages.publicationStatus[status]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {isScheduled && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                {messages.createPublicationModal.scheduledAtLabel}
-              </label>
-
-              <DatePicker
-                selected={scheduledDate}
-                onChange={(date: Date | null) =>
-                  handleChange('publishedAt', toIsoStringOrNull(date))
-                }
-                locale={mapLocaleToDatePickerLocale(locale)}
-                showTimeSelect
-                timeIntervals={15}
-                timeCaption={messages.createPublicationModal.timeCaption}
-                dateFormat={mapLocaleToDateFormat(locale)}
-                minDate={now}
-                minTime={minSelectableTime}
-                maxTime={maxSelectableTime}
-                placeholderText={messages.createPublicationModal.scheduledPlaceholder}
-                wrapperClassName="gp-datepicker-wrapper"
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-                calendarClassName="gp-datepicker"
-                popperClassName="gp-datepicker-popper"
-              />
-
-              <p className="mt-2 text-xs text-[var(--foreground-soft)]">
-                {messages.createPublicationModal.scheduledHint}
-              </p>
-            </div>
-          )}
-
-          <label className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
-            <input
-              type="checkbox"
-              checked={form.pinned}
-              onChange={(e) => handleChange('pinned', e.target.checked)}
-            />
-            {messages.createPublicationModal.pinnedLabel}
-          </label>
-
-          {errorMessage && (
-            <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">
-              {errorMessage}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 border-t border-[var(--border)] px-6 py-4">
             <button
               type="button"
               onClick={handleClose}
