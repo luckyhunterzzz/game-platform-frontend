@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import HeroesPageClient from '@/components/heroes/HeroesPageClient';
@@ -19,8 +20,23 @@ export default function HeroesPage() {
             <h2 className="mb-6 text-xl font-bold text-cyan-400">{messages.home.menuTitle}</h2>
 
             <ul className="space-y-4">
-              <li className="cursor-pointer text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]">
-                {messages.home.navHeroes}
+              <li>
+                <Link
+                  href="/"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.menuPageOne}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/heroes"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.menuPageTwo}
+                </Link>
               </li>
             </ul>
           </div>
