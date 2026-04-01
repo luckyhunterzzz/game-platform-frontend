@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Moon,
   Sun,
@@ -90,9 +91,12 @@ export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
           <Menu size={24} />
         </button>
 
-        <span className="hidden text-xl font-bold text-cyan-400 sm:inline-block">
-          G-Portal
-        </span>
+        <Link
+          href="/"
+          className="hidden text-xl font-bold text-cyan-400 transition hover:text-cyan-300 sm:inline-block"
+        >
+          GameOps
+        </Link>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">
