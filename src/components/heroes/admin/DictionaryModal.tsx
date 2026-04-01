@@ -22,9 +22,15 @@ export default function DictionaryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/75 p-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-[60] bg-black/75 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div className="flex min-h-full items-center justify-center">
-        <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+        <div
+          className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        >
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
             <h3 className="text-lg font-semibold text-[var(--foreground)]">{title}</h3>
 

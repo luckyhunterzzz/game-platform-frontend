@@ -289,7 +289,7 @@ export default function PublicHeroDetailsModal({
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.costumes}</div>
               {heroDetails.costumes.length === 0 ? (
@@ -305,9 +305,19 @@ export default function PublicHeroDetailsModal({
               {relatedBaseHero && (
                 <div className="mt-5 border-t border-[var(--border)] pt-5">
                   <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.baseHero}</div>
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground-soft)]">
-                    {relationName(relatedBaseHero.name, t.noValue)}
-                  </div>
+                  {onOpenRelatedHero ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRelatedHero(relatedBaseHero)}
+                      className="w-full rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-left text-sm text-cyan-200 transition hover:bg-cyan-400/15"
+                    >
+                      {relationName(relatedBaseHero.name, t.noValue)}
+                    </button>
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground-soft)]">
+                      {relationName(relatedBaseHero.name, t.noValue)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -315,7 +325,7 @@ export default function PublicHeroDetailsModal({
             <div className="space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.baseStats}</div>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
                     {t.baseAttack}: {heroCard.baseAttack ?? t.noValue}
                   </div>
@@ -356,7 +366,10 @@ export default function PublicHeroDetailsModal({
       )}
 
       {imagePreviewOpen && resolvedImageUrl && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setImagePreviewOpen(false)}
+        >
           <button
             type="button"
             onClick={() => setImagePreviewOpen(false)}
@@ -370,6 +383,7 @@ export default function PublicHeroDetailsModal({
             src={resolvedImageUrl}
             alt={heroDetails?.name ?? heroCard?.name ?? 'Hero image'}
             className="max-h-[92vh] max-w-[92vw] object-contain"
+            onClick={(event) => event.stopPropagation()}
           />
         </div>
       )}
