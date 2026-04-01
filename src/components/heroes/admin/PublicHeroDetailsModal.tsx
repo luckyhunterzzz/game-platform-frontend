@@ -47,17 +47,32 @@ export type PublicHeroDetailsItem = {
   releaseDate?: string | null;
 };
 
+export type PublicHeroVariantSummaryItem = {
+  id: number;
+  slug: string;
+  name: string;
+  imageUrl?: string | null;
+  elementName?: string | null;
+  rarityName?: string | null;
+  rarityStars?: number | null;
+};
+
+export type PublicHeroVariantsItem = {
+  currentHero: PublicHeroDetailsItem;
+  baseHero: PublicHeroVariantSummaryItem;
+  costumes: PublicHeroVariantSummaryItem[];
+};
+
 type PublicHeroDetailsModalProps = {
   open: boolean;
   locale: 'RU' | 'EN';
   heroCard: PublicHeroCardItem | null;
   heroDetails: PublicHeroDetailsItem | null;
+  heroVariants?: PublicHeroVariantsItem | null;
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  relatedBaseHero?: PublicHeroCardItem | null;
-  findHeroCardBySlug?: (slug: string) => PublicHeroCardItem | null;
-  onOpenRelatedHero?: (hero: PublicHeroCardItem) => void;
+  onOpenRelatedHero?: (slug: string) => void;
 };
 
 function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallback: string) {
@@ -84,11 +99,10 @@ export default function PublicHeroDetailsModal({
   locale,
   heroCard,
   heroDetails,
+  heroVariants = null,
   loading,
   error,
   onClose,
-  relatedBaseHero = null,
-  findHeroCardBySlug,
   onOpenRelatedHero,
 }: PublicHeroDetailsModalProps) {
   const [computedStatsOpen, setComputedStatsOpen] = useState(false);
@@ -166,17 +180,27 @@ export default function PublicHeroDetailsModal({
 
   const releaseDate = formatDate(heroDetails?.releaseDate, locale, t.noValue);
   const resolvedImageUrl = heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
+  const currentHeroSlug = heroDetails?.slug ?? heroCard?.slug ?? null;
+  const currentHeroIsCostume =
+    heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
+  const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
+  const resolvedCostumes = heroVariants?.costumes ?? [];
 
   const renderRelatedHeroChip = (slug: string, name: string, key: string | number) => {
-    const relatedHero = findHeroCardBySlug?.(slug) ?? null;
+    const isCurrent = currentHeroSlug === slug;
 
-    if (relatedHero && onOpenRelatedHero) {
+    if (onOpenRelatedHero) {
       return (
         <button
           key={key}
           type="button"
-          onClick={() => onOpenRelatedHero(relatedHero)}
-          className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200 transition hover:bg-cyan-400/15"
+          onClick={() => onOpenRelatedHero(slug)}
+          disabled={isCurrent}
+          className={`rounded-full border px-3 py-2 text-sm transition ${
+            isCurrent
+              ? 'cursor-default border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200'
+              : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
+          }`}
         >
           {name}
         </button>
@@ -243,7 +267,8 @@ export default function PublicHeroDetailsModal({
                   {t.element}: {heroDetails.element?.name ?? heroCard.elementName ?? t.noValue}
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.rarity}: {heroCard.rarityName} ({t.rarityStars(heroCard.rarityStars)})
+                  {t.rarity}:{' '}
+                  {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   {t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}
@@ -290,36 +315,36 @@ export default function PublicHeroDetailsModal({
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.costumes}</div>
-              {heroDetails.costumes.length === 0 ? (
-                <div className="text-sm text-[var(--foreground-soft)]">{t.noCostumes}</div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {heroDetails.costumes.map((costume) =>
-                    renderRelatedHeroChip(costume.slug, costume.name, costume.id),
-                  )}
-                </div>
-              )}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.costumes}</div>
+                {resolvedCostumes.length === 0 ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">{t.noCostumes}</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {resolvedCostumes.map((costume) =>
+                      renderRelatedHeroChip(costume.slug, costume.name, costume.id),
+                    )}
+                  </div>
+                )}
 
-              {relatedBaseHero && (
-                <div className="mt-5 border-t border-[var(--border)] pt-5">
-                  <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.baseHero}</div>
-                  {onOpenRelatedHero ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenRelatedHero(relatedBaseHero)}
-                      className="w-full rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-left text-sm text-cyan-200 transition hover:bg-cyan-400/15"
-                    >
-                      {relationName(relatedBaseHero.name, t.noValue)}
-                    </button>
-                  ) : (
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground-soft)]">
-                      {relationName(relatedBaseHero.name, t.noValue)}
-                    </div>
-                  )}
-                </div>
-              )}
+                {heroVariants?.baseHero && currentHeroIsCostume && (
+                  <div className="mt-5 border-t border-[var(--border)] pt-5">
+                    <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.baseHero}</div>
+                    {onOpenRelatedHero ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenRelatedHero(heroVariants.baseHero.slug)}
+                        className="w-full rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-left text-sm text-cyan-200 transition hover:bg-cyan-400/15"
+                      >
+                        {relationName(heroVariants.baseHero.name, t.noValue)}
+                      </button>
+                    ) : (
+                      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground-soft)]">
+                        {relationName(heroVariants.baseHero.name, t.noValue)}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
 
             <div className="space-y-4">
