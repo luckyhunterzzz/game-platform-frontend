@@ -14,6 +14,7 @@ export const enMessages: Messages = {
   common: {
     languageEnglish: 'English',
     languageRussian: 'Russian',
+    comingSoon: 'Coming soon',
   },
   home: {
     heroSubtitle: 'Fan Community Hub',
@@ -29,6 +30,40 @@ export const enMessages: Messages = {
     diagnosticsAdminTest: '🛡️ Test Admin API',
     diagnosticsNoAccess: 'Login as admin to test admin API',
     diagnosticsUnknownError: 'Unknown error',
+  },
+  heroes: {
+    pageTitle: 'Heroes Catalog',
+    pageSubtitle: 'Dictionaries and admin foundation for the heroes module.',
+    adminBadge: 'Admin mode',
+    publicBadge: 'Public mode',
+    accessDeniedTitle: 'No access to admin dictionaries',
+    accessDeniedDescription:
+      'Login with ROLE_admin or ROLE_superadmin to manage dictionaries.',
+    workspacePlaceholderTitle: 'Dictionary workspace',
+    workspacePlaceholderDescription:
+      'On the next step we will connect list view, create modal, details, update and delete.',
+  },
+  heroDictionaries: {
+    heroes: 'Heroes',
+    elements: 'Elements',
+    rarities: 'Rarities',
+    heroClasses: 'Hero Classes',
+    manaSpeeds: 'Mana Speeds',
+    families: 'Families',
+    alphaTalents: 'Alpha Talents',
+    passiveSkills: 'Passive Skills',
+    emblemProfiles: 'Emblem Profiles',
+    evolutionMultipliers: 'Evolution Multipliers',
+    heroesDescription: 'Create, review, edit and delete hero cards.',
+    elementsDescription: 'Base elemental groups for heroes.',
+    raritiesDescription: 'Rarity tiers and star counts.',
+    heroClassesDescription: 'Hero classes, branches and text descriptions.',
+    manaSpeedsDescription: 'Mana speed entries and explanations.',
+    familiesDescription: 'Hero families and descriptions.',
+    alphaTalentsDescription: 'Alpha talent dictionary entries.',
+    passiveSkillsDescription: 'Passive skills and descriptions.',
+    emblemProfilesDescription: 'Class emblem bonuses by path.',
+    evolutionMultipliersDescription: 'Evolution stage multipliers by rarity.',
   },
   publications: {
     title: 'Publications',
