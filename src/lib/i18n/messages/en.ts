@@ -19,8 +19,8 @@ export const enMessages: Messages = {
   home: {
     heroSubtitle: 'Fan Community Hub',
     menuTitle: 'Menu',
-    menuPageOne: 'Page 1 (Template)',
-    menuPageTwo: 'Page 2 (Template)',
+    menuPageOne: 'Home',
+    menuPageTwo: 'Heroes',
     navHeroes: 'Heroes',
     navEvents: 'Events',
     navGuides: 'Guides',

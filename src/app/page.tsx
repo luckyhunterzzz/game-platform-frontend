@@ -66,11 +66,23 @@ export default function HomePage() {
             </h2>
 
             <ul className="space-y-4">
-              <li className="cursor-pointer text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]">
-                {messages.home.menuPageOne}
+              <li>
+                <Link
+                  href="/"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.menuPageOne}
+                </Link>
               </li>
-              <li className="cursor-pointer text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]">
-                {messages.home.menuPageTwo}
+              <li>
+                <Link
+                  href="/heroes"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.menuPageTwo}
+                </Link>
               </li>
             </ul>
           </div>
