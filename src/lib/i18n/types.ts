@@ -16,6 +16,7 @@ export type Messages = {
   common: {
     languageEnglish: string;
     languageRussian: string;
+    comingSoon: string;
   };
   home: {
     heroSubtitle: string;
@@ -31,6 +32,38 @@ export type Messages = {
     diagnosticsAdminTest: string;
     diagnosticsNoAccess: string;
     diagnosticsUnknownError: string;
+  };
+  heroes: {
+    pageTitle: string;
+    pageSubtitle: string;
+    adminBadge: string;
+    publicBadge: string;
+    accessDeniedTitle: string;
+    accessDeniedDescription: string;
+    workspacePlaceholderTitle: string;
+    workspacePlaceholderDescription: string;
+  };
+  heroDictionaries: {
+    heroes: string;
+    elements: string;
+    rarities: string;
+    heroClasses: string;
+    manaSpeeds: string;
+    families: string;
+    alphaTalents: string;
+    passiveSkills: string;
+    emblemProfiles: string;
+    evolutionMultipliers: string;
+    heroesDescription: string;
+    elementsDescription: string;
+    raritiesDescription: string;
+    heroClassesDescription: string;
+    manaSpeedsDescription: string;
+    familiesDescription: string;
+    alphaTalentsDescription: string;
+    passiveSkillsDescription: string;
+    emblemProfilesDescription: string;
+    evolutionMultipliersDescription: string;
   };
   publications: {
     title: string;

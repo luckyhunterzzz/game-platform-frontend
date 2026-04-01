@@ -90,7 +90,11 @@ export function useApi() {
           );
         }
 
-        throw new ApiError(`Request failed with status ${response.status}`, response.status, parsedBody);
+        throw new ApiError(
+          `Request failed with status ${response.status}`,
+          response.status,
+          parsedBody,
+        );
       }
 
       return parsedBody as TResponse;
@@ -113,25 +117,79 @@ export function useApi() {
     [apiJson],
   );
 
-  const apiPostFormData = useCallback(
-    async <TResponse,>(
+  const apiPutJson = useCallback(
+    async <TRequest, TResponse>(
       path: string,
-      formData: FormData,
+      body: TRequest,
       init: RequestInit = {},
     ): Promise<TResponse> => {
       return apiJson<TResponse>(path, {
         ...init,
-        method: 'POST',
-        body: formData,
+        method: 'PUT',
+        body: JSON.stringify(body),
       });
     },
     [apiJson],
   );
+
+  const apiPatchJson = useCallback(
+    async <TRequest, TResponse>(
+      path: string,
+      body: TRequest,
+      init: RequestInit = {},
+    ): Promise<TResponse> => {
+      return apiJson<TResponse>(path, {
+        ...init,
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+    },
+    [apiJson],
+  );
+
+  const apiDelete = useCallback(
+    async <TResponse,>(path: string, init: RequestInit = {}): Promise<TResponse> => {
+      return apiJson<TResponse>(path, {
+        ...init,
+        method: 'DELETE',
+      });
+    },
+    [apiJson],
+  );
+
+  const apiDeleteVoid = useCallback(
+    async (path: string, init: RequestInit = {}): Promise<void> => {
+      await apiFetch(path, {
+        ...init,
+        method: 'DELETE',
+      });
+    },
+    [apiFetch],
+  );
+
+  const apiPostFormData = useCallback(
+  async <TResponse>(
+    path: string,
+    formData: FormData,
+    init: RequestInit = {},
+  ): Promise<TResponse> => {
+    return apiJson<TResponse>(path, {
+      ...init,
+      method: 'POST',
+      body: formData,
+    });
+  },
+  [apiJson],
+);
 
   return {
     apiFetch,
     apiJson,
     apiPostJson,
     apiPostFormData,
+    apiPutJson,
+    apiPatchJson,
+    apiDelete,
+    apiDeleteVoid,
   };
 }

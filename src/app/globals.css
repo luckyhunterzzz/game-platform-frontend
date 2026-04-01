@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "react-datepicker/dist/react-datepicker.css";
 
+:root {
+  --font-geist-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-geist-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
 html.light {
   --background: #f1f5f9;
   --foreground: #0f172a;

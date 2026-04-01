@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -9,6 +10,11 @@ import { useApi } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
+type QuickLinkItem = {
+  label: string;
+  href?: string;
+};
+
 export default function HomePage() {
   const [log, setLog] = useState<unknown>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -17,12 +23,12 @@ export default function HomePage() {
   const { roles, authenticated, loading } = useAuth();
   const { messages } = useI18n();
 
-  const quickLinks = useMemo(
+  const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
-      messages.home.navHeroes,
-      messages.home.navEvents,
-      messages.home.navGuides,
-      messages.home.navAlliances,
+      { label: messages.home.navHeroes, href: '/heroes' },
+      { label: messages.home.navEvents },
+      { label: messages.home.navGuides },
+      { label: messages.home.navAlliances },
     ],
     [
       messages.home.navHeroes,
@@ -88,21 +94,41 @@ export default function HomePage() {
         </div>
 
         <div className="mb-12 flex flex-wrap justify-center gap-4">
-          {quickLinks.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)]"
-            >
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-hover)] transition-transform group-hover:scale-110">
-                <div className="h-6 w-6 rounded-full border border-blue-500/40 bg-blue-500/20" />
-              </div>
+          {quickLinks.map((item) => {
+            const content = (
+              <>
+                <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-hover)] transition-transform group-hover:scale-110">
+                  <div className="h-6 w-6 rounded-full border border-blue-500/40 bg-blue-500/20" />
+                </div>
 
-              <span className="text-xs font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-400">
-                {item}
-              </span>
-            </button>
-          ))}
+                <span className="text-xs font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-400">
+                  {item.label}
+                </span>
+              </>
+            );
+
+            if (item.href) {
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)]"
+                >
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)]"
+              >
+                {content}
+              </button>
+            );
+          })}
         </div>
 
         <div className="w-full">
