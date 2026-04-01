@@ -38,6 +38,8 @@ import LocalizedTextareaFields from './LocalizedTextareaFields';
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
   type PublicHeroDetailsItem,
+  type PublicHeroVariantSummaryItem,
+  type PublicHeroVariantsItem,
 } from './PublicHeroDetailsModal';
 
 const PUBLIC_API = '/api/v1/public/heroes';
@@ -59,6 +61,12 @@ type HeroPageResponse = {
   page: number;
   totalElements: number;
   totalPages: number;
+};
+
+type PublicHeroVariantsResponse = {
+  currentHero: PublicHeroDetailsItem;
+  baseHero: PublicHeroVariantSummaryItem;
+  costumes: PublicHeroVariantSummaryItem[];
 };
 
 type AdminHeroResponseDto = {
@@ -258,6 +266,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
+  const [selectedPublicHeroVariants, setSelectedPublicHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
   const [items, setItems] = useState<HeroItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
@@ -471,19 +480,60 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
   }, [apiJson]);
 
-  const loadPublicDetails = useCallback(async (slug: string) => {
+  const findBaseHeroCardBySlug = useCallback((slug: string) => {
+    if (!publicPage) return null;
+    return publicPage.items.find((item) => item.slug === slug) ?? null;
+  }, [publicPage]);
+
+  const toSyntheticPublicHeroCard = useCallback(
+    (details: PublicHeroDetailsItem, variants: PublicHeroVariantsResponse): PublicHeroCardItem => ({
+      id: details.id,
+      slug: details.slug,
+      name: details.name,
+      imageUrl: details.imageUrl ?? variants.baseHero.imageUrl ?? null,
+      elementName:
+        details.element?.name ??
+        variants.costumes.find((item) => item.slug === details.slug)?.elementName ??
+        variants.baseHero.elementName ??
+        '',
+      rarityName:
+        variants.costumes.find((item) => item.slug === details.slug)?.rarityName ??
+        variants.baseHero.rarityName ??
+        '',
+      rarityStars:
+        details.rarity?.stars ??
+        variants.costumes.find((item) => item.slug === details.slug)?.rarityStars ??
+        variants.baseHero.rarityStars ??
+        0,
+      heroClassName: details.heroClass?.name ?? '',
+      manaSpeedName: details.manaSpeed?.name ?? '',
+      familyName: details.family?.name ?? null,
+      alphaTalentName: details.alphaTalent?.name ?? null,
+      baseAttack: null,
+      baseArmor: null,
+      baseHp: null,
+    }),
+    [],
+  );
+
+  const loadPublicVariants = useCallback(async (slug: string) => {
     setLoadingPublicDetails(true);
     setPublicDetailsError(null);
     try {
-      const response = await apiJson<PublicHeroDetailsItem>(`${PUBLIC_API}/${slug}`);
-      setSelectedPublicHeroDetails(response);
+      const response = await apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}`);
+      setSelectedPublicHeroDetails(response.currentHero);
+      setSelectedPublicHeroVariants(response);
+      setSelectedPublicHero(
+        findBaseHeroCardBySlug(response.currentHero.slug) ?? toSyntheticPublicHeroCard(response.currentHero, response),
+      );
     } catch (error) {
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
+      setSelectedPublicHeroVariants(null);
     } finally {
       setLoadingPublicDetails(false);
     }
-  }, [apiJson]);
+  }, [apiJson, findBaseHeroCardBySlug, locale, toSyntheticPublicHeroCard]);
 
   useEffect(() => {
     void loadList();
@@ -500,16 +550,6 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       void loadDetails(selectedId);
     }
   }, [adminMode, selectedId, loadDetails]);
-
-  const relatedBaseHero = useMemo(() => {
-    if (!selectedPublicHeroDetails?.baseHeroId || !publicPage) return null;
-    return publicPage.items.find((item) => item.id === selectedPublicHeroDetails.baseHeroId) ?? null;
-  }, [publicPage, selectedPublicHeroDetails]);
-
-  const findPublicHeroBySlug = useCallback((slug: string) => {
-    if (!publicPage) return null;
-    return publicPage.items.find((item) => item.slug === slug) ?? null;
-  }, [publicPage]);
 
   const resetImageInput = (mode: 'create' | 'edit') => {
     const ref = mode === 'create' ? createImageInputRef : editImageInputRef;
@@ -869,15 +909,25 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const handleOpenPublicHero = async (hero: PublicHeroCardItem) => {
     setSelectedPublicHero(hero);
     setSelectedPublicHeroDetails(null);
+    setSelectedPublicHeroVariants(null);
     setPublicDetailsError(null);
     setPublicDetailsOpen(true);
-    await loadPublicDetails(hero.slug);
+    await loadPublicVariants(hero.slug);
+  };
+
+  const handleOpenPublicHeroBySlug = async (slug: string) => {
+    setSelectedPublicHeroDetails(null);
+    setSelectedPublicHeroVariants(null);
+    setPublicDetailsError(null);
+    setPublicDetailsOpen(true);
+    await loadPublicVariants(slug);
   };
 
   const handleClosePublicHero = () => {
     setPublicDetailsOpen(false);
     setSelectedPublicHero(null);
     setSelectedPublicHeroDetails(null);
+    setSelectedPublicHeroVariants(null);
     setPublicDetailsError(null);
   };
 
@@ -940,12 +990,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           locale={locale}
           heroCard={selectedPublicHero}
           heroDetails={selectedPublicHeroDetails}
+          heroVariants={selectedPublicHeroVariants}
           loading={loadingPublicDetails}
           error={publicDetailsError}
           onClose={handleClosePublicHero}
-          relatedBaseHero={relatedBaseHero}
-          findHeroCardBySlug={findPublicHeroBySlug}
-          onOpenRelatedHero={(hero) => void handleOpenPublicHero(hero)}
+          onOpenRelatedHero={(slug) => void handleOpenPublicHeroBySlug(slug)}
         />
       </>
     );
