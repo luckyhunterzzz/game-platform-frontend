@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
-import type { PublicationFeedResponse, PublicationItem } from '@/lib/types/publication';
+import type {
+  PublicationAdminDetails,
+  PublicationFeedResponse,
+  PublicationItem,
+} from '@/lib/types/publication';
+import { PublicationStatus } from '@/lib/types/publication';
 import CreatePublicationModal from './CreatePublicationModal';
 import PublicationCard from './PublicationCard';
 
@@ -14,7 +19,7 @@ const SUCCESS_MESSAGE_TIMEOUT_MS = 4000;
 export default function PublicationsSection() {
   const { apiJson } = useApi();
   const { roles, authenticated } = useAuth();
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
 
   const [items, setItems] = useState<PublicationItem[]>([]);
   const [page, setPage] = useState(0);
@@ -23,7 +28,12 @@ export default function PublicationsSection() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPublication, setEditingPublication] =
+    useState<PublicationAdminDetails | null>(null);
+  const [activeAdminStatus, setActiveAdminStatus] = useState<PublicationStatus>(
+    PublicationStatus.PUBLISHED,
+  );
 
   const successTimerRef = useRef<number | null>(null);
 
@@ -55,11 +65,20 @@ export default function PublicationsSection() {
           setLoading(true);
         }
 
-        const response = await apiJson<PublicationFeedResponse>(
-          `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}`,
-        );
+        const endpoint = isAdmin
+          ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}`
+          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}`;
 
-        setItems((prev) => (append ? [...prev, ...response.items] : response.items));
+        const response = await apiJson<PublicationFeedResponse>(endpoint);
+
+        const nextItems = isAdmin
+          ? response.items.map((item) => ({
+              ...item,
+              status: item.status ?? activeAdminStatus,
+            }))
+          : response.items;
+
+        setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));
         setPage(response.page);
         setHasNext(response.hasNext);
       } catch (error) {
@@ -75,7 +94,7 @@ export default function PublicationsSection() {
         setLoadingMore(false);
       }
     },
-    [apiJson, messages.publications.loadError],
+    [activeAdminStatus, apiJson, isAdmin, messages.publications.loadError],
   );
 
   useEffect(() => {
@@ -92,10 +111,53 @@ export default function PublicationsSection() {
     await loadPage(page + 1, true);
   };
 
-  const handleCreated = async () => {
+  const handleSaved = async (mode: 'create' | 'edit') => {
     await loadPage(0, false);
-    showTemporarySuccess(messages.publications.createSuccess);
+    showTemporarySuccess(
+      mode === 'create'
+        ? messages.publications.createSuccess
+        : locale === 'ru'
+          ? 'Публикация успешно обновлена.'
+          : 'Publication updated successfully.',
+    );
   };
+
+  const handleOpenCreate = () => {
+    setEditingPublication(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = async (publicationId: string) => {
+    try {
+      setErrorMessage(null);
+
+      const publication = await apiJson<PublicationAdminDetails>(
+        `/api/v1/admin/publications/${publicationId}`,
+      );
+
+      setEditingPublication(publication);
+      setIsModalOpen(true);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message);
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(messages.publications.loadError);
+      }
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingPublication(null);
+  };
+
+  const publicationTabs = [
+    { status: PublicationStatus.PUBLISHED, label: messages.publications.publishedTab },
+    { status: PublicationStatus.DRAFT, label: messages.publications.draftsTab },
+    { status: PublicationStatus.SCHEDULED, label: messages.publications.scheduledTab },
+  ];
 
   return (
     <section className="mx-auto mt-10 w-full max-w-5xl px-4">
@@ -113,34 +175,33 @@ export default function PublicationsSection() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300"
-            >
-              {messages.publications.publishedTab}
-            </button>
-
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] opacity-70"
-            >
-              {messages.publications.draftsTab}
-            </button>
-
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] opacity-70"
-            >
-              {messages.publications.scheduledTab}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(true)}
+              onClick={handleOpenCreate}
               className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15"
             >
               {messages.publications.createButton}
             </button>
+
+            {publicationTabs.map((tab) => {
+              const active = activeAdminStatus === tab.status;
+
+              return (
+                <button
+                  key={tab.status}
+                  type="button"
+                  onClick={() => {
+                    setActiveAdminStatus(tab.status);
+                    setPage(0);
+                  }}
+                  className={
+                    active
+                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
+                      : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                  }
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -171,7 +232,13 @@ export default function PublicationsSection() {
       ) : (
         <div className="space-y-4">
           {items.map((publication) => (
-            <PublicationCard key={publication.id} publication={publication} />
+            <PublicationCard
+              key={publication.id}
+              publication={publication}
+              showStatus={isAdmin}
+              canEdit={isAdmin}
+              onEdit={isAdmin ? () => void handleOpenEdit(publication.id) : undefined}
+            />
           ))}
         </div>
       )}
@@ -192,9 +259,11 @@ export default function PublicationsSection() {
       )}
 
       <CreatePublicationModal
-        open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onCreated={handleCreated}
+        open={isModalOpen}
+        mode={editingPublication ? 'edit' : 'create'}
+        initialPublication={editingPublication}
+        onClose={handleCloseModal}
+        onSaved={handleSaved}
       />
     </section>
   );

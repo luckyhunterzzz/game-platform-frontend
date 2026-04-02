@@ -11,6 +11,8 @@ import type {
 type PublicationCardProps = {
   publication: PublicationItem;
   showStatus?: boolean;
+  canEdit?: boolean;
+  onEdit?: () => void;
 };
 
 const PREVIEW_LENGTH = 260;
@@ -46,6 +48,8 @@ function formatPublishedAt(
 export default function PublicationCard({
   publication,
   showStatus = false,
+  canEdit = false,
+  onEdit,
 }: PublicationCardProps) {
   const { locale, messages } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -68,8 +72,9 @@ export default function PublicationCard({
   const publicationTypeLabel =
     messages.publicationType[publication.type as PublicationType];
 
-  const publicationStatusLabel =
-    messages.publicationStatus[publication.status as PublicationStatus];
+  const publicationStatusLabel = publication.status
+    ? messages.publicationStatus[publication.status as PublicationStatus]
+    : null;
 
   useEffect(() => {
     if (!imagePreviewOpen) {
@@ -98,10 +103,20 @@ export default function PublicationCard({
             </span>
           )}
 
-          {showStatus && (
+          {showStatus && publicationStatusLabel && (
             <span className="rounded-full border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-1 text-xs font-semibold text-[var(--foreground-muted)]">
               {publicationStatusLabel}
             </span>
+          )}
+
+          {canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300 transition hover:bg-sky-400/15"
+            >
+              {locale === 'ru' ? 'Редактировать' : 'Edit'}
+            </button>
           )}
         </div>
 
@@ -165,7 +180,7 @@ export default function PublicationCard({
                 onClick={() => setImagePreviewOpen(false)}
                 className="absolute right-2 top-2 z-10 rounded-lg border border-white/20 bg-black/50 px-3 py-1 text-sm text-white transition hover:bg-black/70"
               >
-                ×
+                X
               </button>
 
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -15,7 +15,7 @@ export enum PublicationStatus {
 export interface PublicationItem {
   id: string;
   type: PublicationType;
-  status: PublicationStatus;
+  status?: PublicationStatus;
   title: string;
   content?: string | null;
   imageUrl?: string | null;
@@ -32,13 +32,19 @@ export interface PublicationFeedResponse {
   hasNext: boolean;
 }
 
-export interface CreatePublicationRequest {
+export interface PublicationUpsertRequest {
   title: string;
   content?: string | null;
   type: PublicationType;
   status: PublicationStatus;
   pinned: boolean;
   publishedAt?: string | null;
+  imageBucket?: string | null;
+  imageObjectKey?: string | null;
+}
+
+export interface PublicationAdminDetails extends PublicationItem {
+  status: PublicationStatus;
   imageBucket?: string | null;
   imageObjectKey?: string | null;
 }
