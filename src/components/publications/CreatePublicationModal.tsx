@@ -7,16 +7,19 @@ import { enGB, ru } from 'date-fns/locale';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import {
-  type CreatePublicationRequest,
   type ImageUploadResponse,
+  type PublicationAdminDetails,
+  type PublicationUpsertRequest,
   PublicationStatus,
   PublicationType,
 } from '@/lib/types/publication';
 
 type CreatePublicationModalProps = {
   open: boolean;
+  mode?: 'create' | 'edit';
+  initialPublication?: PublicationAdminDetails | null;
   onClose: () => void;
-  onCreated: () => void | Promise<void>;
+  onSaved: (mode: 'create' | 'edit') => void | Promise<void>;
 };
 
 const AVAILABLE_CREATE_STATUSES = [
@@ -26,11 +29,12 @@ const AVAILABLE_CREATE_STATUSES = [
 ];
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 registerLocale('ru', ru);
 registerLocale('en-GB', enGB);
 
-function createDefaultForm(): CreatePublicationRequest {
+function createDefaultForm(): PublicationUpsertRequest {
   return {
     title: '',
     content: '',
@@ -104,8 +108,10 @@ function getImageSectionText(locale: 'ru' | 'en') {
       uploaded: 'Изображение загружено',
       remove: 'Удалить изображение',
       invalidType: 'Можно загружать только PNG, JPEG или WEBP.',
+      invalidSize: 'Размер изображения не должен превышать 5 MB.',
       uploadError: 'Не удалось загрузить изображение.',
-      uploadErrorBlock: 'Сначала исправьте ошибку загрузки изображения: удалите файл или загрузите новый.',
+      uploadErrorBlock:
+        'Сначала исправьте ошибку загрузки изображения: удалите файл или загрузите новый.',
     };
   }
 
@@ -116,23 +122,67 @@ function getImageSectionText(locale: 'ru' | 'en') {
     uploaded: 'Image uploaded',
     remove: 'Remove image',
     invalidType: 'Only PNG, JPEG or WEBP images are allowed.',
+    invalidSize: 'Image size must not exceed 5 MB.',
     uploadError: 'Failed to upload image.',
     uploadErrorBlock: 'Fix the image upload error first: remove the file or upload another one.',
   };
 }
 
+function getModalText(locale: 'ru' | 'en', mode: 'create' | 'edit') {
+  if (locale === 'ru') {
+    return {
+      title: mode === 'create' ? 'Создать публикацию' : 'Редактировать публикацию',
+      submit: mode === 'create' ? 'Создать' : 'Сохранить',
+      submitting: mode === 'create' ? 'Создание...' : 'Сохранение...',
+      error:
+        mode === 'create'
+          ? 'Не удалось создать публикацию.'
+          : 'Не удалось обновить публикацию.',
+    };
+  }
+
+  return {
+    title: mode === 'create' ? 'Create publication' : 'Edit publication',
+    submit: mode === 'create' ? 'Create' : 'Save',
+    submitting: mode === 'create' ? 'Creating...' : 'Saving...',
+    error: mode === 'create' ? 'Failed to create publication.' : 'Failed to update publication.',
+  };
+}
+
+function toFormFromPublication(publication: PublicationAdminDetails): PublicationUpsertRequest {
+  return {
+    title: publication.title,
+    content: publication.content ?? '',
+    type: publication.type,
+    status: publication.status,
+    pinned: publication.pinned,
+    publishedAt: publication.publishedAt ?? null,
+    imageBucket: publication.imageBucket ?? null,
+    imageObjectKey: publication.imageObjectKey ?? null,
+  };
+}
+
+function getFileNameFromObjectKey(value?: string | null): string | null {
+  if (!value) return null;
+  const parts = value.split('/');
+  return parts.at(-1) ?? value;
+}
+
 export default function CreatePublicationModal({
   open,
+  mode = 'create',
+  initialPublication = null,
   onClose,
-  onCreated,
+  onSaved,
 }: CreatePublicationModalProps) {
-  const { apiPostJson, apiPostFormData } = useApi();
+  const { apiPostJson, apiPostFormData, apiPutJson } = useApi();
   const { locale, messages } = useI18n();
   const imageText = getImageSectionText(locale);
+  const modalText = getModalText(locale, mode);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [form, setForm] = useState<CreatePublicationRequest>(createDefaultForm());
+  const [form, setForm] = useState<PublicationUpsertRequest>(createDefaultForm());
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -218,14 +268,42 @@ export default function CreatePublicationModal({
     resetFileInput();
   };
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    revokePreviewUrl(uploadedImageUrl);
+
+    if (mode === 'edit' && initialPublication) {
+      setForm(toFormFromPublication(initialPublication));
+      setUploadedImageUrl(initialPublication.imageUrl ?? null);
+      setUploadedFileName(getFileNameFromObjectKey(initialPublication.imageObjectKey));
+      setImageUploadError(null);
+      setErrorMessage(null);
+      setUploadingImage(false);
+      resetFileInput();
+      return;
+    }
+
+    setForm(createDefaultForm());
+    setUploadedImageUrl(null);
+    setUploadedFileName(null);
+    setImageUploadError(null);
+    setErrorMessage(null);
+    setUploadingImage(false);
+    resetFileInput();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mode, initialPublication]);
+
   const handleClose = () => {
     resetForm();
     onClose();
   };
 
-  const handleChange = <K extends keyof CreatePublicationRequest>(
+  const handleChange = <K extends keyof PublicationUpsertRequest>(
     key: K,
-    value: CreatePublicationRequest[K],
+    value: PublicationUpsertRequest[K],
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -261,6 +339,12 @@ export default function CreatePublicationModal({
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       resetUploadedImageState();
       setImageUploadError(imageText.invalidType);
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      resetUploadedImageState();
+      setImageUploadError(imageText.invalidSize);
       return;
     }
 
@@ -340,18 +424,25 @@ export default function CreatePublicationModal({
         }
       }
 
-      const payload: CreatePublicationRequest = {
+      const payload: PublicationUpsertRequest = {
         ...form,
         publishedAt: form.status === PublicationStatus.SCHEDULED ? form.publishedAt : null,
       };
 
-      await apiPostJson<CreatePublicationRequest, unknown>(
-        '/api/v1/admin/publications',
-        payload,
-      );
+      if (mode === 'edit' && initialPublication) {
+        await apiPutJson<PublicationUpsertRequest, unknown>(
+          `/api/v1/admin/publications/${initialPublication.id}`,
+          payload,
+        );
+      } else {
+        await apiPostJson<PublicationUpsertRequest, unknown>(
+          '/api/v1/admin/publications',
+          payload,
+        );
+      }
 
       resetForm();
-      await onCreated();
+      await onSaved(mode);
       onClose();
     } catch (error) {
       if (error instanceof ApiError) {
@@ -359,7 +450,7 @@ export default function CreatePublicationModal({
       } else if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage(messages.createPublicationModal.createError);
+        setErrorMessage(modalText.error);
       }
     } finally {
       setSubmitting(false);
@@ -373,10 +464,10 @@ export default function CreatePublicationModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/65 px-4 py-4 sm:py-6">
       <div className="flex min-h-full items-center justify-center">
-        <div className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
+        <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
             <h3 className="text-2xl font-semibold text-[var(--foreground)]">
-              {messages.createPublicationModal.title}
+              {modalText.title}
             </h3>
 
             <button
@@ -577,9 +668,7 @@ export default function CreatePublicationModal({
               disabled={!canSubmit}
               className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting
-                ? messages.createPublicationModal.submitting
-                : messages.createPublicationModal.submit}
+              {submitting ? modalText.submitting : modalText.submit}
             </button>
           </div>
         </div>
