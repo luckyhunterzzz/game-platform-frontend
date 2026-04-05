@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { enGB, ru } from 'date-fns/locale';
 
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
+import { EMPTY_LOCALIZED_TEXT, type LocalizedText } from '@/lib/types/hero';
 import {
   type ImageUploadResponse,
   type PublicationAdminDetails,
@@ -34,10 +35,17 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 registerLocale('ru', ru);
 registerLocale('en-GB', enGB);
 
+function cloneLocalizedText(value?: LocalizedText | null): LocalizedText {
+  return {
+    ru: value?.ru ?? '',
+    en: value?.en ?? '',
+  };
+}
+
 function createDefaultForm(): PublicationUpsertRequest {
   return {
-    title: '',
-    content: '',
+    titleJson: cloneLocalizedText(EMPTY_LOCALIZED_TEXT),
+    contentJson: cloneLocalizedText(EMPTY_LOCALIZED_TEXT),
     type: PublicationType.NEWS,
     status: PublicationStatus.PUBLISHED,
     pinned: false,
@@ -138,6 +146,17 @@ function getModalText(locale: 'ru' | 'en', mode: 'create' | 'edit') {
         mode === 'create'
           ? 'Не удалось создать публикацию.'
           : 'Не удалось обновить публикацию.',
+      titleRu: 'Заголовок RU',
+      titleEn: 'Title EN',
+      titleRuPlaceholder: 'Введите заголовок на русском',
+      titleEnPlaceholder: 'Enter title in English',
+      contentRu: 'Текст RU',
+      contentEn: 'Content EN',
+      contentRuPlaceholder: 'Введите текст публикации на русском',
+      contentEnPlaceholder: 'Enter publication text in English',
+      titlesBlock: 'Локализованные заголовки',
+      contentBlock: 'Локализованный текст',
+      titleRequired: 'Нужно заполнить хотя бы один заголовок.',
     };
   }
 
@@ -146,13 +165,24 @@ function getModalText(locale: 'ru' | 'en', mode: 'create' | 'edit') {
     submit: mode === 'create' ? 'Create' : 'Save',
     submitting: mode === 'create' ? 'Creating...' : 'Saving...',
     error: mode === 'create' ? 'Failed to create publication.' : 'Failed to update publication.',
+    titleRu: 'Title RU',
+    titleEn: 'Title EN',
+    titleRuPlaceholder: 'Enter title in Russian',
+    titleEnPlaceholder: 'Enter title in English',
+    contentRu: 'Content RU',
+    contentEn: 'Content EN',
+    contentRuPlaceholder: 'Enter publication text in Russian',
+    contentEnPlaceholder: 'Enter publication text in English',
+    titlesBlock: 'Localized titles',
+    contentBlock: 'Localized content',
+    titleRequired: 'At least one title is required.',
   };
 }
 
 function toFormFromPublication(publication: PublicationAdminDetails): PublicationUpsertRequest {
   return {
-    title: publication.title,
-    content: publication.content ?? '',
+    titleJson: cloneLocalizedText(publication.titleJson),
+    contentJson: cloneLocalizedText(publication.contentJson),
     type: publication.type,
     status: publication.status,
     pinned: publication.pinned,
@@ -203,13 +233,13 @@ export default function CreatePublicationModal({
 
   const maxSelectableTime = scheduledDate ? endOfDay(scheduledDate) : endOfDay(now);
 
-  const canSubmit = useMemo(() => {
-    if (submitting || uploadingImage) return false;
-    if (form.title.trim().length === 0) return false;
-    if (isScheduled && !form.publishedAt) return false;
-    if (imageUploadError) return false;
-    return true;
-  }, [form.title, form.publishedAt, isScheduled, submitting, uploadingImage, imageUploadError]);
+  const hasTitle = form.titleJson.ru.trim().length > 0 || form.titleJson.en.trim().length > 0;
+  const canSubmit =
+    !submitting &&
+    !uploadingImage &&
+    !imageUploadError &&
+    hasTitle &&
+    (!isScheduled || Boolean(form.publishedAt));
 
   useEffect(() => {
     if (!open) {
@@ -299,6 +329,20 @@ export default function CreatePublicationModal({
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleLocalizedChange = (
+    key: 'titleJson' | 'contentJson',
+    localeKey: keyof LocalizedText,
+    value: string,
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [localeKey]: value,
+      },
+    }));
   };
 
   const handleChange = <K extends keyof PublicationUpsertRequest>(
@@ -401,6 +445,11 @@ export default function CreatePublicationModal({
       return;
     }
 
+    if (!hasTitle) {
+      setErrorMessage(modalText.titleRequired);
+      return;
+    }
+
     try {
       setSubmitting(true);
       setErrorMessage(null);
@@ -426,6 +475,8 @@ export default function CreatePublicationModal({
 
       const payload: PublicationUpsertRequest = {
         ...form,
+        titleJson: cloneLocalizedText(form.titleJson),
+        contentJson: cloneLocalizedText(form.contentJson),
         publishedAt: form.status === PublicationStatus.SCHEDULED ? form.publishedAt : null,
       };
 
@@ -480,30 +531,69 @@ export default function CreatePublicationModal({
           </div>
 
           <div className="overflow-y-auto px-6 py-5">
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                  {messages.createPublicationModal.titleLabel}
-                </label>
-                <input
-                  value={form.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-                  placeholder={messages.createPublicationModal.titlePlaceholder}
-                />
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-4 text-sm font-semibold text-[var(--foreground)]">
+                  {modalText.titlesBlock}
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                      {modalText.titleRu}
+                    </label>
+                    <input
+                      value={form.titleJson.ru}
+                      onChange={(e) => handleLocalizedChange('titleJson', 'ru', e.target.value)}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                      placeholder={modalText.titleRuPlaceholder}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                      {modalText.titleEn}
+                    </label>
+                    <input
+                      value={form.titleJson.en}
+                      onChange={(e) => handleLocalizedChange('titleJson', 'en', e.target.value)}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                      placeholder={modalText.titleEnPlaceholder}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                  {messages.createPublicationModal.contentLabel}
-                </label>
-                <textarea
-                  value={form.content ?? ''}
-                  onChange={(e) => handleChange('content', e.target.value)}
-                  rows={6}
-                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-                  placeholder={messages.createPublicationModal.contentPlaceholder}
-                />
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-4 text-sm font-semibold text-[var(--foreground)]">
+                  {modalText.contentBlock}
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                      {modalText.contentRu}
+                    </label>
+                    <textarea
+                      value={form.contentJson.ru}
+                      onChange={(e) => handleLocalizedChange('contentJson', 'ru', e.target.value)}
+                      rows={6}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                      placeholder={modalText.contentRuPlaceholder}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                      {modalText.contentEn}
+                    </label>
+                    <textarea
+                      value={form.contentJson.en}
+                      onChange={(e) => handleLocalizedChange('contentJson', 'en', e.target.value)}
+                      rows={6}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                      placeholder={modalText.contentEnPlaceholder}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
