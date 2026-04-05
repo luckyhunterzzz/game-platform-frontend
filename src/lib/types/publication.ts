@@ -1,3 +1,5 @@
+import type { LocalizedText } from './hero';
+
 export enum PublicationType {
   NEWS = 'NEWS',
   EVENT = 'EVENT',
@@ -11,6 +13,8 @@ export enum PublicationStatus {
   PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
 }
+
+export type PublicationLanguage = 'RU' | 'EN';
 
 export interface PublicationItem {
   id: string;
@@ -32,9 +36,29 @@ export interface PublicationFeedResponse {
   hasNext: boolean;
 }
 
+export interface PublicationAdminSummary {
+  id: string;
+  type: PublicationType;
+  status: PublicationStatus;
+  titleJson: LocalizedText;
+  contentJson: LocalizedText;
+  imageUrl?: string | null;
+  publishedAt?: string | null;
+  pinned: boolean;
+}
+
+export interface PublicationAdminFeedResponse {
+  items: PublicationAdminSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
 export interface PublicationUpsertRequest {
-  title: string;
-  content?: string | null;
+  titleJson: LocalizedText;
+  contentJson: LocalizedText;
   type: PublicationType;
   status: PublicationStatus;
   pinned: boolean;
@@ -43,10 +67,17 @@ export interface PublicationUpsertRequest {
   imageObjectKey?: string | null;
 }
 
-export interface PublicationAdminDetails extends PublicationItem {
+export interface PublicationAdminDetails {
+  id: string;
+  type: PublicationType;
   status: PublicationStatus;
+  titleJson: LocalizedText;
+  contentJson: LocalizedText;
   imageBucket?: string | null;
   imageObjectKey?: string | null;
+  imageUrl?: string | null;
+  publishedAt?: string | null;
+  pinned: boolean;
 }
 
 export interface ImageUploadResponse {

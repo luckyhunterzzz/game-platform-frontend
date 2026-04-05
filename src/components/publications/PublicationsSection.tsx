@@ -5,7 +5,9 @@ import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import type {
+  PublicationAdminFeedResponse,
   PublicationAdminDetails,
+  PublicationAdminSummary,
   PublicationFeedResponse,
   PublicationItem,
 } from '@/lib/types/publication';
@@ -15,6 +17,31 @@ import PublicationCard from './PublicationCard';
 
 const PAGE_SIZE = 10;
 const SUCCESS_MESSAGE_TIMEOUT_MS = 4000;
+
+function mapAppLocaleToPublicationLanguage(locale: 'ru' | 'en'): 'RU' | 'EN' {
+  return locale === 'ru' ? 'RU' : 'EN';
+}
+
+function getPublicationPreviewText(value: string | null | undefined): string | null {
+  const normalized = value?.trim() ?? '';
+  return normalized ? normalized : null;
+}
+
+function mapAdminSummaryToCard(summary: PublicationAdminSummary, locale: 'ru' | 'en'): PublicationItem {
+  const title = locale === 'ru' ? summary.titleJson.ru : summary.titleJson.en;
+  const content = locale === 'ru' ? summary.contentJson.ru : summary.contentJson.en;
+
+  return {
+    id: summary.id,
+    type: summary.type,
+    status: summary.status,
+    title: title.trim() || content.trim() || 'Untitled publication',
+    content: getPublicationPreviewText(content),
+    imageUrl: summary.imageUrl ?? null,
+    publishedAt: summary.publishedAt ?? null,
+    pinned: summary.pinned,
+  };
+}
 
 export default function PublicationsSection() {
   const { apiJson } = useApi();
@@ -67,18 +94,21 @@ export default function PublicationsSection() {
 
         const endpoint = isAdmin
           ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}`
-          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}`;
+          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}`;
+
+        if (isAdmin) {
+          const response = await apiJson<PublicationAdminFeedResponse>(endpoint);
+          const nextItems = response.items.map((item) => mapAdminSummaryToCard(item, locale));
+
+          setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));
+          setPage(response.page);
+          setHasNext(response.hasNext);
+          return;
+        }
 
         const response = await apiJson<PublicationFeedResponse>(endpoint);
 
-        const nextItems = isAdmin
-          ? response.items.map((item) => ({
-              ...item,
-              status: item.status ?? activeAdminStatus,
-            }))
-          : response.items;
-
-        setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));
+        setItems((prev) => (append ? [...prev, ...response.items] : response.items));
         setPage(response.page);
         setHasNext(response.hasNext);
       } catch (error) {
@@ -94,7 +124,7 @@ export default function PublicationsSection() {
         setLoadingMore(false);
       }
     },
-    [activeAdminStatus, apiJson, isAdmin, messages.publications.loadError],
+    [activeAdminStatus, apiJson, isAdmin, locale, messages.publications.loadError],
   );
 
   useEffect(() => {
