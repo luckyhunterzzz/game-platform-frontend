@@ -94,6 +94,37 @@ function relationName(value: string | null | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value : fallback;
 }
 
+type InfoPopoverProps = {
+  label: string;
+  content: string;
+};
+
+function InfoPopover({ label, content }: InfoPopoverProps) {
+  const [open, setOpen] = useState(false);
+
+  if (!content.trim()) {
+    return null;
+  }
+
+  return (
+    <div className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+        aria-label={label}
+      >
+        ?
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-7 z-10 w-72 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl">
+          {content}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function PublicHeroDetailsModal({
   open,
   locale,
@@ -178,7 +209,7 @@ export default function PublicHeroDetailsModal({
     [locale],
   );
 
-  const releaseDate = formatDate(heroDetails?.releaseDate, locale, t.noValue);
+  const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
   const resolvedImageUrl = heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
   const currentHeroSlug = heroDetails?.slug ?? heroCard?.slug ?? null;
   const currentHeroIsCostume =
@@ -259,7 +290,6 @@ export default function PublicHeroDetailsModal({
             <div className="space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
-                <div className="mt-2 text-sm text-[var(--foreground-soft)]">{heroDetails.slug}</div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -287,12 +317,17 @@ export default function PublicHeroDetailsModal({
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.specialSkill}</div>
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+              <span>{t.specialSkill}</span>
+              {heroDetails.specialSkill?.description ? (
+                <InfoPopover
+                  label={t.specialSkill}
+                  content={heroDetails.specialSkill.description}
+                />
+              ) : null}
+            </div>
             <div className="text-base font-medium text-[var(--foreground)]">
               {heroDetails.specialSkill?.name ?? t.noValue}
-            </div>
-            <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
-              {heroDetails.specialSkill?.description ?? t.noValue}
             </div>
           </div>
 
@@ -304,9 +339,9 @@ export default function PublicHeroDetailsModal({
               <div className="space-y-3">
                 {heroDetails.passiveSkills.map((skill) => (
                   <div key={skill.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
-                    <div className="text-sm font-semibold text-[var(--foreground)]">{skill.name}</div>
-                    <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
-                      {skill.description}
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+                      <span>{skill.name}</span>
+                      <InfoPopover label={skill.name} content={skill.description} />
                     </div>
                   </div>
                 ))}
@@ -382,9 +417,11 @@ export default function PublicHeroDetailsModal({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--foreground)]">
-                {t.releaseDate}: {releaseDate}
-              </div>
+              {releaseDate ? (
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--foreground)]">
+                  {t.releaseDate}: {releaseDate}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

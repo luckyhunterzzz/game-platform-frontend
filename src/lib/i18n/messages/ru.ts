@@ -25,11 +25,6 @@ export const ruMessages: Messages = {
     navEvents: 'События',
     navGuides: 'Гайды',
     navAlliances: 'Альянсы',
-    diagnosticsTitle: 'Системная диагностическая панель',
-    diagnosticsPublicTest: 'Проверить Public API',
-    diagnosticsAdminTest: 'Проверить Admin API',
-    diagnosticsNoAccess: 'Войди как админ, чтобы проверить admin API',
-    diagnosticsUnknownError: 'Неизвестная ошибка',
   },
   heroes: {
     pageTitle: 'Каталог героев',
@@ -122,4 +117,3 @@ export const ruMessages: Messages = {
     ARCHIVED: 'Архив',
   },
 };
-

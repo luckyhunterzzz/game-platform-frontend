@@ -9,6 +9,8 @@ type AuthContextValue = {
   loading: boolean;
   authenticated: boolean;
   userId: string | null;
+  userEmail: string | null;
+  displayName: string | null;
   roles: string[];
   login: () => void;
   logout: () => void;
@@ -68,14 +70,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    const tokenParsed = (keycloak?.tokenParsed as KeycloakTokenParsed) ?? null;
+    const tokenParsed = ((keycloak?.tokenParsed as KeycloakTokenParsed & {
+      email?: string;
+      preferred_username?: string;
+      name?: string;
+    }) ?? null);
     const rawRoles: string[] = tokenParsed?.realm_access?.roles ?? [];
+    const userEmail = tokenParsed?.email ?? null;
+    const displayName =
+      tokenParsed?.preferred_username ??
+      tokenParsed?.name ??
+      tokenParsed?.email ??
+      tokenParsed?.sub ??
+      null;
 
     return {
       keycloak,
       loading,
       authenticated,
       userId: tokenParsed?.sub ?? null,
+      userEmail,
+      displayName,
       roles: withRolePrefix(rawRoles),
       login: () => keycloak?.login(),
       logout: () => keycloak?.logout(),

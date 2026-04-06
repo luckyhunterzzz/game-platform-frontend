@@ -19,7 +19,7 @@ import type { Locale } from '@/lib/i18n/types';
 import { useTheme, type ThemeMode } from '@/lib/theme/theme-context';
 
 export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
-  const { authenticated, login, logout, userId } = useAuth();
+  const { authenticated, login, logout, displayName } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme, resolvedTheme } = useTheme();
 
@@ -213,14 +213,11 @@ export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
         {authenticated ? (
           <div className="flex items-center gap-4 border-l border-[var(--border)] pl-4">
-            <div className="hidden flex-col items-end md:flex">
-              <span className="text-xs text-[var(--foreground-soft)]">
-                {messages.navbar.userId}
-              </span>
-              <span className="text-sm font-medium">
-                {userId?.slice(0, 8)}...
-              </span>
-            </div>
+            {displayName && (
+              <div className="hidden max-w-[12rem] flex-col items-end md:flex">
+                <span className="truncate text-sm font-medium">{displayName}</span>
+              </div>
+            )}
 
             <button
               onClick={logout}

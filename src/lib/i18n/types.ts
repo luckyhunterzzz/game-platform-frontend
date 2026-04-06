@@ -27,11 +27,6 @@ export type Messages = {
     navEvents: string;
     navGuides: string;
     navAlliances: string;
-    diagnosticsTitle: string;
-    diagnosticsPublicTest: string;
-    diagnosticsAdminTest: string;
-    diagnosticsNoAccess: string;
-    diagnosticsUnknownError: string;
   };
   heroes: {
     pageTitle: string;
