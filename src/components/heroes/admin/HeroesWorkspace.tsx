@@ -993,10 +993,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const enImageLabel = locale === 'RU' ? 'Картинка EN' : 'EN image';
     const passiveSkillsTitle = locale === 'RU' ? 'Пассивные навыки' : 'Passive skills';
     const noPassiveSkillsLabel = locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected';
+    const addPassiveSkillLabel = locale === 'RU' ? 'Add passive skill' : 'Add passive skill';
+    const selectPassiveSkillLabel = locale === 'RU' ? 'Select skill' : 'Select skill';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
     ];
+    const availablePassiveSkills = passiveSkills.filter((skill) => !form.passiveSkillIds.includes(skill.id));
     const getFileInputRef = (imageLocale: HeroLocale) => {
       if (isEdit) {
         return imageLocale === 'RU' ? editRuImageInputRef : editEnImageInputRef;
@@ -1055,42 +1058,70 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         {passiveSkills.length === 0 ? (
           <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {passiveSkills.map((skill) => {
-              const checked = form.passiveSkillIds.includes(skill.id);
-              return (
-                <label
-                  key={skill.id}
-                  className={`flex cursor-pointer gap-3 rounded-2xl border px-4 py-3 transition ${
-                    checked
-                      ? 'border-cyan-400/40 bg-cyan-400/10'
-                      : 'border-[var(--border)] bg-[var(--surface-strong)] hover:bg-[var(--surface-hover)]'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        passiveSkillIds: event.target.checked
-                          ? [...prev.passiveSkillIds, skill.id]
-                          : prev.passiveSkillIds.filter((id) => id !== skill.id),
-                      }))
-                    }
-                    className="mt-1"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-[var(--foreground)]">
-                      {getLocalizedText(skill.name, locale)}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-[var(--foreground-soft)]">
-                      {getLocalizedText(skill.description, locale)}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
+          <div className="space-y-4">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-[var(--foreground-soft)]">{addPassiveSkillLabel}</span>
+              <select
+                value=""
+                onChange={(event) => {
+                  const nextId = Number(event.target.value);
+                  if (!nextId) return;
+                  setForm((prev) => ({
+                    ...prev,
+                    passiveSkillIds: [...prev.passiveSkillIds, nextId],
+                  }));
+                }}
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+              >
+                <option value="">{selectPassiveSkillLabel}</option>
+                {availablePassiveSkills.map((skill) => (
+                  <option key={skill.id} value={skill.id}>
+                    {getLocalizedText(skill.name, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {form.passiveSkillIds.length === 0 ? (
+              <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {form.passiveSkillIds.map((skillId) => {
+                  const skill = passiveSkills.find((item) => item.id === skillId);
+                  if (!skill) return null;
+
+                  return (
+                    <div
+                      key={skill.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
+                    >
+                      <span>{getLocalizedText(skill.name, locale)}</span>
+                      <button
+                        type="button"
+                        title={getLocalizedText(skill.description, locale)}
+                        aria-label={getLocalizedText(skill.description, locale)}
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
+                      >
+                        ?
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            passiveSkillIds: prev.passiveSkillIds.filter((id) => id !== skill.id),
+                          }))
+                        }
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs text-white/80 transition hover:bg-white/10"
+                        aria-label={`Remove ${getLocalizedText(skill.name, locale)}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

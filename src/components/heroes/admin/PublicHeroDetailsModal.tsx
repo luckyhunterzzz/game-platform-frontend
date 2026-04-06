@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import DictionaryModal from './DictionaryModal';
 
@@ -27,10 +28,17 @@ export type PublicHeroDetailsItem = {
   name: string;
   element?: { id: number; name: string } | null;
   rarity?: { id: number; stars: number } | null;
-  heroClass?: { id: number; name: string } | null;
-  family?: { id: number; name: string } | null;
-  manaSpeed?: { id: number; name: string } | null;
-  alphaTalent?: { id: number; name: string } | null;
+  heroClass?: {
+    id: number;
+    name: string;
+    baseName?: string | null;
+    baseDescription?: string | null;
+    masterName?: string | null;
+    masterDescription?: string | null;
+  } | null;
+  family?: { id: number; name: string; description?: string | null } | null;
+  manaSpeed?: { id: number; name: string; description?: string | null } | null;
+  alphaTalent?: { id: number; name: string; description?: string | null } | null;
   specialSkill?: { name: string; description: string } | null;
   passiveSkills: Array<{
     id: number;
@@ -101,14 +109,73 @@ type InfoPopoverProps = {
 
 function InfoPopover({ label, content }: InfoPopoverProps) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const hasContent = content.trim().length > 0;
 
-  if (!content.trim()) {
+  useEffect(() => {
+    if (!hasContent || !open || !triggerRef.current) {
+      return;
+    }
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const width = 288;
+    const margin = 16;
+    const left = Math.min(
+      Math.max(margin, rect.left),
+      window.innerWidth - width - margin,
+    );
+    const preferredTop = rect.bottom + 8;
+    const estimatedHeight = 180;
+    const top =
+      preferredTop + estimatedHeight > window.innerHeight - margin
+        ? Math.max(margin, rect.top - estimatedHeight - 8)
+        : preferredTop;
+
+    setPosition({ top, left });
+  }, [hasContent, open]);
+
+  useEffect(() => {
+    if (!hasContent || !open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', handleEscape as unknown as EventListener);
+    window.addEventListener('scroll', handleEscape as unknown as EventListener, true);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', handleEscape as unknown as EventListener);
+      window.removeEventListener('scroll', handleEscape as unknown as EventListener, true);
+    };
+  }, [hasContent, open]);
+
+  if (!hasContent) {
     return null;
   }
 
   return (
-    <div className="relative inline-flex">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
@@ -116,12 +183,19 @@ function InfoPopover({ label, content }: InfoPopoverProps) {
       >
         ?
       </button>
-      {open ? (
-        <div className="absolute right-0 top-7 z-10 w-72 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl">
-          {content}
-        </div>
-      ) : null}
-    </div>
+      {open && position
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              className="fixed z-[90] w-72 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl"
+              style={{ top: position.top, left: position.left }}
+            >
+              {content}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -216,6 +290,16 @@ export default function PublicHeroDetailsModal({
     heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
   const resolvedCostumes = heroVariants?.costumes ?? [];
+  const heroClassTooltip = [
+    heroDetails?.heroClass?.baseName && heroDetails.heroClass.baseDescription
+      ? `${heroDetails.heroClass.baseName}: ${heroDetails.heroClass.baseDescription}`
+      : null,
+    heroDetails?.heroClass?.masterName && heroDetails.heroClass.masterDescription
+      ? `${heroDetails.heroClass.masterName}: ${heroDetails.heroClass.masterDescription}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   const renderRelatedHeroChip = (slug: string, name: string, key: string | number) => {
     const isCurrent = currentHeroSlug === slug;
@@ -301,33 +385,46 @@ export default function PublicHeroDetailsModal({
                   {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}</span>
+                    {heroClassTooltip ? <InfoPopover label={t.heroClass} content={heroClassTooltip} /> : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.manaSpeed}: {heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.manaSpeed}: {heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}</span>
+                    {heroDetails.manaSpeed?.description ? (
+                      <InfoPopover label={t.manaSpeed} content={heroDetails.manaSpeed.description} />
+                    ) : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.family}: {heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.family}: {heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}</span>
+                    {heroDetails.family?.description ? (
+                      <InfoPopover label={t.family} content={heroDetails.family.description} />
+                    ) : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.alphaTalent}: {heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.alphaTalent}: {heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}</span>
+                    {heroDetails.alphaTalent?.description ? (
+                      <InfoPopover label={t.alphaTalent} content={heroDetails.alphaTalent.description} />
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
-              <span>{t.specialSkill}</span>
-              {heroDetails.specialSkill?.description ? (
-                <InfoPopover
-                  label={t.specialSkill}
-                  content={heroDetails.specialSkill.description}
-                />
-              ) : null}
-            </div>
+            <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.specialSkill}</div>
             <div className="text-base font-medium text-[var(--foreground)]">
               {heroDetails.specialSkill?.name ?? t.noValue}
+            </div>
+            <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+              {heroDetails.specialSkill?.description ?? t.noValue}
             </div>
           </div>
 
