@@ -35,6 +35,7 @@ import {
 } from '@/lib/types/hero';
 
 import DictionaryModal from './DictionaryModal';
+import HeroInfoPopover from './HeroInfoPopover';
 import HeroImageUploadField from './HeroImageUploadField';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
@@ -349,6 +350,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   });
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [isCreatePassiveSkillsOpen, setCreatePassiveSkillsOpen] = useState(false);
+  const [isEditPassiveSkillsOpen, setEditPassiveSkillsOpen] = useState(false);
+  const [createPassiveSkillQuery, setCreatePassiveSkillQuery] = useState('');
+  const [editPassiveSkillQuery, setEditPassiveSkillQuery] = useState('');
   const [isPublicDetailsOpen, setPublicDetailsOpen] = useState(false);
   const [createForm, setCreateForm] = useState<HeroFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<HeroFormState>(EMPTY_FORM);
@@ -789,12 +794,16 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   const openCreateModal = () => {
     resetCreateModalState();
+    setCreatePassiveSkillsOpen(false);
+    setCreatePassiveSkillQuery('');
     setCreateOpen(true);
   };
 
   const closeCreateModal = () => {
     if (submitting || createUploadingImage.RU || createUploadingImage.EN) return;
     resetCreateModalState();
+    setCreatePassiveSkillsOpen(false);
+    setCreatePassiveSkillQuery('');
     setCreateOpen(false);
   };
 
@@ -802,6 +811,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (!selectedItem) return;
     setEditForm(toForm(selectedItem));
     setSubmitError(null);
+    setEditPassiveSkillsOpen(false);
+    setEditPassiveSkillQuery('');
     setEditImagePreviewUrl({ RU: null, EN: null });
     setEditImageUploadError({ RU: null, EN: null });
     setEditUploadingImage({ RU: false, EN: false });
@@ -816,6 +827,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   const closeEditModal = () => {
     if (submitting || editUploadingImage.RU || editUploadingImage.EN) return;
+    setEditPassiveSkillsOpen(false);
+    setEditPassiveSkillQuery('');
     setEditOpen(false);
     setEditImagePreviewUrl({ RU: null, EN: null });
     setEditImageFileName({ RU: null, EN: null });
@@ -836,6 +849,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (id == null) return t.noValue;
     const item = list.find((entry) => entry.id === id);
     return item ? getLocalizedText(item.name, locale) : `#${id}`;
+  };
+
+  const resolveItem = <T extends { id: number }>(list: T[], id?: number | null) => {
+    if (id == null) return null;
+    return list.find((entry) => entry.id === id) ?? null;
   };
 
   const validateForm = (form: HeroFormState): string | null => {
@@ -920,6 +938,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       const created = await apiPostJson<HeroMutationRequest, AdminHeroResponseDto>(ADMIN_API, buildPayload(createForm));
       upsertHero(created);
       resetCreateModalState();
+      setCreatePassiveSkillsOpen(false);
+      setCreatePassiveSkillQuery('');
       setCreateOpen(false);
     } catch (error) {
       setSubmitError(error instanceof ApiError || error instanceof Error ? error.message : 'Create failed');
@@ -947,6 +967,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     try {
       const updated = await apiPutJson<HeroMutationRequest, AdminHeroResponseDto>(`${ADMIN_API}/${selectedItem.id}`, buildPayload(editForm));
       upsertHero(updated);
+      setEditPassiveSkillsOpen(false);
+      setEditPassiveSkillQuery('');
       setEditOpen(false);
       setEditImagePreviewUrl({ RU: null, EN: null });
       setEditImageFileName({ RU: null, EN: null });
@@ -993,13 +1015,34 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const enImageLabel = locale === 'RU' ? 'Картинка EN' : 'EN image';
     const passiveSkillsTitle = locale === 'RU' ? 'Пассивные навыки' : 'Passive skills';
     const noPassiveSkillsLabel = locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected';
-    const addPassiveSkillLabel = locale === 'RU' ? 'Add passive skill' : 'Add passive skill';
-    const selectPassiveSkillLabel = locale === 'RU' ? 'Select skill' : 'Select skill';
+    const addPassiveSkillLabel = locale === 'RU' ? 'Добавить пассивный навык' : 'Add passive skill';
+    const availablePassiveSkillsLabel = locale === 'RU' ? 'Доступные пассивные навыки' : 'Available passive skills';
+    const hidePassiveSkillsLabel = locale === 'RU' ? 'Скрыть список' : 'Hide list';
+    const noAvailablePassiveSkillsLabel = locale === 'RU' ? 'Все пассивные навыки уже выбраны' : 'All passive skills are already selected';
+    const noPassiveSkillSearchResultsLabel = locale === 'RU' ? 'По вашему запросу ничего не найдено' : 'No skills found for your search';
+    const addPassiveSkillActionLabel = locale === 'RU' ? 'Добавить' : 'Add';
+    const removePassiveSkillActionLabel = locale === 'RU' ? 'Удалить' : 'Remove';
+    const searchPassiveSkillsLabel = locale === 'RU' ? 'Поиск навыка' : 'Search skill';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
     ];
-    const availablePassiveSkills = passiveSkills.filter((skill) => !form.passiveSkillIds.includes(skill.id));
+    const passiveSkillQuery = isEdit ? editPassiveSkillQuery : createPassiveSkillQuery;
+    const setPassiveSkillQuery = isEdit ? setEditPassiveSkillQuery : setCreatePassiveSkillQuery;
+    const normalizedPassiveSkillQuery = passiveSkillQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
+    const unselectedPassiveSkills = passiveSkills
+      .filter((skill) => !form.passiveSkillIds.includes(skill.id))
+      .sort((a, b) =>
+        getLocalizedText(a.name, locale).localeCompare(getLocalizedText(b.name, locale), locale === 'RU' ? 'ru' : 'en'),
+      );
+    const availablePassiveSkills = unselectedPassiveSkills
+      .filter((skill) =>
+        normalizedPassiveSkillQuery.length === 0
+          ? true
+          : getLocalizedText(skill.name, locale).toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalizedPassiveSkillQuery),
+      );
+    const passiveSkillsPickerOpen = isEdit ? isEditPassiveSkillsOpen : isCreatePassiveSkillsOpen;
+    const setPassiveSkillsPickerOpen = isEdit ? setEditPassiveSkillsOpen : setCreatePassiveSkillsOpen;
     const getFileInputRef = (imageLocale: HeroLocale) => {
       if (isEdit) {
         return imageLocale === 'RU' ? editRuImageInputRef : editEnImageInputRef;
@@ -1059,28 +1102,69 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
         ) : (
           <div className="space-y-4">
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">{addPassiveSkillLabel}</span>
-              <select
-                value=""
-                onChange={(event) => {
-                  const nextId = Number(event.target.value);
-                  if (!nextId) return;
-                  setForm((prev) => ({
-                    ...prev,
-                    passiveSkillIds: [...prev.passiveSkillIds, nextId],
-                  }));
-                }}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              >
-                <option value="">{selectPassiveSkillLabel}</option>
-                {availablePassiveSkills.map((skill) => (
-                  <option key={skill.id} value={skill.id}>
-                    {getLocalizedText(skill.name, locale)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-[var(--foreground-soft)]">{availablePassiveSkillsLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => setPassiveSkillsPickerOpen((prev) => !prev)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  {passiveSkillsPickerOpen ? hidePassiveSkillsLabel : addPassiveSkillLabel}
+                </button>
+              </div>
+
+              {passiveSkillsPickerOpen ? (
+                <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
+                  <label className="block">
+                    <span className="sr-only">{searchPassiveSkillsLabel}</span>
+                    <input
+                      type="text"
+                      value={passiveSkillQuery}
+                      onChange={(event) => setPassiveSkillQuery(event.target.value)}
+                      placeholder={searchPassiveSkillsLabel}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground)] outline-none"
+                    />
+                  </label>
+                  {unselectedPassiveSkills.length === 0 ? (
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                      {noAvailablePassiveSkillsLabel}
+                    </div>
+                  ) : availablePassiveSkills.length === 0 ? (
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                      {noPassiveSkillSearchResultsLabel}
+                    </div>
+                  ) : (
+                    availablePassiveSkills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/10 px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                          <span>{getLocalizedText(skill.name, locale)}</span>
+                          <HeroInfoPopover
+                            label={getLocalizedText(skill.name, locale)}
+                            content={getLocalizedText(skill.description, locale)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              passiveSkillIds: [...prev.passiveSkillIds, skill.id],
+                            }))
+                          }
+                          className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200 transition hover:bg-cyan-400/15"
+                        >
+                          {addPassiveSkillActionLabel}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
 
             {form.passiveSkillIds.length === 0 ? (
               <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
@@ -1096,14 +1180,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                       className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
                     >
                       <span>{getLocalizedText(skill.name, locale)}</span>
-                      <button
-                        type="button"
-                        title={getLocalizedText(skill.description, locale)}
-                        aria-label={getLocalizedText(skill.description, locale)}
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
-                      >
-                        ?
-                      </button>
+                      <HeroInfoPopover
+                        label={getLocalizedText(skill.name, locale)}
+                        content={getLocalizedText(skill.description, locale)}
+                      />
                       <button
                         type="button"
                         onClick={() =>
@@ -1113,7 +1193,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                           }))
                         }
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs text-white/80 transition hover:bg-white/10"
-                        aria-label={`Remove ${getLocalizedText(skill.name, locale)}`}
+                        aria-label={`${removePassiveSkillActionLabel} ${getLocalizedText(skill.name, locale)}`}
                       >
                         ×
                       </button>
@@ -1294,13 +1374,67 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                   </div>
                 </div>
               )}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">
+                  {locale === 'RU' ? 'Особый навык' : 'Special skill'}
+                </div>
+                <div className="text-base font-medium text-[var(--foreground)]">
+                  {getLocalizedText(selectedItem.specialSkillName, locale) || t.noValue}
+                </div>
+                <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+                  {getLocalizedText(selectedItem.specialSkillDescription, locale) || t.noValue}
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.element}: {resolveName(elements, selectedItem.elementId)}</div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.rarity}: {resolveName(rarities, selectedItem.rarityId)}</div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.heroClass}: {resolveName(heroClasses, selectedItem.heroClassId)}</div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.manaSpeed}: {resolveName(manaSpeeds, selectedItem.manaSpeedId)}</div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.family}: {resolveName(families, selectedItem.familyId)}</div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.alphaTalent}: {resolveName(alphaTalents, selectedItem.alphaTalentId)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+                  <div className="flex items-center gap-2">
+                    <span>{t.heroClass}: {resolveName(heroClasses, selectedItem.heroClassId)}</span>
+                    {(() => {
+                      const heroClass = resolveItem(heroClasses, selectedItem.heroClassId);
+                      const heroClassContent = heroClass
+                        ? [
+                            `${getLocalizedText(heroClass.baseName, locale)}: ${getLocalizedText(heroClass.baseDescription, locale)}`,
+                            `${getLocalizedText(heroClass.masterName, locale)}: ${getLocalizedText(heroClass.masterDescription, locale)}`,
+                          ]
+                            .filter((value) => value.trim().length > 0)
+                            .join('\n\n')
+                        : '';
+                      return heroClassContent ? <HeroInfoPopover label={t.heroClass} content={heroClassContent} /> : null;
+                    })()}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+                  <div className="flex items-center gap-2">
+                    <span>{t.manaSpeed}: {resolveName(manaSpeeds, selectedItem.manaSpeedId)}</span>
+                    {(() => {
+                      const manaSpeed = resolveItem(manaSpeeds, selectedItem.manaSpeedId);
+                      const description = manaSpeed?.description ? getLocalizedText(manaSpeed.description, locale) : '';
+                      return description ? <HeroInfoPopover label={t.manaSpeed} content={description} /> : null;
+                    })()}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+                  <div className="flex items-center gap-2">
+                    <span>{t.family}: {resolveName(families, selectedItem.familyId)}</span>
+                    {(() => {
+                      const family = resolveItem(families, selectedItem.familyId);
+                      const description = family?.description ? getLocalizedText(family.description, locale) : '';
+                      return description ? <HeroInfoPopover label={t.family} content={description} /> : null;
+                    })()}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+                  <div className="flex items-center gap-2">
+                    <span>{t.alphaTalent}: {resolveName(alphaTalents, selectedItem.alphaTalentId)}</span>
+                    {(() => {
+                      const alphaTalent = resolveItem(alphaTalents, selectedItem.alphaTalentId);
+                      const description = alphaTalent?.description ? getLocalizedText(alphaTalent.description, locale) : '';
+                      return description ? <HeroInfoPopover label={t.alphaTalent} content={description} /> : null;
+                    })()}
+                  </div>
+                </div>
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                 <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? 'Пассивные навыки' : 'Passive skills'}</div>
@@ -1308,14 +1442,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                   <div className="text-sm text-[var(--foreground-soft)]">{locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected'}</div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {selectedItem.passiveSkillIds.map((skillId) => (
-                      <span
-                        key={skillId}
-                        className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
-                      >
-                        {resolveName(passiveSkills, skillId)}
-                      </span>
-                    ))}
+                    {selectedItem.passiveSkillIds.map((skillId) => {
+                      const skill = passiveSkills.find((item) => item.id === skillId);
+                      if (!skill) return null;
+
+                      return (
+                        <span
+                          key={skillId}
+                          className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
+                        >
+                          {getLocalizedText(skill.name, locale)}
+                          <HeroInfoPopover
+                            label={getLocalizedText(skill.name, locale)}
+                            content={getLocalizedText(skill.description, locale)}
+                          />
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
