@@ -365,12 +365,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const createEnImageInputRef = useRef<HTMLInputElement | null>(null);
   const editRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const editEnImageInputRef = useRef<HTMLInputElement | null>(null);
+  const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
 
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
   const [publicItems, setPublicItems] = useState<PublicHeroCardItem[]>([]);
   const [publicSearch, setPublicSearch] = useState('');
   const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
   const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
+  const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
   const [loadingMorePublic, setLoadingMorePublic] = useState(false);
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -840,6 +842,36 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
   }, [adminMode, selectedId, loadDetails]);
 
+  useEffect(() => {
+    if (openPublicFilterKey === null) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!publicFiltersPanelRef.current) {
+        return;
+      }
+
+      if (!publicFiltersPanelRef.current.contains(event.target as Node)) {
+        setOpenPublicFilterKey(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenPublicFilterKey(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openPublicFilterKey]);
+
   const resetImageInput = (mode: 'create' | 'edit', imageLocale: HeroLocale) => {
     const ref =
       mode === 'create'
@@ -1081,9 +1113,28 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }));
   };
 
+  const getPublicFilterSummary = (
+    key: keyof PublicCatalogFiltersState,
+    options: Array<HeroFilterOption | HeroRarityFilterOption>,
+  ) => {
+    const selected = options.filter((option) => publicFilters[key].includes(option.id));
+
+    if (selected.length === 0) {
+      return null;
+    }
+
+    if (selected.length === 1) {
+      const option = selected[0];
+      return 'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
+    }
+
+    return locale === 'RU' ? `Выбрано: ${selected.length}` : `${selected.length} selected`;
+  };
+
   const resetPublicFilters = () => {
     setPublicSearch('');
     setPublicFilters(EMPTY_PUBLIC_FILTERS);
+    setOpenPublicFilterKey(null);
   };
 
   const validateForm = (form: HeroFormState): string | null => {
@@ -1502,48 +1553,82 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             </div>
 
             {publicFilterOptions ? (
-              <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div ref={publicFiltersPanelRef} className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                 <div className="text-sm font-semibold text-[var(--foreground)]">{t.filters}</div>
-                {([
-                  { key: 'elementIds', label: t.element, options: publicFilterOptions.elements },
-                  { key: 'rarityIds', label: t.rarity, options: publicFilterOptions.rarities },
-                  { key: 'heroClassIds', label: t.heroClass, options: publicFilterOptions.heroClasses },
-                  { key: 'familyIds', label: t.family, options: publicFilterOptions.families },
-                  { key: 'manaSpeedIds', label: t.manaSpeed, options: publicFilterOptions.manaSpeeds },
-                  { key: 'alphaTalentIds', label: t.alphaTalent, options: publicFilterOptions.alphaTalents },
-                ] as Array<{
-                  key: keyof PublicCatalogFiltersState;
-                  label: string;
-                  options: Array<HeroFilterOption | HeroRarityFilterOption>;
-                }>).map((group) => (
-                  <div key={group.key} className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
-                      {group.label}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {group.options.map((option) => {
-                        const isSelected = publicFilters[group.key].includes(option.id);
-                        const label =
-                          'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { key: 'elementIds', label: t.element, options: publicFilterOptions.elements },
+                    { key: 'rarityIds', label: t.rarity, options: publicFilterOptions.rarities },
+                    { key: 'heroClassIds', label: t.heroClass, options: publicFilterOptions.heroClasses },
+                    { key: 'familyIds', label: t.family, options: publicFilterOptions.families },
+                    { key: 'manaSpeedIds', label: t.manaSpeed, options: publicFilterOptions.manaSpeeds },
+                    { key: 'alphaTalentIds', label: t.alphaTalent, options: publicFilterOptions.alphaTalents },
+                  ] as Array<{
+                    key: keyof PublicCatalogFiltersState;
+                    label: string;
+                    options: Array<HeroFilterOption | HeroRarityFilterOption>;
+                  }>).map((group) => {
+                    const selectedCount = publicFilters[group.key].length;
+                    const summary = getPublicFilterSummary(group.key, group.options);
+                    const isOpen = openPublicFilterKey === group.key;
 
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => togglePublicFilter(group.key, option.id)}
-                            className={`rounded-full border px-3 py-2 text-sm transition ${
-                              isSelected
-                                ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-200'
-                                : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                    return (
+                      <div key={group.key} className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenPublicFilterKey((prev) => (prev === group.key ? null : group.key))
+                          }
+                          className={`min-w-[160px] rounded-xl border px-3 py-2 text-left text-xs transition ${
+                            selectedCount > 0
+                              ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
+                              : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold">{group.label}</span>
+                            <span className="text-[10px] text-[var(--foreground-muted)]">
+                              {isOpen ? '▲' : '▼'}
+                            </span>
+                          </div>
+                          <div className="mt-1 truncate text-[11px] text-[var(--foreground-muted)]">
+                            {summary ?? (locale === 'RU' ? 'Не выбрано' : 'Not selected')}
+                          </div>
+                        </button>
+
+                        {isOpen ? (
+                          <div className="absolute left-0 top-full z-20 mt-2 w-[260px] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur">
+                            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+                              {group.label}
+                            </div>
+                            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                              {group.options.map((option) => {
+                                const isSelected = publicFilters[group.key].includes(option.id);
+                                const label =
+                                  'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
+
+                                return (
+                                  <label
+                                    key={option.id}
+                                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent bg-black/10 px-3 py-2 text-xs text-[var(--foreground)] transition hover:border-cyan-400/20 hover:bg-black/20"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => togglePublicFilter(group.key, option.id)}
+                                      className="mt-0.5 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-cyan-400"
+                                    />
+                                    <span className="leading-5">{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
           </div>
