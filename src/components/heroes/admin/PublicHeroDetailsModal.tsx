@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import DictionaryModal from './DictionaryModal';
+import HeroInfoPopover from './HeroInfoPopover';
 
 export type PublicHeroCardItem = {
   id: number;
@@ -27,10 +28,17 @@ export type PublicHeroDetailsItem = {
   name: string;
   element?: { id: number; name: string } | null;
   rarity?: { id: number; stars: number } | null;
-  heroClass?: { id: number; name: string } | null;
-  family?: { id: number; name: string } | null;
-  manaSpeed?: { id: number; name: string } | null;
-  alphaTalent?: { id: number; name: string } | null;
+  heroClass?: {
+    id: number;
+    name: string;
+    baseName?: string | null;
+    baseDescription?: string | null;
+    masterName?: string | null;
+    masterDescription?: string | null;
+  } | null;
+  family?: { id: number; name: string; description?: string | null } | null;
+  manaSpeed?: { id: number; name: string; description?: string | null } | null;
+  alphaTalent?: { id: number; name: string; description?: string | null } | null;
   specialSkill?: { name: string; description: string } | null;
   passiveSkills: Array<{
     id: number;
@@ -92,37 +100,6 @@ function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallb
 
 function relationName(value: string | null | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value : fallback;
-}
-
-type InfoPopoverProps = {
-  label: string;
-  content: string;
-};
-
-function InfoPopover({ label, content }: InfoPopoverProps) {
-  const [open, setOpen] = useState(false);
-
-  if (!content.trim()) {
-    return null;
-  }
-
-  return (
-    <div className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
-        aria-label={label}
-      >
-        ?
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-7 z-10 w-72 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl">
-          {content}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 export default function PublicHeroDetailsModal({
@@ -216,6 +193,16 @@ export default function PublicHeroDetailsModal({
     heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
   const resolvedCostumes = heroVariants?.costumes ?? [];
+  const heroClassTooltip = [
+    heroDetails?.heroClass?.baseName && heroDetails.heroClass.baseDescription
+      ? `${heroDetails.heroClass.baseName}: ${heroDetails.heroClass.baseDescription}`
+      : null,
+    heroDetails?.heroClass?.masterName && heroDetails.heroClass.masterDescription
+      ? `${heroDetails.heroClass.masterName}: ${heroDetails.heroClass.masterDescription}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   const renderRelatedHeroChip = (slug: string, name: string, key: string | number) => {
     const isCurrent = currentHeroSlug === slug;
@@ -301,33 +288,46 @@ export default function PublicHeroDetailsModal({
                   {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}</span>
+                    {heroClassTooltip ? <HeroInfoPopover label={t.heroClass} content={heroClassTooltip} /> : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.manaSpeed}: {heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.manaSpeed}: {heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}</span>
+                    {heroDetails.manaSpeed?.description ? (
+                      <HeroInfoPopover label={t.manaSpeed} content={heroDetails.manaSpeed.description} />
+                    ) : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.family}: {heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.family}: {heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}</span>
+                    {heroDetails.family?.description ? (
+                      <HeroInfoPopover label={t.family} content={heroDetails.family.description} />
+                    ) : null}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.alphaTalent}: {heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}
+                  <div className="flex items-center gap-2">
+                    <span>{t.alphaTalent}: {heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}</span>
+                    {heroDetails.alphaTalent?.description ? (
+                      <HeroInfoPopover label={t.alphaTalent} content={heroDetails.alphaTalent.description} />
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
-              <span>{t.specialSkill}</span>
-              {heroDetails.specialSkill?.description ? (
-                <InfoPopover
-                  label={t.specialSkill}
-                  content={heroDetails.specialSkill.description}
-                />
-              ) : null}
-            </div>
+            <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.specialSkill}</div>
             <div className="text-base font-medium text-[var(--foreground)]">
               {heroDetails.specialSkill?.name ?? t.noValue}
+            </div>
+            <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+              {heroDetails.specialSkill?.description ?? t.noValue}
             </div>
           </div>
 
@@ -341,7 +341,7 @@ export default function PublicHeroDetailsModal({
                   <div key={skill.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
                       <span>{skill.name}</span>
-                      <InfoPopover label={skill.name} content={skill.description} />
+                      <HeroInfoPopover label={skill.name} content={skill.description} />
                     </div>
                   </div>
                 ))}
