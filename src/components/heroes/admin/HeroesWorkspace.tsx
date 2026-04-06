@@ -48,6 +48,9 @@ import PublicHeroDetailsModal, {
 
 const PUBLIC_API = '/api/v1/public/heroes';
 const ADMIN_API = '/api/v1/admin/heroes';
+const ADMIN_CATALOG_API = '/api/v1/admin/heroes/catalog';
+const PUBLIC_FILTERS_API = '/api/v1/public/heroes/filters';
+const PUBLIC_NAMES_API = '/api/v1/public/heroes/names';
 const ELEMENTS_API = '/api/v1/admin/heroes/elements';
 const RARITIES_API = '/api/v1/admin/heroes/rarities';
 const HERO_CLASSES_API = '/api/v1/admin/heroes/hero-classes';
@@ -64,8 +67,52 @@ type HeroStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
 type HeroPageResponse = {
   items: PublicHeroCardItem[];
   page: number;
+  size: number;
   totalElements: number;
   totalPages: number;
+  hasNext: boolean;
+};
+
+type AdminHeroPageResponse = {
+  items: AdminHeroResponseDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+};
+
+type HeroFilterOption = {
+  id: number;
+  name: string;
+};
+
+type HeroRarityFilterOption = HeroFilterOption & {
+  stars: number;
+};
+
+type HeroCatalogFiltersResponse = {
+  elements: HeroFilterOption[];
+  rarities: HeroRarityFilterOption[];
+  heroClasses: HeroFilterOption[];
+  families: HeroFilterOption[];
+  manaSpeeds: HeroFilterOption[];
+  alphaTalents: HeroFilterOption[];
+};
+
+type HeroLookupItem = {
+  id: number;
+  slug: string;
+  name: string;
+};
+
+type PublicCatalogFiltersState = {
+  elementIds: number[];
+  rarityIds: number[];
+  heroClassIds: number[];
+  familyIds: number[];
+  manaSpeedIds: number[];
+  alphaTalentIds: number[];
 };
 
 type PublicHeroVariantsResponse = {
@@ -204,6 +251,15 @@ const EMPTY_FORM: HeroFormState = {
   baseHeroId: '',
 };
 
+const EMPTY_PUBLIC_FILTERS: PublicCatalogFiltersState = {
+  elementIds: [],
+  rarityIds: [],
+  heroClassIds: [],
+  familyIds: [],
+  manaSpeedIds: [],
+  alphaTalentIds: [],
+};
+
 function mapHero(dto: AdminHeroResponseDto): HeroItem {
   return {
     id: dto.id,
@@ -309,12 +365,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const createEnImageInputRef = useRef<HTMLInputElement | null>(null);
   const editRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const editEnImageInputRef = useRef<HTMLInputElement | null>(null);
+  const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
 
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
+  const [publicItems, setPublicItems] = useState<PublicHeroCardItem[]>([]);
+  const [publicSearch, setPublicSearch] = useState('');
+  const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
+  const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
+  const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
+  const [loadingMorePublic, setLoadingMorePublic] = useState(false);
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
   const [selectedPublicHeroVariants, setSelectedPublicHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
   const [items, setItems] = useState<HeroItem[]>([]);
+  const [baseHeroOptions, setBaseHeroOptions] = useState<HeroLookupItem[]>([]);
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminCatalogPage, setAdminCatalogPage] = useState<AdminHeroPageResponse | null>(null);
+  const [loadingMoreAdmin, setLoadingMoreAdmin] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
   const [elements, setElements] = useState<ElementItem[]>([]);
@@ -437,6 +504,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             required: 'Поле обязательно',
             nonNegative: 'Значение должно быть 0 или больше',
             costumeBaseHeroRequired: 'Для костюма нужно выбрать базового героя',
+            search: 'Поиск',
+            searchHeroes: 'Поиск героев',
+            searchHeroesPlaceholder: 'Имя или slug героя',
+            filters: 'Фильтры',
+            resetFilters: 'Сбросить фильтры',
+            loadMore: 'Показать еще',
+            noResults: 'Ничего не найдено',
+            adminSearchPlaceholder: 'Поиск по героям',
             deleteConfirm: (name: string) => `Удалить героя "${name}"?`,
           }
         : {
@@ -499,6 +574,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             required: 'Field is required',
             nonNegative: 'Value must be 0 or greater',
             costumeBaseHeroRequired: 'Costume hero requires a base hero',
+            search: 'Search',
+            searchHeroes: 'Search heroes',
+            searchHeroesPlaceholder: 'Hero name or slug',
+            filters: 'Filters',
+            resetFilters: 'Reset filters',
+            loadMore: 'Load more',
+            noResults: 'Nothing found',
+            adminSearchPlaceholder: 'Search heroes',
             deleteConfirm: (name: string) => `Delete hero "${name}"?`,
           },
     [locale],
@@ -533,25 +616,139 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setPassiveSkills(passiveSkillsResponse.map(mapPassiveSkillDto));
   }, [adminMode, apiJson]);
 
+  const loadBaseHeroOptions = useCallback(async () => {
+    if (!adminMode) {
+      return;
+    }
+
+    const response = await apiJson<HeroLookupItem[]>(`${PUBLIC_NAMES_API}?language=${locale}`);
+    setBaseHeroOptions(response);
+  }, [adminMode, apiJson, locale]);
+
+  const loadPublicFilterOptions = useCallback(async () => {
+    if (adminMode) {
+      return;
+    }
+
+    const response = await apiJson<HeroCatalogFiltersResponse>(`${PUBLIC_FILTERS_API}?language=${locale}`);
+    setPublicFilterOptions(response);
+  }, [adminMode, apiJson, locale]);
+
+  const buildPublicCatalogQuery = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        size: '12',
+        language: locale,
+      });
+
+      if (publicSearch.trim()) {
+        params.set('search', publicSearch.trim());
+      }
+
+      const appendIds = (key: keyof PublicCatalogFiltersState) => {
+        publicFilters[key].forEach((id) => params.append(key, String(id)));
+      };
+
+      appendIds('elementIds');
+      appendIds('rarityIds');
+      appendIds('heroClassIds');
+      appendIds('familyIds');
+      appendIds('manaSpeedIds');
+      appendIds('alphaTalentIds');
+
+      return `${PUBLIC_API}?${params.toString()}`;
+    },
+    [locale, publicFilters, publicSearch],
+  );
+
+  const fetchPublicCatalogPage = useCallback(
+    async (page: number, append: boolean) => {
+      const response = await apiJson<HeroPageResponse>(buildPublicCatalogQuery(page));
+      setPublicPage(response);
+      setPublicItems((prev) => (append ? [...prev, ...response.items] : response.items));
+    },
+    [apiJson, buildPublicCatalogQuery],
+  );
+
+  const fetchAdminCatalogPage = useCallback(
+    async (page: number, append: boolean) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        size: '20',
+      });
+
+      if (adminSearch.trim()) {
+        params.set('search', adminSearch.trim());
+      }
+
+      const response = await apiJson<AdminHeroPageResponse>(`${ADMIN_CATALOG_API}?${params.toString()}`);
+      const mapped = response.items.map(mapHero);
+
+      setAdminCatalogPage(response);
+      setItems((prev) => (append ? [...prev, ...mapped] : mapped));
+      setSelectedId((prev) => {
+        if (append) {
+          return prev ?? mapped[0]?.id ?? null;
+        }
+
+        if (prev && mapped.some((item) => item.id === prev)) {
+          return prev;
+        }
+
+        return mapped[0]?.id ?? null;
+      });
+    },
+    [adminSearch, apiJson],
+  );
+
   const loadList = useCallback(async () => {
     setLoadingList(true);
     setListError(null);
     try {
       if (adminMode) {
-        const response = await apiJson<AdminHeroResponseDto[]>(ADMIN_API);
-        const mapped = response.map(mapHero);
-        setItems(mapped);
-        setSelectedId((prev) => prev ?? mapped[0]?.id ?? null);
+        await fetchAdminCatalogPage(0, false);
       } else {
-        const response = await apiJson<HeroPageResponse>(`${PUBLIC_API}?page=0&size=12&language=${locale}`);
-        setPublicPage(response);
+        await fetchPublicCatalogPage(0, false);
       }
     } catch (error) {
       setListError(error instanceof Error ? error.message : 'Failed to load heroes');
     } finally {
       setLoadingList(false);
     }
-  }, [adminMode, apiJson, locale]);
+  }, [adminMode, fetchAdminCatalogPage, fetchPublicCatalogPage]);
+
+  const handleLoadMorePublic = useCallback(async () => {
+    if (!publicPage?.hasNext || loadingMorePublic) {
+      return;
+    }
+
+    setLoadingMorePublic(true);
+    setListError(null);
+    try {
+      await fetchPublicCatalogPage(publicPage.page + 1, true);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Failed to load heroes');
+    } finally {
+      setLoadingMorePublic(false);
+    }
+  }, [fetchPublicCatalogPage, loadingMorePublic, publicPage]);
+
+  const handleLoadMoreAdmin = useCallback(async () => {
+    if (!adminCatalogPage?.hasNext || loadingMoreAdmin) {
+      return;
+    }
+
+    setLoadingMoreAdmin(true);
+    setListError(null);
+    try {
+      await fetchAdminCatalogPage(adminCatalogPage.page + 1, true);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Failed to load heroes');
+    } finally {
+      setLoadingMoreAdmin(false);
+    }
+  }, [adminCatalogPage, fetchAdminCatalogPage, loadingMoreAdmin]);
 
   const loadDetails = useCallback(async (id: number) => {
     setLoadingDetails(true);
@@ -567,9 +764,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [apiJson]);
 
   const findBaseHeroCardBySlug = useCallback((slug: string) => {
-    if (!publicPage) return null;
-    return publicPage.items.find((item) => item.slug === slug) ?? null;
-  }, [publicPage]);
+    return publicItems.find((item) => item.slug === slug) ?? null;
+  }, [publicItems]);
 
   const toSyntheticPublicHeroCard = useCallback(
     (details: PublicHeroDetailsItem, variants: PublicHeroVariantsResponse): PublicHeroCardItem => ({
@@ -632,10 +828,49 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [adminMode, loadDictionaries]);
 
   useEffect(() => {
+    if (adminMode) {
+      void loadBaseHeroOptions().catch(() => undefined);
+      return;
+    }
+
+    void loadPublicFilterOptions().catch(() => setListError('Failed to load filters'));
+  }, [adminMode, loadBaseHeroOptions, loadPublicFilterOptions]);
+
+  useEffect(() => {
     if (adminMode && selectedId !== null) {
       void loadDetails(selectedId);
     }
   }, [adminMode, selectedId, loadDetails]);
+
+  useEffect(() => {
+    if (openPublicFilterKey === null) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!publicFiltersPanelRef.current) {
+        return;
+      }
+
+      if (!publicFiltersPanelRef.current.contains(event.target as Node)) {
+        setOpenPublicFilterKey(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenPublicFilterKey(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openPublicFilterKey]);
 
   const resetImageInput = (mode: 'create' | 'edit', imageLocale: HeroLocale) => {
     const ref =
@@ -839,8 +1074,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const baseHeroes = useMemo(
-    () => items.filter((item) => !item.isCostume).sort((a, b) => getLocalizedText(a.name, locale).localeCompare(getLocalizedText(b.name, locale))),
-    [items, locale],
+    () => [...baseHeroOptions].sort((a, b) => a.name.localeCompare(b.name, locale === 'RU' ? 'ru' : 'en')),
+    [baseHeroOptions, locale],
+  );
+
+  const hasActivePublicFilters = useMemo(
+    () =>
+      Boolean(publicSearch.trim()) ||
+      Object.values(publicFilters).some((value) => value.length > 0),
+    [publicFilters, publicSearch],
   );
 
   const currentAuditLabel = userEmail ?? displayName ?? userId ?? null;
@@ -854,6 +1096,45 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const resolveItem = <T extends { id: number }>(list: T[], id?: number | null) => {
     if (id == null) return null;
     return list.find((entry) => entry.id === id) ?? null;
+  };
+
+  const resolveBaseHeroName = (id?: number | null) => {
+    if (id == null) return t.noValue;
+    const item = baseHeroes.find((entry) => entry.id === id);
+    return item ? item.name : `#${id}`;
+  };
+
+  const togglePublicFilter = (key: keyof PublicCatalogFiltersState, id: number) => {
+    setPublicFilters((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(id)
+        ? prev[key].filter((value) => value !== id)
+        : [...prev[key], id],
+    }));
+  };
+
+  const getPublicFilterSummary = (
+    key: keyof PublicCatalogFiltersState,
+    options: Array<HeroFilterOption | HeroRarityFilterOption>,
+  ) => {
+    const selected = options.filter((option) => publicFilters[key].includes(option.id));
+
+    if (selected.length === 0) {
+      return null;
+    }
+
+    if (selected.length === 1) {
+      const option = selected[0];
+      return 'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
+    }
+
+    return locale === 'RU' ? `Выбрано: ${selected.length}` : `${selected.length} selected`;
+  };
+
+  const resetPublicFilters = () => {
+    setPublicSearch('');
+    setPublicFilters(EMPTY_PUBLIC_FILTERS);
+    setOpenPublicFilterKey(null);
   };
 
   const validateForm = (form: HeroFormState): string | null => {
@@ -1208,7 +1489,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '' }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
-      {form.isCostume && <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>}
+      {form.isCostume && <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
@@ -1247,47 +1528,165 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.title}</h3>
             <p className="text-sm text-[var(--foreground-soft)]">{t.publicSubtitle}</p>
           </div>
+          <div className="mb-6 space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-[var(--foreground-soft)]">{t.searchHeroes}</span>
+                <input
+                  type="text"
+                  value={publicSearch}
+                  onChange={(event) => setPublicSearch(event.target.value)}
+                  placeholder={t.searchHeroesPlaceholder}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+                />
+              </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={resetPublicFilters}
+                  disabled={!hasActivePublicFilters}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t.resetFilters}
+                </button>
+              </div>
+            </div>
+
+            {publicFilterOptions ? (
+              <div ref={publicFiltersPanelRef} className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="text-sm font-semibold text-[var(--foreground)]">{t.filters}</div>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { key: 'elementIds', label: t.element, options: publicFilterOptions.elements },
+                    { key: 'rarityIds', label: t.rarity, options: publicFilterOptions.rarities },
+                    { key: 'heroClassIds', label: t.heroClass, options: publicFilterOptions.heroClasses },
+                    { key: 'familyIds', label: t.family, options: publicFilterOptions.families },
+                    { key: 'manaSpeedIds', label: t.manaSpeed, options: publicFilterOptions.manaSpeeds },
+                    { key: 'alphaTalentIds', label: t.alphaTalent, options: publicFilterOptions.alphaTalents },
+                  ] as Array<{
+                    key: keyof PublicCatalogFiltersState;
+                    label: string;
+                    options: Array<HeroFilterOption | HeroRarityFilterOption>;
+                  }>).map((group) => {
+                    const selectedCount = publicFilters[group.key].length;
+                    const summary = getPublicFilterSummary(group.key, group.options);
+                    const isOpen = openPublicFilterKey === group.key;
+
+                    return (
+                      <div key={group.key} className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenPublicFilterKey((prev) => (prev === group.key ? null : group.key))
+                          }
+                          className={`min-w-[160px] rounded-xl border px-3 py-2 text-left text-xs transition ${
+                            selectedCount > 0
+                              ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100'
+                              : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold">{group.label}</span>
+                            <span className="text-[10px] text-[var(--foreground-muted)]">
+                              {isOpen ? '▲' : '▼'}
+                            </span>
+                          </div>
+                          <div className="mt-1 truncate text-[11px] text-[var(--foreground-muted)]">
+                            {summary ?? (locale === 'RU' ? 'Не выбрано' : 'Not selected')}
+                          </div>
+                        </button>
+
+                        {isOpen ? (
+                          <div className="absolute left-0 top-full z-20 mt-2 w-[260px] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur">
+                            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+                              {group.label}
+                            </div>
+                            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                              {group.options.map((option) => {
+                                const isSelected = publicFilters[group.key].includes(option.id);
+                                const label =
+                                  'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
+
+                                return (
+                                  <label
+                                    key={option.id}
+                                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent bg-black/10 px-3 py-2 text-xs text-[var(--foreground)] transition hover:border-cyan-400/20 hover:bg-black/20"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => togglePublicFilter(group.key, option.id)}
+                                      className="mt-0.5 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-cyan-400"
+                                    />
+                                    <span className="leading-5">{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
           {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{listError}</div>}
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.loading}</div>
-          ) : !publicPage || publicPage.items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.empty}</div>
+          ) : publicItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{hasActivePublicFilters ? t.noResults : t.empty}</div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {publicPage.items.map((hero) => (
-                <button
-                  key={hero.id}
-                  type="button"
-                  onClick={() => void handleOpenPublicHero(hero)}
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
-                >
-                  <div className="mb-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(59,130,246,0.18),rgba(15,23,42,0.06))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    {hero.imageUrl ? (
-                      <div className="relative aspect-[3/4] w-full overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={hero.imageUrl}
-                          alt={hero.name}
-                          className="relative z-10 h-full w-full scale-[0.94] object-contain object-top"
-                        />
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
-                      </div>
-                    ) : (
-                      <div className="flex aspect-[3/4] w-full items-center justify-center px-4 text-center text-sm text-[var(--foreground-muted)]">
-                        Hero image
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm font-semibold text-[var(--foreground)]">{hero.name}</div>
-                  <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
-                    <div>{t.element}: {hero.elementName}</div>
-                    <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
-                    <div>{t.heroClass}: {hero.heroClassName}</div>
-                    <div>{t.manaSpeed}: {hero.manaSpeedName}</div>
-                  </div>
-                </button>
-              ))}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {publicItems.map((hero) => (
+                  <button
+                    key={hero.id}
+                    type="button"
+                    onClick={() => void handleOpenPublicHero(hero)}
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
+                  >
+                    <div className="mb-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(59,130,246,0.18),rgba(15,23,42,0.06))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                      {hero.imageUrl ? (
+                        <div className="relative aspect-[3/4] w-full overflow-hidden">
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={hero.imageUrl}
+                            alt={hero.name}
+                            className="relative z-10 h-full w-full scale-[0.94] object-contain object-top"
+                          />
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-[3/4] w-full items-center justify-center px-4 text-center text-sm text-[var(--foreground-muted)]">
+                          Hero image
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm font-semibold text-[var(--foreground)]">{hero.name}</div>
+                    <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
+                      <div>{t.element}: {hero.elementName}</div>
+                      <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
+                      <div>{t.heroClass}: {hero.heroClassName}</div>
+                      <div>{t.manaSpeed}: {hero.manaSpeedName}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {publicPage?.hasNext ? (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void handleLoadMorePublic()}
+                    disabled={loadingMorePublic}
+                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {loadingMorePublic ? t.loading : t.loadMore}
+                  </button>
+                </div>
+              ) : null}
             </div>
           )}
         </section>
@@ -1315,14 +1714,34 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div><h3 className="text-lg font-semibold text-[var(--foreground)]">{t.title}</h3><p className="text-sm text-[var(--foreground-soft)]">{t.adminSubtitle}</p></div>
             <button type="button" onClick={openCreateModal} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15">{t.create}</button>
           </div>
+          <label className="mb-4 block">
+            <span className="sr-only">{t.search}</span>
+            <input
+              type="text"
+              value={adminSearch}
+              onChange={(event) => setAdminSearch(event.target.value)}
+              placeholder={t.adminSearchPlaceholder}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            />
+          </label>
           {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{listError}</div>}
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.loading}</div>
           ) : items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.empty}</div>
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{adminSearch.trim() ? t.noResults : t.empty}</div>
           ) : (
             <div className="space-y-3">
               {items.map((hero) => <button key={hero.id} type="button" onClick={() => setSelectedId(hero.id)} className={`w-full rounded-2xl border p-4 text-left transition ${hero.id === selectedId ? 'border-cyan-400/40 bg-cyan-400/10' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'}`}><div className="text-sm font-semibold text-[var(--foreground)]">{getLocalizedText(hero.name, locale)}</div><div className="mt-2 text-xs text-[var(--foreground-soft)]">{t.slug}: {hero.slug}</div><div className="mt-1 text-[11px] uppercase tracking-wide text-[var(--foreground-muted)]">{hero.status}</div></button>)}
+              {adminCatalogPage?.hasNext ? (
+                <button
+                  type="button"
+                  onClick={() => void handleLoadMoreAdmin()}
+                  disabled={loadingMoreAdmin}
+                  className="w-full rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingMoreAdmin ? t.loading : t.loadMore}
+                </button>
+              ) : null}
             </div>
           )}
         </section>
@@ -1464,7 +1883,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
-              {selectedItem.isCostume && <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveName(items.map((item) => ({ id: item.id, name: item.name })), selectedItem.baseHeroId)}</div>}
+              {selectedItem.isCostume && <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div>}
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {formatAdminDate(selectedItem.createdAt, locale, t.noValue)}</div><div>{t.updatedBy}: {selectedItem.updatedByEmail ?? selectedItem.updatedBy}</div><div>{t.updatedAt}: {formatAdminDate(selectedItem.updatedAt, locale, t.noValue)}</div></div>
             </div>
           )}

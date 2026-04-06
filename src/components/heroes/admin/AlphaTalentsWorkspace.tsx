@@ -108,9 +108,23 @@ export default function AlphaTalentsWorkspace() {
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [createForm, setCreateForm] = useState<FormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+
+  const filteredItems = useMemo(() => {
+    const normalized = searchQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
+    if (!normalized) {
+      return items;
+    }
+
+    return items.filter((item) =>
+      [item.name.ru, item.name.en].some((value) =>
+        value.toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalized),
+      ),
+    );
+  }, [items, locale, searchQuery]);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -160,6 +174,18 @@ export default function AlphaTalentsWorkspace() {
       void loadDetails(selectedId);
     }
   }, [selectedId, loadDetails]);
+
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+      setSelectedId(null);
+      setSelectedItem(null);
+      return;
+    }
+
+    if (selectedId === null || !filteredItems.some((item) => item.id === selectedId)) {
+      setSelectedId(filteredItems[0].id);
+    }
+  }, [filteredItems, selectedId]);
 
   const validateForm = (form: FormState): string | null => {
     const nameError = validateLocalizedTextPair(form.name, 'Название RU', 'Name EN');
@@ -337,6 +363,17 @@ export default function AlphaTalentsWorkspace() {
             </div>
           )}
 
+          <label className="mb-4 block">
+            <span className="sr-only">{locale === 'RU' ? 'Поиск альфа-талантов' : 'Search alpha talents'}</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={locale === 'RU' ? 'Поиск альфа-талантов' : 'Search alpha talents'}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            />
+          </label>
+
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.loadingList}
@@ -345,9 +382,13 @@ export default function AlphaTalentsWorkspace() {
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.empty}
             </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
+              {locale === 'RU' ? 'Ничего не найдено' : 'Nothing found'}
+            </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => {
+              {filteredItems.map((item) => {
                 const isActive = item.id === selectedId;
 
                 return (
