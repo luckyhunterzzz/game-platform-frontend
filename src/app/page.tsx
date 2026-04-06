@@ -6,7 +6,6 @@ import { Navbar } from '@/components/Navbar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import PublicationsSection from '@/components/publications/PublicationsSection';
 
-import { useApi } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
@@ -16,11 +15,9 @@ type QuickLinkItem = {
 };
 
 export default function HomePage() {
-  const [log, setLog] = useState<unknown>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-  const { apiFetch } = useApi();
-  const { roles, authenticated, loading } = useAuth();
+  const { loading } = useAuth();
   const { messages } = useI18n();
 
   const quickLinks = useMemo<QuickLinkItem[]>(
@@ -37,18 +34,6 @@ export default function HomePage() {
       messages.home.navAlliances,
     ],
   );
-
-  const handleTest = async (path: string) => {
-    try {
-      const data = await apiFetch(path);
-      setLog(data);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : messages.home.diagnosticsUnknownError;
-
-      setLog({ error: errorMessage });
-    }
-  };
 
   if (loading) {
     return <LoadingScreen />;
@@ -145,56 +130,6 @@ export default function HomePage() {
 
         <div className="w-full">
           <PublicationsSection />
-        </div>
-
-        <div className="mt-12 w-full max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm backdrop-blur-sm">
-          <h3 className="mb-6 flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-            {messages.home.diagnosticsTitle}
-          </h3>
-
-          <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <button
-              onClick={() => handleTest('/api/v1/public/test')}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-[var(--foreground)] transition-all hover:bg-[var(--surface-hover)]"
-            >
-              {messages.home.diagnosticsPublicTest}
-            </button>
-
-            <button
-              onClick={() => handleTest('/api/v1/admin/test')}
-              disabled={!authenticated}
-              className={`rounded-xl border p-4 transition-all ${
-                authenticated
-                  ? 'border-amber-500/30 bg-amber-400/10 text-amber-500 hover:bg-amber-400/15'
-                  : 'cursor-not-allowed border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)]'
-              }`}
-              title={!authenticated ? messages.home.diagnosticsNoAccess : undefined}
-            >
-              {messages.home.diagnosticsAdminTest}
-            </button>
-          </div>
-
-          {log !== null && log !== undefined && (
-            <div className="mt-6 max-h-64 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-4">
-              <pre className="text-xs font-mono text-emerald-400">
-                {JSON.stringify(log, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {roles.length > 0 && (
-            <div className="mt-8 flex flex-wrap gap-2">
-              {roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] uppercase tracking-wider text-blue-400"
-                >
-                  {role}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </main>
     </div>
