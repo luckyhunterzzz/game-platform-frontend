@@ -55,7 +55,9 @@ export default function ElementsWorkspace() {
             loadingList: 'Загрузка элементов...',
             loadingDetails: 'Загрузка деталей...',
             empty: 'Элементов пока нет',
+            noResults: 'Ничего не найдено',
             select: 'Выбери элемент из списка',
+            searchPlaceholder: 'Поиск элементов',
             id: 'ID',
             name: 'Название',
             close: 'Закрыть',
@@ -79,7 +81,9 @@ export default function ElementsWorkspace() {
             loadingList: 'Loading elements...',
             loadingDetails: 'Loading details...',
             empty: 'No elements yet',
+            noResults: 'Nothing found',
             select: 'Select an element from the list',
+            searchPlaceholder: 'Search elements',
             id: 'ID',
             name: 'Name',
             close: 'Close',
@@ -103,9 +107,23 @@ export default function ElementsWorkspace() {
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [createForm, setCreateForm] = useState<ElementFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<ElementFormState>(EMPTY_FORM);
+
+  const filteredItems = useMemo(() => {
+    const normalized = searchQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
+    if (!normalized) {
+      return items;
+    }
+
+    return items.filter((item) =>
+      [item.name.ru, item.name.en].some((value) =>
+        value.toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalized),
+      ),
+    );
+  }, [items, locale, searchQuery]);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -156,6 +174,18 @@ export default function ElementsWorkspace() {
       void loadDetails(selectedId);
     }
   }, [selectedId, loadDetails]);
+
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+      setSelectedId(null);
+      setSelectedItem(null);
+      return;
+    }
+
+    if (selectedId === null || !filteredItems.some((item) => item.id === selectedId)) {
+      setSelectedId(filteredItems[0].id);
+    }
+  }, [filteredItems, selectedId]);
 
   const resetCreateForm = () => {
     setCreateForm({
@@ -329,6 +359,17 @@ export default function ElementsWorkspace() {
             </div>
           )}
 
+          <label className="mb-4 block">
+            <span className="sr-only">{t.searchPlaceholder}</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            />
+          </label>
+
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.loadingList}
@@ -337,9 +378,13 @@ export default function ElementsWorkspace() {
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.empty}
             </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
+              {t.noResults}
+            </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => {
+              {filteredItems.map((item) => {
                 const isActive = item.id === selectedId;
 
                 return (
