@@ -7,6 +7,7 @@ type HeroImageUploadFieldProps = {
   fileInputRef: RefObject<HTMLInputElement | null>;
   uploading: boolean;
   uploadedImageUrl: string | null;
+  storedImageUrl?: string | null;
   uploadedFileName: string | null;
   imageUploadError: string | null;
   hasStoredImage: boolean;
@@ -21,6 +22,7 @@ export default function HeroImageUploadField({
   fileInputRef,
   uploading,
   uploadedImageUrl,
+  storedImageUrl = null,
   uploadedFileName,
   imageUploadError,
   hasStoredImage,
@@ -75,19 +77,23 @@ export default function HeroImageUploadField({
         </div>
       )}
 
-      {uploadedImageUrl ? (
+      {uploadedImageUrl || storedImageUrl ? (
         <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={uploadedImageUrl}
-            alt={uploadedFileName ?? 'Uploaded hero preview'}
+            src={uploadedImageUrl ?? storedImageUrl ?? ''}
+            alt={uploadedFileName ?? storedImageLabel ?? 'Uploaded hero preview'}
             className="max-h-72 w-full object-contain bg-black/20"
           />
 
           <div className="flex items-center justify-between gap-3 p-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--foreground)]">{t.uploaded}</p>
-              <p className="truncate text-xs text-[var(--foreground-soft)]">{uploadedFileName ?? ''}</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                {uploadedImageUrl ? t.uploaded : t.attached}
+              </p>
+              <p className="truncate text-xs text-[var(--foreground-soft)]">
+                {uploadedFileName ?? storedImageLabel ?? ''}
+              </p>
             </div>
 
             <button

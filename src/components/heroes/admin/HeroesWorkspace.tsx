@@ -13,6 +13,7 @@ import {
   mapFamilyDto,
   mapHeroClassDto,
   mapManaSpeedDto,
+  mapPassiveSkillDto,
   mapRarityDto,
   type AlphaTalentItem,
   type AlphaTalentResponseDto,
@@ -26,6 +27,8 @@ import {
   type LocalizedText,
   type ManaSpeedItem,
   type ManaSpeedResponseDto,
+  type PassiveSkillItem,
+  type PassiveSkillResponseDto,
   type RarityItem,
   type RarityResponseDto,
   validateLocalizedTextPair,
@@ -50,6 +53,7 @@ const HERO_CLASSES_API = '/api/v1/admin/heroes/hero-classes';
 const MANA_SPEEDS_API = '/api/v1/admin/heroes/mana-speeds';
 const FAMILIES_API = '/api/v1/admin/heroes/families';
 const ALPHA_TALENTS_API = '/api/v1/admin/heroes/alpha-talents';
+const PASSIVE_SKILLS_API = '/api/v1/admin/heroes/passive-skills';
 const HERO_IMAGE_UPLOAD_API = '/api/v1/admin/media/images/heroes';
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
@@ -86,6 +90,7 @@ type AdminHeroResponseDto = {
   alphaTalentId?: number | null;
   imageBucketJson?: LocalizedText | null;
   imageObjectKeyJson?: LocalizedText | null;
+  imageUrlJson?: LocalizedText | null;
   isCostume: boolean;
   baseHeroId?: number | null;
   releaseDate?: string | null;
@@ -93,6 +98,8 @@ type AdminHeroResponseDto = {
   createdAt: string;
   updatedAt: string;
   updatedBy: string;
+  updatedByEmail?: string | null;
+  passiveSkillIds: number[];
 };
 
 type HeroItem = {
@@ -112,6 +119,7 @@ type HeroItem = {
   alphaTalentId?: number | null;
   imageBucketJson: LocalizedText;
   imageObjectKeyJson: LocalizedText;
+  imageUrlJson: LocalizedText;
   isCostume: boolean;
   baseHeroId?: number | null;
   releaseDate?: string | null;
@@ -119,6 +127,8 @@ type HeroItem = {
   createdAt: string;
   updatedAt: string;
   updatedBy: string;
+  updatedByEmail?: string | null;
+  passiveSkillIds: number[];
 };
 
 type HeroFormState = {
@@ -132,6 +142,7 @@ type HeroFormState = {
   manaSpeedId: string;
   familyId: string;
   alphaTalentId: string;
+  passiveSkillIds: number[];
   imageBucketJson: LocalizedText;
   imageObjectKeyJson: LocalizedText;
   baseAttack: string;
@@ -165,6 +176,7 @@ type HeroMutationRequest = {
   releaseDate?: string | null;
   status: HeroStatus;
   updatedBy: string;
+  updatedByEmail?: string | null;
   passiveSkillIds: number[];
 };
 
@@ -179,6 +191,7 @@ const EMPTY_FORM: HeroFormState = {
   manaSpeedId: '',
   familyId: '',
   alphaTalentId: '',
+  passiveSkillIds: [],
   imageBucketJson: { ...EMPTY_LOCALIZED_TEXT },
   imageObjectKeyJson: { ...EMPTY_LOCALIZED_TEXT },
   baseAttack: '',
@@ -208,6 +221,7 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     alphaTalentId: dto.alphaTalentId ?? null,
     imageBucketJson: dto.imageBucketJson ?? { ...EMPTY_LOCALIZED_TEXT },
     imageObjectKeyJson: dto.imageObjectKeyJson ?? { ...EMPTY_LOCALIZED_TEXT },
+    imageUrlJson: dto.imageUrlJson ?? { ...EMPTY_LOCALIZED_TEXT },
     isCostume: dto.isCostume,
     baseHeroId: dto.baseHeroId ?? null,
     releaseDate: dto.releaseDate ?? null,
@@ -215,6 +229,8 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     updatedBy: dto.updatedBy,
+    updatedByEmail: dto.updatedByEmail ?? null,
+    passiveSkillIds: dto.passiveSkillIds ?? [],
   };
 }
 
@@ -230,6 +246,7 @@ function toForm(hero: HeroItem): HeroFormState {
     manaSpeedId: String(hero.manaSpeedId),
     familyId: hero.familyId ? String(hero.familyId) : '',
     alphaTalentId: hero.alphaTalentId ? String(hero.alphaTalentId) : '',
+    passiveSkillIds: [...hero.passiveSkillIds],
     imageBucketJson: { ...hero.imageBucketJson },
     imageObjectKeyJson: { ...hero.imageObjectKeyJson },
     baseAttack: hero.baseAttack == null ? '' : String(hero.baseAttack),
@@ -265,10 +282,27 @@ function hasLocalizedImage(form: HeroFormState, locale: HeroLocale): boolean {
   return Boolean(bucket && objectKey);
 }
 
+function formatAdminDate(value: string | null | undefined, locale: HeroLocale, fallback: string): string {
+  if (!value) return fallback;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(locale === 'RU' ? 'ru-RU' : 'en-US', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boolean }) {
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid, apiPostFormData } = useApi();
   const { locale: appLocale } = useI18n();
-  const { userId } = useAuth();
+  const { userId, userEmail, displayName } = useAuth();
   const locale: HeroLocale = appLocale === 'ru' ? 'RU' : 'EN';
   const createRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const createEnImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -288,6 +322,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [manaSpeeds, setManaSpeeds] = useState<ManaSpeedItem[]>([]);
   const [families, setFamilies] = useState<FamilyItem[]>([]);
   const [alphaTalents, setAlphaTalents] = useState<AlphaTalentItem[]>([]);
+  const [passiveSkills, setPassiveSkills] = useState<PassiveSkillItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingPublicDetails, setLoadingPublicDetails] = useState(false);
@@ -466,7 +501,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   const loadDictionaries = useCallback(async () => {
     if (!adminMode) return;
-    const [elementsResponse, raritiesResponse, heroClassesResponse, manaSpeedsResponse, familiesResponse, alphaTalentsResponse] =
+    const [
+      elementsResponse,
+      raritiesResponse,
+      heroClassesResponse,
+      manaSpeedsResponse,
+      familiesResponse,
+      alphaTalentsResponse,
+      passiveSkillsResponse,
+    ] =
       await Promise.all([
         apiJson<ElementResponseDto[]>(ELEMENTS_API),
         apiJson<RarityResponseDto[]>(RARITIES_API),
@@ -474,6 +517,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         apiJson<ManaSpeedResponseDto[]>(MANA_SPEEDS_API),
         apiJson<FamilyResponseDto[]>(FAMILIES_API),
         apiJson<AlphaTalentResponseDto[]>(ALPHA_TALENTS_API),
+        apiJson<PassiveSkillResponseDto[]>(PASSIVE_SKILLS_API),
       ]);
     setElements(elementsResponse.map(mapElementDto));
     setRarities(raritiesResponse.map(mapRarityDto));
@@ -481,6 +525,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setManaSpeeds(manaSpeedsResponse.map(mapManaSpeedDto));
     setFamilies(familiesResponse.map(mapFamilyDto));
     setAlphaTalents(alphaTalentsResponse.map(mapAlphaTalentDto));
+    setPassiveSkills(passiveSkillsResponse.map(mapPassiveSkillDto));
   }, [adminMode, apiJson]);
 
   const loadList = useCallback(async () => {
@@ -785,6 +830,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     [items, locale],
   );
 
+  const currentAuditLabel = userEmail ?? displayName ?? userId ?? null;
+
   const resolveName = (list: Array<{ id: number; name: LocalizedText }>, id?: number | null) => {
     if (id == null) return t.noValue;
     const item = list.find((entry) => entry.id === id);
@@ -838,7 +885,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     releaseDate: form.releaseDate || null,
     status: form.status,
     updatedBy: userId ?? '',
-    passiveSkillIds: [],
+    updatedByEmail: userEmail ?? null,
+    passiveSkillIds: form.passiveSkillIds,
   });
 
   const upsertHero = (dto: AdminHeroResponseDto) => {
@@ -943,6 +991,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const heroImageSectionTitle = locale === 'RU' ? 'Картинки героя' : 'Hero images';
     const ruImageLabel = locale === 'RU' ? 'Картинка RU' : 'RU image';
     const enImageLabel = locale === 'RU' ? 'Картинка EN' : 'EN image';
+    const passiveSkillsTitle = locale === 'RU' ? 'Пассивные навыки' : 'Passive skills';
+    const noPassiveSkillsLabel = locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
@@ -985,6 +1035,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 fileInputRef={getFileInputRef(imageLocale)}
                 uploading={uploadingImage[imageLocale]}
                 uploadedImageUrl={imagePreviewUrl[imageLocale]}
+                storedImageUrl={isEdit ? getLocalizedImageValue(selectedItem?.imageUrlJson, imageLocale) : null}
                 uploadedFileName={imageFileName[imageLocale]}
                 imageUploadError={imageUploadError[imageLocale]}
                 hasStoredImage={hasLocalizedImage(form, imageLocale)}
@@ -999,11 +1050,55 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           ))}
         </div>
       </div>
+      <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="text-sm font-semibold text-[var(--foreground)]">{passiveSkillsTitle}</div>
+        {passiveSkills.length === 0 ? (
+          <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {passiveSkills.map((skill) => {
+              const checked = form.passiveSkillIds.includes(skill.id);
+              return (
+                <label
+                  key={skill.id}
+                  className={`flex cursor-pointer gap-3 rounded-2xl border px-4 py-3 transition ${
+                    checked
+                      ? 'border-cyan-400/40 bg-cyan-400/10'
+                      : 'border-[var(--border)] bg-[var(--surface-strong)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        passiveSkillIds: event.target.checked
+                          ? [...prev.passiveSkillIds, skill.id]
+                          : prev.passiveSkillIds.filter((id) => id !== skill.id),
+                      }))
+                    }
+                    className="mt-1"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-[var(--foreground)]">
+                      {getLocalizedText(skill.name, locale)}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--foreground-soft)]">
+                      {getLocalizedText(skill.description, locale)}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '' }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
       {form.isCostume && <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>}
-      {userId && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {userId}</div>}
+      {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
   };
@@ -1075,7 +1170,6 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                   </div>
                   <div className="text-sm font-semibold text-[var(--foreground)]">{hero.name}</div>
                   <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
-                    <div>{t.slug}: {hero.slug}</div>
                     <div>{t.element}: {hero.elementName}</div>
                     <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
                     <div>{t.heroClass}: {hero.heroClassName}</div>
@@ -1138,14 +1232,34 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="text-lg font-semibold text-[var(--foreground)]">{getLocalizedText(selectedItem.name, locale)}</div><div className="mt-1 text-sm text-[var(--foreground-soft)]">{selectedItem.slug}</div></div>
               {(getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'RU') || getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'EN')) && (
                 <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-                  <div className="p-4 text-sm text-[var(--foreground-soft)]">
-                    <div className="font-semibold text-[var(--foreground)]">Image</div>
-                    {getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'RU') && (
-                      <div className="mt-2">RU: {extractStoredImageName(selectedItem.imageObjectKeyJson.ru)}</div>
-                    )}
-                    {getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'EN') && (
-                      <div className="mt-2">EN: {extractStoredImageName(selectedItem.imageObjectKeyJson.en)}</div>
-                    )}
+                  <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+                    {(['RU', 'EN'] as HeroLocale[]).map((imageLocale) => {
+                      const imageUrl = getLocalizedImageValue(selectedItem.imageUrlJson, imageLocale);
+                      const imageName = extractStoredImageName(getLocalizedImageValue(selectedItem.imageObjectKeyJson, imageLocale));
+
+                      if (!imageUrl && !imageName) {
+                        return null;
+                      }
+
+                      return (
+                        <div key={imageLocale} className="space-y-3">
+                          <div className="text-sm font-semibold text-[var(--foreground)]">{imageLocale}</div>
+                          {imageUrl ? (
+                            <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imageUrl}
+                                alt={`${getLocalizedText(selectedItem.name, locale)} ${imageLocale}`}
+                                className="max-h-72 w-full object-contain bg-black/20"
+                              />
+                            </div>
+                          ) : null}
+                          {imageName ? (
+                            <div className="text-xs text-[var(--foreground-soft)]">{imageName}</div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1157,10 +1271,27 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.family}: {resolveName(families, selectedItem.familyId)}</div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.alphaTalent}: {resolveName(alphaTalents, selectedItem.alphaTalentId)}</div>
               </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? 'Пассивные навыки' : 'Passive skills'}</div>
+                {selectedItem.passiveSkillIds.length === 0 ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">{locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected'}</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedItem.passiveSkillIds.map((skillId) => (
+                      <span
+                        key={skillId}
+                        className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
+                      >
+                        {resolveName(passiveSkills, skillId)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
               {selectedItem.isCostume && <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveName(items.map((item) => ({ id: item.id, name: item.name })), selectedItem.baseHeroId)}</div>}
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {selectedItem.createdAt}</div><div>{t.updatedBy}: {selectedItem.updatedBy}</div><div>{t.updatedAt}: {selectedItem.updatedAt}</div></div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {formatAdminDate(selectedItem.createdAt, locale, t.noValue)}</div><div>{t.updatedBy}: {selectedItem.updatedByEmail ?? selectedItem.updatedBy}</div><div>{t.updatedAt}: {formatAdminDate(selectedItem.updatedAt, locale, t.noValue)}</div></div>
             </div>
           )}
         </section>

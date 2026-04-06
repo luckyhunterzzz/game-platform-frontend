@@ -25,11 +25,6 @@ export const enMessages: Messages = {
     navEvents: 'Events',
     navGuides: 'Guides',
     navAlliances: 'Alliances',
-    diagnosticsTitle: 'System Diagnostic Panel',
-    diagnosticsPublicTest: '🚀 Test Public API',
-    diagnosticsAdminTest: '🛡️ Test Admin API',
-    diagnosticsNoAccess: 'Login as admin to test admin API',
-    diagnosticsUnknownError: 'Unknown error',
   },
   heroes: {
     pageTitle: 'Heroes Catalog',
