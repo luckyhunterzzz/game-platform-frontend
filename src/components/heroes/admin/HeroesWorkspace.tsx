@@ -683,7 +683,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     async (page: number, append: boolean) => {
       const params = new URLSearchParams({
         page: String(page),
-        size: '20',
+        size: '5',
       });
 
       if (adminSearch.trim()) {
