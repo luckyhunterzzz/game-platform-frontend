@@ -37,6 +37,7 @@ import {
 import DictionaryModal from './DictionaryModal';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroImageUploadField from './HeroImageUploadField';
+import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
 import PublicHeroDetailsModal, {
@@ -141,6 +142,7 @@ type AdminHeroResponseDto = {
   imageUrlJson?: LocalizedText | null;
   isCostume: boolean;
   baseHeroId?: number | null;
+  costumeIndex?: number | null;
   releaseDate?: string | null;
   status: HeroStatus;
   createdAt: string;
@@ -170,6 +172,7 @@ type HeroItem = {
   imageUrlJson: LocalizedText;
   isCostume: boolean;
   baseHeroId?: number | null;
+  costumeIndex?: number | null;
   releaseDate?: string | null;
   status: HeroStatus;
   createdAt: string;
@@ -200,6 +203,7 @@ type HeroFormState = {
   releaseDate: string;
   isCostume: boolean;
   baseHeroId: string;
+  costumeIndex: string;
 };
 
 type HeroMutationRequest = {
@@ -220,6 +224,7 @@ type HeroMutationRequest = {
   imageObjectKeyJson?: LocalizedText | null;
   isCostume: boolean;
   baseHeroId?: number | null;
+  costumeIndex?: number | null;
   costumeBonusJson?: null;
   releaseDate?: string | null;
   status: HeroStatus;
@@ -249,6 +254,7 @@ const EMPTY_FORM: HeroFormState = {
   releaseDate: '',
   isCostume: false,
   baseHeroId: '',
+  costumeIndex: '',
 };
 
 const EMPTY_PUBLIC_FILTERS: PublicCatalogFiltersState = {
@@ -281,6 +287,7 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     imageUrlJson: dto.imageUrlJson ?? { ...EMPTY_LOCALIZED_TEXT },
     isCostume: dto.isCostume,
     baseHeroId: dto.baseHeroId ?? null,
+    costumeIndex: dto.costumeIndex ?? null,
     releaseDate: dto.releaseDate ?? null,
     status: dto.status,
     createdAt: dto.createdAt,
@@ -313,6 +320,7 @@ function toForm(hero: HeroItem): HeroFormState {
     releaseDate: hero.releaseDate ?? '',
     isCostume: hero.isCostume,
     baseHeroId: hero.baseHeroId ? String(hero.baseHeroId) : '',
+    costumeIndex: hero.costumeIndex == null ? '' : String(hero.costumeIndex),
   };
 }
 
@@ -675,7 +683,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     async (page: number, append: boolean) => {
       const params = new URLSearchParams({
         page: String(page),
-        size: '20',
+        size: '5',
       });
 
       if (adminSearch.trim()) {
@@ -1145,6 +1153,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (!form.heroClassId) return `${t.heroClass}: ${t.required}`;
     if (!form.manaSpeedId) return `${t.manaSpeed}: ${t.required}`;
     if (form.isCostume && !form.baseHeroId) return t.costumeBaseHeroRequired;
+    if (form.isCostume && !form.costumeIndex.trim()) {
+      return locale === 'RU' ? 'Номер костюма обязателен' : 'Costume index is required';
+    }
     const localizedError =
       validateLocalizedTextPair(form.name, t.nameRu, t.nameEn) ??
       validateLocalizedTextPair(form.specialSkillName, t.skillNameRu, t.skillNameEn) ??
@@ -1180,6 +1191,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     imageObjectKeyJson: form.imageObjectKeyJson,
     isCostume: form.isCostume,
     baseHeroId: form.isCostume && form.baseHeroId ? Number(form.baseHeroId) : null,
+    costumeIndex: form.isCostume && form.costumeIndex ? Number(form.costumeIndex) : null,
     costumeBonusJson: null,
     releaseDate: form.releaseDate || null,
     status: form.status,
@@ -1488,8 +1500,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       </div>
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
-      <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '' }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
-      {form.isCostume && <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+      <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '' }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
+      {form.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? 'Номер костюма' : 'Costume index'}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
@@ -1882,8 +1894,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 )}
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
+              <HeroStatCalculatorPanel locale={locale} heroId={selectedItem.id} heroSlug={selectedItem.slug} isCostume={selectedItem.isCostume} baseAttack={selectedItem.baseAttack ?? null} baseArmor={selectedItem.baseArmor ?? null} baseHp={selectedItem.baseHp ?? null} />
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
-              {selectedItem.isCostume && <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div>}
+              {selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{locale === 'RU' ? 'Номер костюма' : 'Costume index'}: {selectedItem.costumeIndex ?? t.noValue}</div></div>}
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {formatAdminDate(selectedItem.createdAt, locale, t.noValue)}</div><div>{t.updatedBy}: {selectedItem.updatedByEmail ?? selectedItem.updatedBy}</div><div>{t.updatedAt}: {formatAdminDate(selectedItem.updatedAt, locale, t.noValue)}</div></div>
             </div>
           )}

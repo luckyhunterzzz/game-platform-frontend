@@ -28,15 +28,12 @@ export const EMPTY_LOCALIZED_TEXT: LocalizedText = {
   en: '',
 };
 
-export type EmblemPathType = 'ATTACK' | 'ARMOR' | 'HP';
+export type EmblemPathType = 'DAMAGE' | 'DEFENSE';
 
 export type EvolutionStageCode =
-  | 'BASE'
-  | 'ASCENDED_1'
-  | 'ASCENDED_2'
-  | 'ASCENDED_3'
-  | 'LIMIT_BROKEN_1'
-  | 'LIMIT_BROKEN_2';
+  | 'ASCENSION_4_80'
+  | 'ASCENSION_4_85'
+  | 'ASCENSION_4_90';
 
 export function getLocalizedText(
   value: LocalizedText | null | undefined,
@@ -338,34 +335,58 @@ export interface HeroClassEmblemBonusProfileResponseDto {
   id: number;
   heroClassId: number;
   pathType: EmblemPathType;
-  attackBonus: number;
-  armorBonus: number;
-  hpBonus: number;
+  attackFlatBonus: number;
+  armorFlatBonus: number;
+  hpFlatBonus: number;
+  attackPercentBonus: number;
+  armorPercentBonus: number;
+  hpPercentBonus: number;
+  masterAttackBonus: number;
+  masterArmorBonus: number;
+  masterHpBonus: number;
 }
 
 export interface HeroClassEmblemBonusProfileItem {
   id: number;
   heroClassId: number;
   pathType: EmblemPathType;
-  attackBonus: number;
-  armorBonus: number;
-  hpBonus: number;
+  attackFlatBonus: number;
+  armorFlatBonus: number;
+  hpFlatBonus: number;
+  attackPercentBonus: number;
+  armorPercentBonus: number;
+  hpPercentBonus: number;
+  masterAttackBonus: number;
+  masterArmorBonus: number;
+  masterHpBonus: number;
 }
 
 export interface CreateHeroClassEmblemBonusProfileRequest {
   heroClassId: number;
   pathType: EmblemPathType;
-  attackBonus: number;
-  armorBonus: number;
-  hpBonus: number;
+  attackFlatBonus: number;
+  armorFlatBonus: number;
+  hpFlatBonus: number;
+  attackPercentBonus: number;
+  armorPercentBonus: number;
+  hpPercentBonus: number;
+  masterAttackBonus: number;
+  masterArmorBonus: number;
+  masterHpBonus: number;
 }
 
 export interface UpdateHeroClassEmblemBonusProfileRequest {
   heroClassId: number;
   pathType: EmblemPathType;
-  attackBonus: number;
-  armorBonus: number;
-  hpBonus: number;
+  attackFlatBonus: number;
+  armorFlatBonus: number;
+  hpFlatBonus: number;
+  attackPercentBonus: number;
+  armorPercentBonus: number;
+  hpPercentBonus: number;
+  masterAttackBonus: number;
+  masterArmorBonus: number;
+  masterHpBonus: number;
 }
 
 export function mapHeroClassEmblemBonusProfileDto(
@@ -375,9 +396,15 @@ export function mapHeroClassEmblemBonusProfileDto(
     id: dto.id,
     heroClassId: dto.heroClassId,
     pathType: dto.pathType,
-    attackBonus: dto.attackBonus,
-    armorBonus: dto.armorBonus,
-    hpBonus: dto.hpBonus,
+    attackFlatBonus: dto.attackFlatBonus,
+    armorFlatBonus: dto.armorFlatBonus,
+    hpFlatBonus: dto.hpFlatBonus,
+    attackPercentBonus: dto.attackPercentBonus,
+    armorPercentBonus: dto.armorPercentBonus,
+    hpPercentBonus: dto.hpPercentBonus,
+    masterAttackBonus: dto.masterAttackBonus,
+    masterArmorBonus: dto.masterArmorBonus,
+    masterHpBonus: dto.masterHpBonus,
   };
 }
 

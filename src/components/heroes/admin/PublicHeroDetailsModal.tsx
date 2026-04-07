@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 
 import DictionaryModal from './DictionaryModal';
 import HeroInfoPopover from './HeroInfoPopover';
+import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 
 export type PublicHeroCardItem = {
   id: number;
@@ -49,6 +50,7 @@ export type PublicHeroDetailsItem = {
     id: number;
     slug: string;
     name: string;
+    costumeIndex?: number | null;
   }>;
   baseHeroId?: number | null;
   imageUrl?: string | null;
@@ -113,7 +115,6 @@ export default function PublicHeroDetailsModal({
   onClose,
   onOpenRelatedHero,
 }: PublicHeroDetailsModalProps) {
-  const [computedStatsOpen, setComputedStatsOpen] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
   const t = useMemo(
@@ -398,24 +399,16 @@ export default function PublicHeroDetailsModal({
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <button
-                  type="button"
-                  onClick={() => setComputedStatsOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-3 text-left"
-                >
-                  <span className="text-sm font-semibold text-[var(--foreground)]">{t.computedStats}</span>
-                  <span className="text-xs uppercase tracking-wide text-[var(--foreground-muted)]">
-                    {computedStatsOpen ? t.hide : t.show}
-                  </span>
-                </button>
-
-                {computedStatsOpen && (
-                  <div className="mt-4 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground-soft)]">
-                    {t.computedStatsHint}
-                  </div>
-                )}
-              </div>
+              <HeroStatCalculatorPanel
+                locale={locale}
+                heroId={heroDetails.id}
+                heroSlug={heroDetails.slug}
+                isCostume={heroDetails.baseHeroId != null}
+                baseAttack={heroCard.baseAttack ?? null}
+                baseArmor={heroCard.baseArmor ?? null}
+                baseHp={heroCard.baseHp ?? null}
+                costumes={heroDetails.costumes}
+              />
 
               {releaseDate ? (
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--foreground)]">
