@@ -20,6 +20,16 @@ import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
 
 const API = '/api/v1/admin/heroes/mana-speeds';
+const CATALOG_API = '/api/v1/admin/heroes/mana-speeds/catalog';
+
+type CatalogResponseDto<T> = {
+  items: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+};
 
 type FormState = {
   name: LocalizedText;
@@ -97,9 +107,11 @@ export default function ManaSpeedsWorkspace() {
   const [items, setItems] = useState<ManaSpeedItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<ManaSpeedItem | null>(null);
+  const [catalogPage, setCatalogPage] = useState<CatalogResponseDto<ManaSpeedResponseDto> | null>(null);
 
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [listError, setListError] = useState<string | null>(null);
@@ -131,9 +143,12 @@ export default function ManaSpeedsWorkspace() {
     setListError(null);
 
     try {
-      const response = await apiJson<ManaSpeedResponseDto[]>(API);
-      const mapped = response.map(mapManaSpeedDto);
+      const response = await apiJson<CatalogResponseDto<ManaSpeedResponseDto>>(
+        `${CATALOG_API}?page=0&size=5`,
+      );
+      const mapped = response.items.map(mapManaSpeedDto);
       setItems(mapped);
+      setCatalogPage(response);
 
       if (mapped.length > 0) {
         setSelectedId((prev) => prev ?? mapped[0].id);
@@ -147,6 +162,27 @@ export default function ManaSpeedsWorkspace() {
       setLoadingList(false);
     }
   }, [apiJson]);
+
+  const handleLoadMore = async () => {
+    if (!catalogPage?.hasNext || loadingMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+    setListError(null);
+
+    try {
+      const response = await apiJson<CatalogResponseDto<ManaSpeedResponseDto>>(
+        `${CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}`,
+      );
+      setItems((prev) => [...prev, ...response.items.map(mapManaSpeedDto)]);
+      setCatalogPage(response);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Failed to load more mana speeds');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const loadDetails = useCallback(
     async (id: number) => {
@@ -412,6 +448,16 @@ export default function ManaSpeedsWorkspace() {
                   </button>
                 );
               })}
+              {catalogPage?.hasNext ? (
+                <button
+                  type="button"
+                  onClick={() => void handleLoadMore()}
+                  disabled={loadingMore}
+                  className="w-full rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingMore ? t.loadingList : locale === 'RU' ? 'Показать еще' : 'Load more'}
+                </button>
+              ) : null}
             </div>
           )}
         </section>
