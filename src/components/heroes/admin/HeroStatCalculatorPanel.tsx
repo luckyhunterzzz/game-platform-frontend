@@ -44,6 +44,7 @@ type HeroStatCalculatorPanelProps = {
   locale: HeroLocale;
   heroId: number;
   heroSlug: string;
+  calculateEndpoint: string;
   isCostume: boolean;
   baseAttack?: number | null;
   baseArmor?: number | null;
@@ -52,7 +53,6 @@ type HeroStatCalculatorPanelProps = {
 };
 
 const STAGES: EvolutionStageCode[] = ['ASCENSION_4_80', 'ASCENSION_4_85', 'ASCENSION_4_90'];
-const CALCULATE_STATS_LABEL = 'stats/calculate';
 
 function statDeltaLabel(finalValue: number, baseValue: number | null | undefined) {
   if (baseValue == null) return null;
@@ -74,6 +74,7 @@ export default function HeroStatCalculatorPanel({
   locale,
   heroId,
   heroSlug,
+  calculateEndpoint,
   isCostume,
   baseAttack,
   baseArmor,
@@ -201,7 +202,7 @@ export default function HeroStatCalculatorPanel({
             includeMasterEmblems: boolean;
           },
           HeroStatCalculationResponse
-        >(`/api/v1/admin/heroes/${heroId}/${CALCULATE_STATS_LABEL}`, {
+        >(calculateEndpoint, {
           stageCode,
           costumeHeroId: selectedCostumeHeroId,
           emblemPathType,
@@ -232,7 +233,7 @@ export default function HeroStatCalculatorPanel({
     return () => {
       cancelled = true;
     };
-  }, [apiPostJson, baseArmor, baseAttack, baseHp, emblemPathType, heroId, includeMasterEmblems, selectedCostumeHeroId, stageCode]);
+  }, [apiPostJson, baseArmor, baseAttack, baseHp, calculateEndpoint, emblemPathType, heroId, includeMasterEmblems, selectedCostumeHeroId, stageCode]);
 
   if (baseAttack == null || baseArmor == null || baseHp == null) {
     return (

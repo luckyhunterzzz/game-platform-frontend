@@ -124,26 +124,17 @@ export default function ElementsWorkspace() {
   const [createForm, setCreateForm] = useState<ElementFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<ElementFormState>(EMPTY_FORM);
 
-  const filteredItems = useMemo(() => {
-    const normalized = searchQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
-    if (!normalized) {
-      return items;
-    }
-
-    return items.filter((item) =>
-      [item.name.ru, item.name.en].some((value) =>
-        value.toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalized),
-      ),
-    );
-  }, [items, locale, searchQuery]);
-
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (searchValue: string) => {
     setLoadingList(true);
     setListError(null);
 
     try {
+      const params = new URLSearchParams({ page: '0', size: '5' });
+      if (searchValue.trim()) {
+        params.set('search', searchValue.trim());
+      }
       const response = await apiJson<CatalogResponseDto<ElementResponseDto>>(
-        `${ELEMENTS_CATALOG_API}?page=0&size=5`,
+        `${ELEMENTS_CATALOG_API}?${params.toString()}`,
       );
       const mapped = response.items.map(mapElementDto);
 
@@ -173,7 +164,7 @@ export default function ElementsWorkspace() {
 
     try {
       const response = await apiJson<CatalogResponseDto<ElementResponseDto>>(
-        `${ELEMENTS_CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}`,
+        `${ELEMENTS_CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}${searchQuery.trim() ? `&search=${encodeURIComponent(searchQuery.trim())}` : ''}`,
       );
       setItems((prev) => [...prev, ...response.items.map(mapElementDto)]);
       setCatalogPage(response);
@@ -202,8 +193,12 @@ export default function ElementsWorkspace() {
   );
 
   useEffect(() => {
-    void loadList();
-  }, [loadList]);
+    const timeoutId = window.setTimeout(() => {
+      void loadList(searchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadList, searchQuery]);
 
   useEffect(() => {
     if (selectedId !== null) {
@@ -212,16 +207,16 @@ export default function ElementsWorkspace() {
   }, [selectedId, loadDetails]);
 
   useEffect(() => {
-    if (filteredItems.length === 0) {
+    if (items.length === 0) {
       setSelectedId(null);
       setSelectedItem(null);
       return;
     }
 
-    if (selectedId === null || !filteredItems.some((item) => item.id === selectedId)) {
-      setSelectedId(filteredItems[0].id);
+    if (selectedId === null || !items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0].id);
     }
-  }, [filteredItems, selectedId]);
+  }, [items, selectedId]);
 
   const resetCreateForm = () => {
     setCreateForm({
@@ -412,15 +407,15 @@ export default function ElementsWorkspace() {
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-              {t.empty}
+              {searchQuery.trim() ? t.noResults : t.empty}
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.noResults}
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredItems.map((item) => {
+              {items.map((item) => {
                 const isActive = item.id === selectedId;
 
                 return (
