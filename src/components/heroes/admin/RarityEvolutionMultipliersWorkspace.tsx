@@ -38,39 +38,35 @@ const EMPTY_FORM: FormState = {
 };
 
 const STAGE_CODES: EvolutionStageCode[] = [
-  'BASE',
-  'ASCENDED_1',
-  'ASCENDED_2',
-  'ASCENDED_3',
-  'LIMIT_BROKEN_1',
-  'LIMIT_BROKEN_2',
+  'ASCENSION_4_80',
+  'ASCENSION_4_85',
+  'ASCENSION_4_90',
 ];
 
 export default function RarityEvolutionMultipliersWorkspace() {
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid } = useApi();
   const { messages } = useI18n();
-
   const locale: HeroLocale = resolveHeroLocale(messages);
 
   const t = useMemo(
     () =>
       locale === 'RU'
         ? {
-            sectionTitle: 'Множители эволюции',
-            sectionSubtitle: 'Полный CRUD для множителей эволюции',
+            sectionTitle: 'Множители стадий',
+            sectionSubtitle: 'Коэффициенты для 4.80, 4.85 и 4.90',
             create: 'Создать',
-            createTitle: 'Создать множитель эволюции',
-            editTitle: 'Изменить множитель эволюции',
-            detailsTitle: 'Детали множителя эволюции',
+            createTitle: 'Создать множитель',
+            editTitle: 'Редактировать множитель',
+            detailsTitle: 'Множитель стадии',
             detailsSubtitle: 'Просмотр, изменение и удаление выбранной записи',
-            edit: 'Изменить',
+            edit: 'Редактировать',
             delete: 'Удалить',
             cancel: 'Отмена',
             save: 'Сохранить',
             creating: 'Создание...',
             saving: 'Сохранение...',
             loadingList: 'Загрузка множителей...',
-            loadingDetails: 'Загрузка деталей...',
+            loadingDetails: 'Загрузка множителя...',
             empty: 'Множителей пока нет',
             select: 'Выбери множитель из списка',
             close: 'Закрыть',
@@ -79,35 +75,29 @@ export default function RarityEvolutionMultipliersWorkspace() {
             attack: 'Множитель атаки',
             armor: 'Множитель брони',
             hp: 'Множитель HP',
-            selectRarity: 'Выбери редкость',
-            selectStage: 'Выбери стадию',
+            selectRarity: 'Выберите редкость',
+            selectStage: 'Выберите стадию',
             deleteConfirm: (item: RarityEvolutionMultiplierItem) =>
-              `Удалить множитель эволюции #${item.id}?`,
+              `Удалить множитель #${item.id}?`,
             stageLabel: (stage: EvolutionStageCode) => {
               switch (stage) {
-                case 'BASE':
-                  return 'База';
-                case 'ASCENDED_1':
-                  return 'Возвышение 1';
-                case 'ASCENDED_2':
-                  return 'Возвышение 2';
-                case 'ASCENDED_3':
-                  return 'Возвышение 3';
-                case 'LIMIT_BROKEN_1':
-                  return 'Лимит брейк 1';
-                case 'LIMIT_BROKEN_2':
-                  return 'Лимит брейк 2';
+                case 'ASCENSION_4_80':
+                  return '4.80';
+                case 'ASCENSION_4_85':
+                  return '4.85';
+                case 'ASCENSION_4_90':
+                  return '4.90';
               }
             },
           }
         : {
-            sectionTitle: 'Evolution multipliers',
-            sectionSubtitle: 'Full CRUD for evolution multipliers',
+            sectionTitle: 'Stage multipliers',
+            sectionSubtitle: 'Multipliers for 4.80, 4.85 and 4.90',
             create: 'Create',
-            createTitle: 'Create evolution multiplier',
-            editTitle: 'Edit evolution multiplier',
-            detailsTitle: 'Evolution multiplier details',
-            detailsSubtitle: 'View, edit and delete selected item',
+            createTitle: 'Create multiplier',
+            editTitle: 'Edit multiplier',
+            detailsTitle: 'Stage multiplier',
+            detailsSubtitle: 'View, update and delete the selected entry',
             edit: 'Edit',
             delete: 'Delete',
             cancel: 'Cancel',
@@ -115,7 +105,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
             creating: 'Creating...',
             saving: 'Saving...',
             loadingList: 'Loading multipliers...',
-            loadingDetails: 'Loading details...',
+            loadingDetails: 'Loading multiplier...',
             empty: 'No multipliers yet',
             select: 'Select a multiplier from the list',
             close: 'Close',
@@ -127,21 +117,15 @@ export default function RarityEvolutionMultipliersWorkspace() {
             selectRarity: 'Select rarity',
             selectStage: 'Select stage',
             deleteConfirm: (item: RarityEvolutionMultiplierItem) =>
-              `Delete evolution multiplier #${item.id}?`,
+              `Delete multiplier #${item.id}?`,
             stageLabel: (stage: EvolutionStageCode) => {
               switch (stage) {
-                case 'BASE':
-                  return 'Base';
-                case 'ASCENDED_1':
-                  return 'Ascended 1';
-                case 'ASCENDED_2':
-                  return 'Ascended 2';
-                case 'ASCENDED_3':
-                  return 'Ascended 3';
-                case 'LIMIT_BROKEN_1':
-                  return 'Limit Broken 1';
-                case 'LIMIT_BROKEN_2':
-                  return 'Limit Broken 2';
+                case 'ASCENSION_4_80':
+                  return '4.80';
+                case 'ASCENSION_4_85':
+                  return '4.85';
+                case 'ASCENSION_4_90':
+                  return '4.90';
               }
             },
           },
@@ -154,29 +138,28 @@ export default function RarityEvolutionMultipliersWorkspace() {
   const [selectedItem, setSelectedItem] = useState<RarityEvolutionMultiplierItem | null>(
     null,
   );
-
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
-
   const [createForm, setCreateForm] = useState<FormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
 
-  const resolveRarityName = (rarityId: number) => {
-    const rarity = rarities.find((item) => item.id === rarityId);
-    if (!rarity) {
-      return `#${rarityId}`;
-    }
+  const resolveRarityName = useCallback(
+    (rarityId: number) => {
+      const rarity = rarities.find((item) => item.id === rarityId);
+      if (!rarity) {
+        return `#${rarityId}`;
+      }
 
-    return `${getLocaleText(rarity.name, locale)} (${rarity.stars}★)`;
-  };
+      return `${getLocaleText(rarity.name, locale)} (${rarity.stars}*)`;
+    },
+    [locale, rarities],
+  );
 
   const loadRarities = useCallback(async () => {
     try {
@@ -235,7 +218,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
     if (selectedId !== null) {
       void loadDetails(selectedId);
     }
-  }, [selectedId, loadDetails]);
+  }, [loadDetails, selectedId]);
 
   const validateFloat = (value: string, labelRu: string, labelEn: string) => {
     const normalized = value.trim();
@@ -399,6 +382,109 @@ export default function RarityEvolutionMultipliersWorkspace() {
     }
   };
 
+  const renderForm = (
+    form: FormState,
+    setForm: React.Dispatch<React.SetStateAction<FormState>>,
+  ) => (
+    <div className="space-y-6">
+      {submitError && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {submitError}
+        </div>
+      )}
+
+      <label className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-[var(--foreground-soft)]">
+          {t.rarity}
+        </span>
+        <select
+          value={form.rarityId}
+          onChange={(event) =>
+            setForm((prev) => ({ ...prev, rarityId: event.target.value }))
+          }
+          className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+        >
+          <option value="">{t.selectRarity}</option>
+          {rarities.map((item) => (
+            <option key={item.id} value={item.id}>
+              {resolveRarityName(item.id)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-[var(--foreground-soft)]">
+          {t.stage}
+        </span>
+        <select
+          value={form.stageCode}
+          onChange={(event) =>
+            setForm((prev) => ({
+              ...prev,
+              stageCode: event.target.value as EvolutionStageCode,
+            }))
+          }
+          className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+        >
+          <option value="">{t.selectStage}</option>
+          {STAGE_CODES.map((stage) => (
+            <option key={stage} value={stage}>
+              {t.stageLabel(stage)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[var(--foreground-soft)]">
+            {t.attack}
+          </span>
+          <input
+            type="number"
+            step="0.0001"
+            value={form.attackMultiplier}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, attackMultiplier: event.target.value }))
+            }
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[var(--foreground-soft)]">
+            {t.armor}
+          </span>
+          <input
+            type="number"
+            step="0.0001"
+            value={form.armorMultiplier}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, armorMultiplier: event.target.value }))
+            }
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[var(--foreground-soft)]">
+            {t.hp}
+          </span>
+          <input
+            type="number"
+            step="0.0001"
+            value={form.hpMultiplier}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, hpMultiplier: event.target.value }))
+            }
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+          />
+        </label>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -410,7 +496,6 @@ export default function RarityEvolutionMultipliersWorkspace() {
               </h3>
               <p className="text-sm text-[var(--foreground-soft)]">{t.sectionSubtitle}</p>
             </div>
-
             <button
               type="button"
               onClick={() => {
@@ -460,7 +545,8 @@ export default function RarityEvolutionMultipliersWorkspace() {
                       {t.stage}: {t.stageLabel(item.stageCode)}
                     </div>
                     <div className="mt-1 text-xs text-[var(--foreground-soft)]">
-                      ATK {item.attackMultiplier} / ARM {item.armorMultiplier} / HP {item.hpMultiplier}
+                      ATK {item.attackMultiplier} / ARM {item.armorMultiplier} / HP{' '}
+                      {item.hpMultiplier}
                     </div>
                     <div className="mt-2 text-[11px] uppercase tracking-wide text-[var(--foreground-muted)]">
                       ID: {item.id}
@@ -526,15 +612,6 @@ export default function RarityEvolutionMultipliersWorkspace() {
             <div className="space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                 <div className="mb-2 text-xs uppercase tracking-wide text-[var(--foreground-muted)]">
-                  ID
-                </div>
-                <div className="text-sm font-semibold text-[var(--foreground)]">
-                  {selectedItem.id}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div className="mb-2 text-xs uppercase tracking-wide text-[var(--foreground-muted)]">
                   {t.rarity}
                 </div>
                 <div className="text-sm font-semibold text-[var(--foreground)]">
@@ -591,111 +668,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
         onClose={() => !submitting && setCreateOpen(false)}
       >
         <div className="space-y-6">
-          {submitError && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {submitError}
-            </div>
-          )}
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[var(--foreground-soft)]">
-              {t.rarity}
-            </span>
-            <select
-              value={createForm.rarityId}
-              onChange={(e) =>
-                setCreateForm((prev) => ({ ...prev, rarityId: e.target.value }))
-              }
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            >
-              <option value="">{t.selectRarity}</option>
-              {rarities.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {resolveRarityName(item.id)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[var(--foreground-soft)]">
-              {t.stage}
-            </span>
-            <select
-              value={createForm.stageCode}
-              onChange={(e) =>
-                setCreateForm((prev) => ({
-                  ...prev,
-                  stageCode: e.target.value as EvolutionStageCode,
-                }))
-              }
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            >
-              <option value="">{t.selectStage}</option>
-              {STAGE_CODES.map((stage) => (
-                <option key={stage} value={stage}>
-                  {t.stageLabel(stage)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.attack}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={createForm.attackMultiplier}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    attackMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.armor}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={createForm.armorMultiplier}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    armorMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.hp}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={createForm.hpMultiplier}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    hpMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-          </div>
-
+          {renderForm(createForm, setCreateForm)}
           <div className="flex justify-end gap-3">
             <button
               type="button"
@@ -724,111 +697,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
         onClose={() => !submitting && setEditOpen(false)}
       >
         <div className="space-y-6">
-          {submitError && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {submitError}
-            </div>
-          )}
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[var(--foreground-soft)]">
-              {t.rarity}
-            </span>
-            <select
-              value={editForm.rarityId}
-              onChange={(e) =>
-                setEditForm((prev) => ({ ...prev, rarityId: e.target.value }))
-              }
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            >
-              <option value="">{t.selectRarity}</option>
-              {rarities.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {resolveRarityName(item.id)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[var(--foreground-soft)]">
-              {t.stage}
-            </span>
-            <select
-              value={editForm.stageCode}
-              onChange={(e) =>
-                setEditForm((prev) => ({
-                  ...prev,
-                  stageCode: e.target.value as EvolutionStageCode,
-                }))
-              }
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            >
-              <option value="">{t.selectStage}</option>
-              {STAGE_CODES.map((stage) => (
-                <option key={stage} value={stage}>
-                  {t.stageLabel(stage)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.attack}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={editForm.attackMultiplier}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    attackMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.armor}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={editForm.armorMultiplier}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    armorMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-[var(--foreground-soft)]">
-                {t.hp}
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                value={editForm.hpMultiplier}
-                onChange={(e) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    hpMultiplier: e.target.value,
-                  }))
-                }
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-          </div>
-
+          {renderForm(editForm, setEditForm)}
           <div className="flex justify-end gap-3">
             <button
               type="button"
