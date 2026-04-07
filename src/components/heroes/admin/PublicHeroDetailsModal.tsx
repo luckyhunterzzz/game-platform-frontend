@@ -403,6 +403,7 @@ export default function PublicHeroDetailsModal({
                 locale={locale}
                 heroId={heroDetails.id}
                 heroSlug={heroDetails.slug}
+                calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
                 isCostume={heroDetails.baseHeroId != null}
                 baseAttack={heroCard.baseAttack ?? null}
                 baseArmor={heroCard.baseArmor ?? null}
