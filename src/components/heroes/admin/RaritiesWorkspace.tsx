@@ -126,26 +126,17 @@ export default function RaritiesWorkspace() {
   const [createForm, setCreateForm] = useState<RarityFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<RarityFormState>(EMPTY_FORM);
 
-  const filteredItems = useMemo(() => {
-    const normalized = searchQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
-    if (!normalized) {
-      return items;
-    }
-
-    return items.filter((item) =>
-      [item.name.ru, item.name.en, String(item.stars)].some((value) =>
-        value.toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalized),
-      ),
-    );
-  }, [items, locale, searchQuery]);
-
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (searchValue: string) => {
     setLoadingList(true);
     setListError(null);
 
     try {
+      const params = new URLSearchParams({ page: '0', size: '5' });
+      if (searchValue.trim()) {
+        params.set('search', searchValue.trim());
+      }
       const response = await apiJson<CatalogResponseDto<RarityResponseDto>>(
-        `${RARITIES_CATALOG_API}?page=0&size=5`,
+        `${RARITIES_CATALOG_API}?${params.toString()}`,
       );
       const mapped = response.items.map(mapRarityDto);
 
@@ -175,7 +166,7 @@ export default function RaritiesWorkspace() {
 
     try {
       const response = await apiJson<CatalogResponseDto<RarityResponseDto>>(
-        `${RARITIES_CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}`,
+        `${RARITIES_CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}${searchQuery.trim() ? `&search=${encodeURIComponent(searchQuery.trim())}` : ''}`,
       );
       setItems((prev) => [...prev, ...response.items.map(mapRarityDto)]);
       setCatalogPage(response);
@@ -204,8 +195,12 @@ export default function RaritiesWorkspace() {
   );
 
   useEffect(() => {
-    void loadList();
-  }, [loadList]);
+    const timeoutId = window.setTimeout(() => {
+      void loadList(searchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadList, searchQuery]);
 
   useEffect(() => {
     if (selectedId !== null) {
@@ -214,16 +209,16 @@ export default function RaritiesWorkspace() {
   }, [selectedId, loadDetails]);
 
   useEffect(() => {
-    if (filteredItems.length === 0) {
+    if (items.length === 0) {
       setSelectedId(null);
       setSelectedItem(null);
       return;
     }
 
-    if (selectedId === null || !filteredItems.some((item) => item.id === selectedId)) {
-      setSelectedId(filteredItems[0].id);
+    if (selectedId === null || !items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0].id);
     }
-  }, [filteredItems, selectedId]);
+  }, [items, selectedId]);
 
   const resetCreateForm = () => {
     setCreateForm({
@@ -445,15 +440,19 @@ export default function RaritiesWorkspace() {
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-              {t.empty}
+              {searchQuery.trim()
+                ? locale === 'RU'
+                  ? '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e'
+                  : 'Nothing found'
+                : t.empty}
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : searchQuery.trim() ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {locale === 'RU' ? 'Ничего не найдено' : 'Nothing found'}
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredItems.map((item) => {
+              {items.map((item) => {
                 const isActive = item.id === selectedId;
 
                 return (
