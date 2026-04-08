@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 type DictionaryModalProps = {
   open: boolean;
@@ -17,13 +17,33 @@ export default function DictionaryModal({
   children,
   closeLabel = 'Закрыть',
 }: DictionaryModalProps) {
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] overscroll-none bg-black/75 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div className="flex min-h-full items-center justify-center">
@@ -43,7 +63,7 @@ export default function DictionaryModal({
             </button>
           </div>
 
-          <div className="overflow-y-auto p-6">{children}</div>
+          <div className="overflow-y-auto overscroll-contain p-6">{children}</div>
         </div>
       </div>
     </div>
