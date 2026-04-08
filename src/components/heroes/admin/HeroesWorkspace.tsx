@@ -1541,7 +1541,6 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6">
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.title}</h3>
-            <p className="text-sm text-[var(--foreground-soft)]">{t.publicSubtitle}</p>
           </div>
           <div className="mb-6 space-y-4">
             <div className="grid gap-4">

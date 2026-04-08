@@ -121,9 +121,6 @@ export default function HeroesPageClient() {
             <h1 className="text-3xl font-bold text-[var(--foreground)]">
               {messages.heroes.pageTitle}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-[var(--foreground-soft)]">
-              {messages.heroes.pageSubtitle}
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -149,9 +146,11 @@ export default function HeroesPageClient() {
               <h2 className="text-2xl font-bold text-[var(--foreground)]">
                 {activeItem?.label}
               </h2>
-              <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-                {activeItem?.description}
-              </p>
+              {activeDictionary !== 'heroes' ? (
+                <p className="mt-2 text-sm text-[var(--foreground-soft)]">
+                  {activeItem?.description}
+                </p>
+              ) : null}
             </section>
 
             {renderAdminWorkspace()}
