@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -18,6 +18,7 @@ import {
 import DictionaryModal from './DictionaryModal';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
+import SearchField from './SearchField';
 
 const API = '/api/v1/admin/heroes/hero-classes';
 const CATALOG_API = '/api/v1/admin/heroes/hero-classes/catalog';
@@ -49,38 +50,37 @@ const EMPTY_FORM: FormState = {
 
 export default function HeroClassesWorkspace() {
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid } = useApi();
-  const { messages } = useI18n();
+  const { locale: appLocale } = useI18n();
 
-  const locale: HeroLocale =
-    messages.common.languageRussian === 'Русский' ? 'RU' : 'EN';
+  const locale: HeroLocale = appLocale === 'ru' ? 'RU' : 'EN';
 
   const t = useMemo(
     () =>
       locale === 'RU'
         ? {
-            sectionTitle: 'Классы героев',
-            sectionSubtitle: 'Полный CRUD для классов героев',
-            create: 'Создать',
-            createTitle: 'Создать класс героя',
-            editTitle: 'Изменить класс героя',
-            detailsTitle: 'Детали класса героя',
-            detailsSubtitle: 'Просмотр, изменение и удаление выбранной записи',
-            edit: 'Изменить',
-            delete: 'Удалить',
-            cancel: 'Отмена',
-            save: 'Сохранить',
-            creating: 'Создание...',
-            saving: 'Сохранение...',
-            loadingList: 'Загрузка классов героев...',
-            loadingDetails: 'Загрузка деталей...',
-            empty: 'Классов героев пока нет',
-            select: 'Выбери класс героя из списка',
-            close: 'Закрыть',
-            name: 'Название',
-            baseTalentName: 'Название базового таланта',
-            baseTalentDescription: 'Описание базового таланта',
-            masterTalentName: 'Название мастер таланта',
-            masterTalentDescription: 'Описание мастер таланта',
+            sectionTitle: '\u041a\u043b\u0430\u0441\u0441\u044b \u0433\u0435\u0440\u043e\u0435\u0432',
+            sectionSubtitle: '\u041f\u043e\u043b\u043d\u044b\u0439 CRUD \u0434\u043b\u044f \u043a\u043b\u0430\u0441\u0441\u043e\u0432 \u0433\u0435\u0440\u043e\u0435\u0432',
+            create: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c',
+            createTitle: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043a\u043b\u0430\u0441\u0441 \u0433\u0435\u0440\u043e\u044f',
+            editTitle: '\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043a\u043b\u0430\u0441\u0441 \u0433\u0435\u0440\u043e\u044f',
+            detailsTitle: '\u0414\u0435\u0442\u0430\u043b\u0438 \u043a\u043b\u0430\u0441\u0441\u0430 \u0433\u0435\u0440\u043e\u044f',
+            detailsSubtitle: '\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440, \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0438 \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0439 \u0437\u0430\u043f\u0438\u0441\u0438',
+            edit: '\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c',
+            delete: '\u0423\u0434\u0430\u043b\u0438\u0442\u044c',
+            cancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
+            save: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
+            creating: '\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435...',
+            saving: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...',
+            loadingList: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043a\u043b\u0430\u0441\u0441\u043e\u0432 \u0433\u0435\u0440\u043e\u0435\u0432...',
+            loadingDetails: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0434\u0435\u0442\u0430\u043b\u0435\u0439...',
+            empty: '\u041a\u043b\u0430\u0441\u0441\u043e\u0432 \u0433\u0435\u0440\u043e\u0435\u0432 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442',
+            select: '\u0412\u044b\u0431\u0435\u0440\u0438 \u043a\u043b\u0430\u0441\u0441 \u0433\u0435\u0440\u043e\u044f \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430',
+            close: '\u0417\u0430\u043a\u0440\u044b\u0442\u044c',
+            name: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435',
+            baseTalentName: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0442\u0430\u043b\u0430\u043d\u0442\u0430',
+            baseTalentDescription: '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0442\u0430\u043b\u0430\u043d\u0442\u0430',
+            masterTalentName: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043c\u0430\u0441\u0442\u0435\u0440 \u0442\u0430\u043b\u0430\u043d\u0442\u0430',
+            masterTalentDescription: '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043c\u0430\u0441\u0442\u0435\u0440 \u0442\u0430\u043b\u0430\u043d\u0442\u0430',
             deleteConfirm: (item: HeroClassItem) =>
               `Удалить класс героя #${item.id} (${item.name.ru})?`,
           }
@@ -430,16 +430,14 @@ export default function HeroClassesWorkspace() {
             </div>
           )}
 
-          <label className="mb-4 block">
-            <span className="sr-only">{locale === 'RU' ? 'Поиск классов героя' : 'Search hero classes'}</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={locale === 'RU' ? 'Поиск классов героя' : 'Search hero classes'}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            />
-          </label>
+          <SearchField
+            className="mb-4 block"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043a\u043b\u0430\u0441\u0441\u043e\u0432 \u0433\u0435\u0440\u043e\u044f' : 'Search hero classes'}
+            ariaLabel={locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043a\u043b\u0430\u0441\u0441\u043e\u0432 \u0433\u0435\u0440\u043e\u044f' : 'Search hero classes'}
+            clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+          />
 
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
@@ -760,3 +758,5 @@ export default function HeroClassesWorkspace() {
     </>
   );
 }
+
+

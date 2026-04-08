@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -18,6 +18,7 @@ import {
 import DictionaryModal from './DictionaryModal';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
+import SearchField from './SearchField';
 
 const API = '/api/v1/admin/heroes/passive-skills';
 const CATALOG_API = '/api/v1/admin/heroes/passive-skills/catalog';
@@ -43,35 +44,34 @@ const EMPTY_FORM: FormState = {
 
 export default function PassiveSkillsWorkspace() {
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid } = useApi();
-  const { messages } = useI18n();
+  const { locale: appLocale } = useI18n();
 
-  const locale: HeroLocale =
-    messages.common.languageRussian === 'Русский' ? 'RU' : 'EN';
+  const locale: HeroLocale = appLocale === 'ru' ? 'RU' : 'EN';
 
   const t = useMemo(
     () =>
       locale === 'RU'
         ? {
-            sectionTitle: 'Пассивные навыки',
-            sectionSubtitle: 'Полный CRUD для пассивных навыков',
-            create: 'Создать',
-            createTitle: 'Создать пассивный навык',
-            editTitle: 'Изменить пассивный навык',
-            detailsTitle: 'Детали пассивного навыка',
-            detailsSubtitle: 'Просмотр, изменение и удаление выбранной записи',
-            edit: 'Изменить',
-            delete: 'Удалить',
-            cancel: 'Отмена',
-            save: 'Сохранить',
-            creating: 'Создание...',
-            saving: 'Сохранение...',
-            loadingList: 'Загрузка пассивных навыков...',
-            loadingDetails: 'Загрузка деталей...',
-            empty: 'Пассивных навыков пока нет',
-            select: 'Выбери пассивный навык из списка',
-            close: 'Закрыть',
-            name: 'Название',
-            description: 'Описание',
+            sectionTitle: '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438',
+            sectionSubtitle: '\u041f\u043e\u043b\u043d\u044b\u0439 CRUD \u0434\u043b\u044f \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0445 \u043d\u0430\u0432\u044b\u043a\u043e\u0432',
+            create: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c',
+            createTitle: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a',
+            editTitle: '\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a',
+            detailsTitle: '\u0414\u0435\u0442\u0430\u043b\u0438 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u043e\u0433\u043e \u043d\u0430\u0432\u044b\u043a\u0430',
+            detailsSubtitle: '\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440, \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0438 \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0439 \u0437\u0430\u043f\u0438\u0441\u0438',
+            edit: '\u0418\u0437\u043c\u0435\u043d\u0438\u0442\u044c',
+            delete: '\u0423\u0434\u0430\u043b\u0438\u0442\u044c',
+            cancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
+            save: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
+            creating: '\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435...',
+            saving: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...',
+            loadingList: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0445 \u043d\u0430\u0432\u044b\u043a\u043e\u0432...',
+            loadingDetails: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0434\u0435\u0442\u0430\u043b\u0435\u0439...',
+            empty: '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0445 \u043d\u0430\u0432\u044b\u043a\u043e\u0432 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442',
+            select: '\u0412\u044b\u0431\u0435\u0440\u0438 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430',
+            close: '\u0417\u0430\u043a\u0440\u044b\u0442\u044c',
+            name: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435',
+            description: '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435',
             deleteConfirm: (item: PassiveSkillItem) =>
               `Удалить пассивный навык #${item.id} (${item.name.ru})?`,
           }
@@ -385,16 +385,14 @@ export default function PassiveSkillsWorkspace() {
             </div>
           )}
 
-          <label className="mb-4 block">
-            <span className="sr-only">{locale === 'RU' ? 'Поиск пассивных навыков' : 'Search passive skills'}</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={locale === 'RU' ? 'Поиск пассивных навыков' : 'Search passive skills'}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            />
-          </label>
+          <SearchField
+            className="mb-4 block"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0445 \u043d\u0430\u0432\u044b\u043a\u043e\u0432' : 'Search passive skills'}
+            ariaLabel={locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0445 \u043d\u0430\u0432\u044b\u043a\u043e\u0432' : 'Search passive skills'}
+            clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+          />
 
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
@@ -404,13 +402,9 @@ export default function PassiveSkillsWorkspace() {
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {searchQuery.trim()
                 ? locale === 'RU'
-                  ? 'РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ'
+                  ? 'Ничего не найдено'
                   : 'Nothing found'
                 : t.empty}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-              {locale === 'RU' ? 'Ничего не найдено' : 'Nothing found'}
             </div>
           ) : (
             <div className="space-y-3">
@@ -641,3 +635,5 @@ export default function PassiveSkillsWorkspace() {
     </>
   );
 }
+
+
