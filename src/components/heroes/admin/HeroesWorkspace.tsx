@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '@/lib/auth-context';
@@ -40,6 +40,7 @@ import HeroImageUploadField from './HeroImageUploadField';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
+import SearchField from './SearchField';
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
   type PublicHeroDetailsItem,
@@ -381,6 +382,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
   const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
   const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
+  const [publicFiltersExpanded, setPublicFiltersExpanded] = useState(false);
   const [loadingMorePublic, setLoadingMorePublic] = useState(false);
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -453,74 +455,74 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     () =>
       locale === 'RU'
         ? {
-            title: 'Герои',
-            publicSubtitle: 'Публичный каталог героев',
-            adminSubtitle: 'CRUD по карточкам героев',
-            create: 'Создать героя',
-            createTitle: 'Создать героя',
-            editTitle: 'Редактировать героя',
-            detailsTitle: 'Карточка героя',
-            detailsSubtitle: 'Просмотр и редактирование выбранного героя',
-            edit: 'Редактировать',
-            delete: 'Удалить',
-            close: 'Закрыть',
-            cancel: 'Отмена',
-            save: 'Сохранить',
-            creating: 'Создание...',
-            saving: 'Сохранение...',
-            loading: 'Загрузка героев...',
-            loadingDetails: 'Загрузка карточки...',
-            empty: 'Героев пока нет',
-            selectHero: 'Выбери героя из списка',
+            title: '\u0413\u0435\u0440\u043e\u0438',
+            publicSubtitle: '\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0442\u0430\u043b\u043e\u0433 \u0433\u0435\u0440\u043e\u0435\u0432',
+            adminSubtitle: 'CRUD \u043f\u043e \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430\u043c \u0433\u0435\u0440\u043e\u0435\u0432',
+            create: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0433\u0435\u0440\u043e\u044f',
+            createTitle: '\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0433\u0435\u0440\u043e\u044f',
+            editTitle: '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0433\u0435\u0440\u043e\u044f',
+            detailsTitle: '\u041a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 \u0433\u0435\u0440\u043e\u044f',
+            detailsSubtitle: '\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440 \u0438 \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
+            edit: '\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c',
+            delete: '\u0423\u0434\u0430\u043b\u0438\u0442\u044c',
+            close: '\u0417\u0430\u043a\u0440\u044b\u0442\u044c',
+            cancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
+            save: '\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c',
+            creating: '\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435...',
+            saving: '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...',
+            loading: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0433\u0435\u0440\u043e\u0435\u0432...',
+            loadingDetails: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438...',
+            empty: '\u0413\u0435\u0440\u043e\u0435\u0432 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442',
+            selectHero: '\u0412\u044b\u0431\u0435\u0440\u0438 \u0433\u0435\u0440\u043e\u044f \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430',
             slug: 'Slug',
-            slugHint: 'Строчные латинские буквы, цифры и дефис',
-            nameRu: 'Имя RU',
+            slugHint: '\u0421\u0442\u0440\u043e\u0447\u043d\u044b\u0435 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0435 \u0431\u0443\u043a\u0432\u044b, \u0446\u0438\u0444\u0440\u044b \u0438 \u0434\u0435\u0444\u0438\u0441',
+            nameRu: '\u0418\u043c\u044f RU',
             nameEn: 'Name EN',
-            skillNameRu: 'Название навыка RU',
+            skillNameRu: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043d\u0430\u0432\u044b\u043a\u0430 RU',
             skillNameEn: 'Skill name EN',
-            skillDescriptionRu: 'Описание навыка RU',
+            skillDescriptionRu: '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043d\u0430\u0432\u044b\u043a\u0430 RU',
             skillDescriptionEn: 'Skill description EN',
-            element: 'Элемент',
-            rarity: 'Редкость',
-            heroClass: 'Класс героя',
-            manaSpeed: 'Скорость маны',
-            family: 'Семья',
-            alphaTalent: 'Альфа-талант',
-            noFamily: 'Без семьи',
-            noAlphaTalent: 'Без альфа-таланта',
-            selectElement: 'Выберите элемент',
-            selectRarity: 'Выберите редкость',
-            selectHeroClass: 'Выберите класс героя',
-            selectManaSpeed: 'Выберите скорость маны',
-            stats: 'Базовые значения',
-            baseAttack: 'Базовая атака',
-            baseArmor: 'Базовая броня',
-            baseHp: 'Базовое HP',
-            statsHint: 'Можно оставить пустым',
-            status: 'Статус',
-            releaseDate: 'Дата выхода',
-            isCostume: 'Это костюм',
-            baseHero: 'Базовый герой',
-            selectBaseHero: 'Выберите базового героя',
-            metadata: 'Служебные поля',
-            createdBy: 'Создал',
-            createdAt: 'Создано',
-            updatedBy: 'Обновил',
-            updatedAt: 'Обновлено',
-            noValue: 'Не указано',
-            invalidSlug: 'Slug должен содержать только строчные латинские буквы, цифры и дефис',
-            required: 'Поле обязательно',
-            nonNegative: 'Значение должно быть 0 или больше',
-            costumeBaseHeroRequired: 'Для костюма нужно выбрать базового героя',
-            search: 'Поиск',
-            searchHeroes: 'Поиск героев',
-            searchHeroesPlaceholder: 'Имя или slug героя',
-            filters: 'Фильтры',
-            resetFilters: 'Сбросить фильтры',
-            loadMore: 'Показать еще',
-            noResults: 'Ничего не найдено',
-            adminSearchPlaceholder: 'Поиск по героям',
-            deleteConfirm: (name: string) => `Удалить героя "${name}"?`,
+            element: '\u042d\u043b\u0435\u043c\u0435\u043d\u0442',
+            rarity: '\u0420\u0435\u0434\u043a\u043e\u0441\u0442\u044c',
+            heroClass: '\u041a\u043b\u0430\u0441\u0441 \u0433\u0435\u0440\u043e\u044f',
+            manaSpeed: '\u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u043c\u0430\u043d\u044b',
+            family: '\u0421\u0435\u043c\u044c\u044f',
+            alphaTalent: '\u0410\u043b\u044c\u0444\u0430-\u0442\u0430\u043b\u0430\u043d\u0442',
+            noFamily: '\u0411\u0435\u0437 \u0441\u0435\u043c\u044c\u0438',
+            noAlphaTalent: '\u0411\u0435\u0437 \u0430\u043b\u044c\u0444\u0430-\u0442\u0430\u043b\u0430\u043d\u0442\u0430',
+            selectElement: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044d\u043b\u0435\u043c\u0435\u043d\u0442',
+            selectRarity: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0435\u0434\u043a\u043e\u0441\u0442\u044c',
+            selectHeroClass: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043a\u043b\u0430\u0441\u0441 \u0433\u0435\u0440\u043e\u044f',
+            selectManaSpeed: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u043c\u0430\u043d\u044b',
+            stats: '\u0411\u0430\u0437\u043e\u0432\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f',
+            baseAttack: '\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0430\u0442\u0430\u043a\u0430',
+            baseArmor: '\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u0431\u0440\u043e\u043d\u044f',
+            baseHp: '\u0411\u0430\u0437\u043e\u0432\u043e\u0435 HP',
+            statsHint: '\u041c\u043e\u0436\u043d\u043e \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c',
+            status: '\u0421\u0442\u0430\u0442\u0443\u0441',
+            releaseDate: '\u0414\u0430\u0442\u0430 \u0432\u044b\u0445\u043e\u0434\u0430',
+            isCostume: '\u042d\u0442\u043e \u043a\u043e\u0441\u0442\u044e\u043c',
+            baseHero: '\u0411\u0430\u0437\u043e\u0432\u044b\u0439 \u0433\u0435\u0440\u043e\u0439',
+            selectBaseHero: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
+            metadata: '\u0421\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0435 \u043f\u043e\u043b\u044f',
+            createdBy: '\u0421\u043e\u0437\u0434\u0430\u043b',
+            createdAt: '\u0421\u043e\u0437\u0434\u0430\u043d\u043e',
+            updatedBy: '\u041e\u0431\u043d\u043e\u0432\u0438\u043b',
+            updatedAt: '\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e',
+            noValue: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u043e',
+            invalidSlug: 'Slug \u0434\u043e\u043b\u0436\u0435\u043d \u0441\u043e\u0434\u0435\u0440\u0436\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0441\u0442\u0440\u043e\u0447\u043d\u044b\u0435 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0435 \u0431\u0443\u043a\u0432\u044b, \u0446\u0438\u0444\u0440\u044b \u0438 \u0434\u0435\u0444\u0438\u0441',
+            required: '\u041f\u043e\u043b\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e',
+            nonNegative: '\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c 0 \u0438\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435',
+            costumeBaseHeroRequired: '\u0414\u043b\u044f \u043a\u043e\u0441\u0442\u044e\u043c\u0430 \u043d\u0443\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
+            search: '\u041f\u043e\u0438\u0441\u043a',
+            searchHeroes: '\u041f\u043e\u0438\u0441\u043a \u0433\u0435\u0440\u043e\u0435\u0432',
+            searchHeroesPlaceholder: '\u0418\u043c\u044f \u0433\u0435\u0440\u043e\u044f',
+            filters: '\u0424\u0438\u043b\u044c\u0442\u0440\u044b',
+            resetFilters: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b',
+            loadMore: '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0435\u0449\u0435',
+            noResults: '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e',
+            adminSearchPlaceholder: '\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u0433\u0435\u0440\u043e\u044f\u043c',
+            deleteConfirm: (name: string) => `\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u0435\u0440\u043e\u044f "${name}"?`,
           }
         : {
             title: 'Heroes',
@@ -584,12 +586,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             costumeBaseHeroRequired: 'Costume hero requires a base hero',
             search: 'Search',
             searchHeroes: 'Search heroes',
-            searchHeroesPlaceholder: 'Hero name or slug',
+            searchHeroesPlaceholder: 'Hero name',
             filters: 'Filters',
+            showFilters: 'Show filters',
+            hideFilters: 'Hide filters',
             resetFilters: 'Reset filters',
             loadMore: 'Load more',
             noResults: 'Nothing found',
             adminSearchPlaceholder: 'Search heroes',
+            clearSearch: 'Clear search',
             deleteConfirm: (name: string) => `Delete hero "${name}"?`,
           },
     [locale],
@@ -942,12 +947,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     const invalidTypeMessage =
       locale === 'RU'
-        ? 'Можно загружать только PNG, JPEG или WEBP.'
+              ? '\u041c\u043e\u0436\u043d\u043e \u0437\u0430\u0433\u0440\u0443\u0436\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e PNG, JPEG \u0438\u043b\u0438 WEBP.'
         : 'Only PNG, JPEG or WEBP images are allowed.';
 
     const uploadErrorMessage =
       locale === 'RU'
-        ? 'Не удалось загрузить изображение героя.'
+              ? '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0438\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0435 \u0433\u0435\u0440\u043e\u044f.'
         : 'Failed to upload hero image.';
 
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
@@ -1136,13 +1141,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       return 'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
     }
 
-    return locale === 'RU' ? `Выбрано: ${selected.length}` : `${selected.length} selected`;
+    return locale === 'RU' ? `\u0412\u044b\u0431\u0440\u0430\u043d\u043e: ${selected.length}` : `${selected.length} selected`;
   };
 
   const resetPublicFilters = () => {
     setPublicSearch('');
     setPublicFilters(EMPTY_PUBLIC_FILTERS);
     setOpenPublicFilterKey(null);
+    setPublicFiltersExpanded(false);
   };
 
   const validateForm = (form: HeroFormState): string | null => {
@@ -1154,7 +1160,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (!form.manaSpeedId) return `${t.manaSpeed}: ${t.required}`;
     if (form.isCostume && !form.baseHeroId) return t.costumeBaseHeroRequired;
     if (form.isCostume && !form.costumeIndex.trim()) {
-      return locale === 'RU' ? 'Номер костюма обязателен' : 'Costume index is required';
+    return locale === 'RU' ? '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u0435\u043d' : 'Costume index is required';
     }
     const localizedError =
       validateLocalizedTextPair(form.name, t.nameRu, t.nameEn) ??
@@ -1303,19 +1309,19 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const imageFileName = isEdit ? editImageFileName : createImageFileName;
     const imageUploadError = isEdit ? editImageUploadError : createImageUploadError;
     const uploadingImage = isEdit ? editUploadingImage : createUploadingImage;
-    const heroImageSectionTitle = locale === 'RU' ? 'Картинки героя' : 'Hero images';
-    const ruImageLabel = locale === 'RU' ? 'Картинка RU' : 'RU image';
-    const enImageLabel = locale === 'RU' ? 'Картинка EN' : 'EN image';
-    const passiveSkillsTitle = locale === 'RU' ? 'Пассивные навыки' : 'Passive skills';
-    const noPassiveSkillsLabel = locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected';
-    const addPassiveSkillLabel = locale === 'RU' ? 'Добавить пассивный навык' : 'Add passive skill';
-    const availablePassiveSkillsLabel = locale === 'RU' ? 'Доступные пассивные навыки' : 'Available passive skills';
-    const hidePassiveSkillsLabel = locale === 'RU' ? 'Скрыть список' : 'Hide list';
-    const noAvailablePassiveSkillsLabel = locale === 'RU' ? 'Все пассивные навыки уже выбраны' : 'All passive skills are already selected';
-    const noPassiveSkillSearchResultsLabel = locale === 'RU' ? 'По вашему запросу ничего не найдено' : 'No skills found for your search';
-    const addPassiveSkillActionLabel = locale === 'RU' ? 'Добавить' : 'Add';
-    const removePassiveSkillActionLabel = locale === 'RU' ? 'Удалить' : 'Remove';
-    const searchPassiveSkillsLabel = locale === 'RU' ? 'Поиск навыка' : 'Search skill';
+  const heroImageSectionTitle = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0438 \u0433\u0435\u0440\u043e\u044f' : 'Hero images';
+  const ruImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 RU' : 'RU image';
+  const enImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 EN' : 'EN image';
+  const passiveSkillsTitle = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Passive skills';
+  const noPassiveSkillsLabel = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No passive skills selected';
+  const addPassiveSkillLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a' : 'Add passive skill';
+  const availablePassiveSkillsLabel = locale === 'RU' ? '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Available passive skills';
+  const hidePassiveSkillsLabel = locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a' : 'Hide list';
+  const noAvailablePassiveSkillsLabel = locale === 'RU' ? '\u0412\u0441\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'All passive skills are already selected';
+  const noPassiveSkillSearchResultsLabel = locale === 'RU' ? '\u041f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0437\u0430\u043f\u0440\u043e\u0441\u0443 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e' : 'No skills found for your search';
+  const addPassiveSkillActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
+  const removePassiveSkillActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
+  const searchPassiveSkillsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043d\u0430\u0432\u044b\u043a\u0430' : 'Search skill';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
@@ -1409,16 +1415,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
               {passiveSkillsPickerOpen ? (
                 <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
-                  <label className="block">
-                    <span className="sr-only">{searchPassiveSkillsLabel}</span>
-                    <input
-                      type="text"
-                      value={passiveSkillQuery}
-                      onChange={(event) => setPassiveSkillQuery(event.target.value)}
-                      placeholder={searchPassiveSkillsLabel}
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground)] outline-none"
-                    />
-                  </label>
+                  <SearchField
+                    value={passiveSkillQuery}
+                    onChange={setPassiveSkillQuery}
+                    placeholder={searchPassiveSkillsLabel}
+                    ariaLabel={searchPassiveSkillsLabel}
+                    clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+                  />
                   {unselectedPassiveSkills.length === 0 ? (
                     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
                       {noAvailablePassiveSkillsLabel}
@@ -1488,7 +1491,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs text-white/80 transition hover:bg-white/10"
                         aria-label={`${removePassiveSkillActionLabel} ${getLocalizedText(skill.name, locale)}`}
                       >
-                        ×
+                        Г—
                       </button>
                     </div>
                   );
@@ -1501,7 +1504,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '' }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
-      {form.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? 'Номер костюма' : 'Costume index'}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>}
+{form.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.baseHero}</span><select value={form.baseHeroId} onChange={(e) => setForm((prev) => ({ ...prev, baseHeroId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectBaseHero}</option>{baseHeroes.filter((item) => !isEdit || item.id !== selectedItem?.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume index'}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
@@ -1541,32 +1544,49 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <p className="text-sm text-[var(--foreground-soft)]">{t.publicSubtitle}</p>
           </div>
           <div className="mb-6 space-y-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="flex flex-col gap-2">
+            <div className="grid gap-4">
+              <div className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-[var(--foreground-soft)]">{t.searchHeroes}</span>
-                <input
-                  type="text"
+                <SearchField
                   value={publicSearch}
-                  onChange={(event) => setPublicSearch(event.target.value)}
-                  placeholder={t.searchHeroesPlaceholder}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+                  onChange={setPublicSearch}
+                  placeholder={locale === 'RU' ? '\u0418\u043c\u044f \u0433\u0435\u0440\u043e\u044f' : 'Hero name'}
+                  ariaLabel={t.searchHeroes}
+                  clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
                 />
-              </label>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={resetPublicFilters}
-                  disabled={!hasActivePublicFilters}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t.resetFilters}
-                </button>
               </div>
             </div>
 
             {publicFilterOptions ? (
               <div ref={publicFiltersPanelRef} className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div className="text-sm font-semibold text-[var(--foreground)]">{t.filters}</div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-[var(--foreground)]">{t.filters}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPublicFiltersExpanded((prev) => !prev);
+                        if (publicFiltersExpanded) {
+                          setOpenPublicFilterKey(null);
+                        }
+                      }}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                    >
+                      {publicFiltersExpanded
+                        ? `${locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b' : 'Hide filters'} \u25b4`
+                        : `${locale === 'RU' ? '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b' : 'Show filters'} \u25be`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetPublicFilters}
+                      disabled={!hasActivePublicFilters}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {t.resetFilters}
+                    </button>
+                  </div>
+                </div>
+                {publicFiltersExpanded ? (
                 <div className="flex flex-wrap gap-2">
                   {([
                     { key: 'elementIds', label: t.element, options: publicFilterOptions.elements },
@@ -1600,11 +1620,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-semibold">{group.label}</span>
                             <span className="text-[10px] text-[var(--foreground-muted)]">
-                              {isOpen ? '▲' : '▼'}
+                              {isOpen ? '\u25b4' : '\u25be'}
                             </span>
                           </div>
                           <div className="mt-1 truncate text-[11px] text-[var(--foreground-muted)]">
-                            {summary ?? (locale === 'RU' ? 'Не выбрано' : 'Not selected')}
+                            {summary ?? (locale === 'RU' ? '\u041d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u043e' : 'Not selected')}
                           </div>
                         </button>
 
@@ -1641,6 +1661,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                     );
                   })}
                 </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -1726,16 +1747,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div><h3 className="text-lg font-semibold text-[var(--foreground)]">{t.title}</h3><p className="text-sm text-[var(--foreground-soft)]">{t.adminSubtitle}</p></div>
             <button type="button" onClick={openCreateModal} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15">{t.create}</button>
           </div>
-          <label className="mb-4 block">
-            <span className="sr-only">{t.search}</span>
-            <input
-              type="text"
-              value={adminSearch}
-              onChange={(event) => setAdminSearch(event.target.value)}
-              placeholder={t.adminSearchPlaceholder}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            />
-          </label>
+          <SearchField
+            className="mb-4 block"
+            value={adminSearch}
+            onChange={setAdminSearch}
+            placeholder={t.adminSearchPlaceholder}
+            ariaLabel={t.search}
+            clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+          />
           {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{listError}</div>}
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.loading}</div>
@@ -1807,7 +1826,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
               )}
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">
-                  {locale === 'RU' ? 'Особый навык' : 'Special skill'}
+                  {locale === 'RU' ? '\u041e\u0441\u043e\u0431\u044b\u0439 \u043d\u0430\u0432\u044b\u043a' : 'Special skill'}
                 </div>
                 <div className="text-base font-medium text-[var(--foreground)]">
                   {getLocalizedText(selectedItem.specialSkillName, locale) || t.noValue}
@@ -1868,9 +1887,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 </div>
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? 'Пассивные навыки' : 'Passive skills'}</div>
+                  <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Passive skills'}</div>
                 {selectedItem.passiveSkillIds.length === 0 ? (
-                  <div className="text-sm text-[var(--foreground-soft)]">{locale === 'RU' ? 'Пассивные навыки не выбраны' : 'No passive skills selected'}</div>
+                    <div className="text-sm text-[var(--foreground-soft)]">{locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No passive skills selected'}</div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {selectedItem.passiveSkillIds.map((skillId) => {
@@ -1896,7 +1915,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
               <HeroStatCalculatorPanel locale={locale} heroId={selectedItem.id} heroSlug={selectedItem.slug} calculateEndpoint={`/api/v1/admin/heroes/${selectedItem.id}/stats/calculate`} isCostume={selectedItem.isCostume} baseAttack={selectedItem.baseAttack ?? null} baseArmor={selectedItem.baseArmor ?? null} baseHp={selectedItem.baseHp ?? null} />
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
-              {selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{locale === 'RU' ? 'Номер костюма' : 'Costume index'}: {selectedItem.costumeIndex ?? t.noValue}</div></div>}
+{selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{locale === 'RU' ? '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume index'}: {selectedItem.costumeIndex ?? t.noValue}</div></div>}
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {formatAdminDate(selectedItem.createdAt, locale, t.noValue)}</div><div>{t.updatedBy}: {selectedItem.updatedByEmail ?? selectedItem.updatedBy}</div><div>{t.updatedAt}: {formatAdminDate(selectedItem.updatedAt, locale, t.noValue)}</div></div>
             </div>
           )}

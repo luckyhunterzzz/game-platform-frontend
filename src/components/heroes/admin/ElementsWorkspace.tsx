@@ -17,6 +17,7 @@ import {
 } from '@/lib/types/hero';
 import DictionaryModal from './DictionaryModal';
 import LocalizedTextFields from './LocalizedTextFields';
+import SearchField from './SearchField';
 
 const ELEMENTS_API = '/api/v1/admin/heroes/elements';
 const ELEMENTS_CATALOG_API = '/api/v1/admin/heroes/elements/catalog';
@@ -390,16 +391,14 @@ export default function ElementsWorkspace() {
             </div>
           )}
 
-          <label className="mb-4 block">
-            <span className="sr-only">{t.searchPlaceholder}</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-            />
-          </label>
+          <SearchField
+            className="mb-4 block"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t.searchPlaceholder}
+            ariaLabel={t.searchPlaceholder}
+            clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+          />
 
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
