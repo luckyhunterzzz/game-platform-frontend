@@ -43,7 +43,7 @@ export default function DictionaryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] overscroll-none bg-black/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] overscroll-none bg-black/85 p-4 backdrop-blur-md"
       onClick={onClose}
     >
       <div className="flex min-h-full items-center justify-center">

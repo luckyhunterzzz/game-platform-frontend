@@ -1491,7 +1491,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs text-white/80 transition hover:bg-white/10"
                         aria-label={`${removePassiveSkillActionLabel} ${getLocalizedText(skill.name, locale)}`}
                       >
-                        Г—
+                        ×
                       </button>
                     </div>
                   );
