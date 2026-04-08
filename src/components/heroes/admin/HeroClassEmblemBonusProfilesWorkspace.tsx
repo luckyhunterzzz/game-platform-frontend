@@ -17,6 +17,7 @@ import {
   mapHeroClassEmblemBonusProfileDto,
 } from '@/lib/types/hero';
 import DictionaryModal from './DictionaryModal';
+import SearchField from './SearchField';
 
 const API = '/api/v1/admin/heroes/emblem-profiles';
 const CATALOG_API = '/api/v1/admin/heroes/emblem-profiles/catalog';
@@ -156,6 +157,7 @@ export default function HeroClassEmblemBonusProfilesWorkspace() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [createForm, setCreateForm] = useState<FormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
 
@@ -176,13 +178,17 @@ export default function HeroClassEmblemBonusProfilesWorkspace() {
     }
   }, [apiJson]);
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (searchValue: string) => {
     setLoadingList(true);
     setListError(null);
 
     try {
+      const params = new URLSearchParams({ page: '0', size: '5' });
+      if (searchValue.trim()) {
+        params.set('search', searchValue.trim());
+      }
       const response = await apiJson<CatalogResponseDto<HeroClassEmblemBonusProfileResponseDto>>(
-        `${CATALOG_API}?page=0&size=5`,
+        `${CATALOG_API}?${params.toString()}`,
       );
       const mapped = response.items.map(mapHeroClassEmblemBonusProfileDto);
       setItems(mapped);
@@ -209,7 +215,7 @@ export default function HeroClassEmblemBonusProfilesWorkspace() {
 
     try {
       const response = await apiJson<CatalogResponseDto<HeroClassEmblemBonusProfileResponseDto>>(
-        `${CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}`,
+        `${CATALOG_API}?page=${catalogPage.page + 1}&size=${catalogPage.size}${searchQuery.trim() ? `&search=${encodeURIComponent(searchQuery.trim())}` : ''}`,
       );
       setItems((prev) => [...prev, ...response.items.map(mapHeroClassEmblemBonusProfileDto)]);
       setCatalogPage(response);
@@ -241,14 +247,33 @@ export default function HeroClassEmblemBonusProfilesWorkspace() {
 
   useEffect(() => {
     void loadHeroClasses();
-    void loadList();
-  }, [loadHeroClasses, loadList]);
+  }, [loadHeroClasses]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadList(searchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadList, searchQuery]);
 
   useEffect(() => {
     if (selectedId !== null) {
       void loadDetails(selectedId);
     }
   }, [loadDetails, selectedId]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setSelectedId(null);
+      setSelectedItem(null);
+      return;
+    }
+
+    if (selectedId === null || !items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0].id);
+    }
+  }, [items, selectedId]);
 
   const validateInteger = (value: string, labelRu: string, labelEn: string) => {
     const normalized = value.trim();
@@ -596,13 +621,26 @@ export default function HeroClassEmblemBonusProfilesWorkspace() {
             </div>
           )}
 
+          <SearchField
+            className="mb-4 block"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={heroLocale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u0440\u043e\u0444\u0438\u043b\u0435\u0439 \u044d\u043c\u0431\u043b\u0435\u043c' : 'Search emblem profiles'}
+            ariaLabel={heroLocale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u0440\u043e\u0444\u0438\u043b\u0435\u0439 \u044d\u043c\u0431\u043b\u0435\u043c' : 'Search emblem profiles'}
+            clearLabel={heroLocale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+          />
+
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
               {t.loadingList}
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-              {t.empty}
+              {searchQuery.trim()
+                ? heroLocale === 'RU'
+                  ? '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e'
+                  : 'Nothing found'
+                : t.empty}
             </div>
           ) : (
             <div className="space-y-3">
