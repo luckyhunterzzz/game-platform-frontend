@@ -98,7 +98,7 @@ export default function SearchableSelectField({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+        <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
           <SearchField
             value={searchQuery}
             onChange={setSearchQuery}
@@ -118,8 +118,8 @@ export default function SearchableSelectField({
                 }}
                 className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                   value === ''
-                    ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
-                    : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                    ? 'border-cyan-400/40 bg-cyan-950 text-cyan-200'
+                    : 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800'
                 }`}
               >
                 {emptyOptionLabel}
@@ -127,7 +127,7 @@ export default function SearchableSelectField({
             ) : null}
 
             {filteredOptions.length === 0 ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+              <div className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
                 {noResultsLabel}
               </div>
             ) : (
@@ -142,8 +142,8 @@ export default function SearchableSelectField({
                   }}
                   className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                     option.value === value
-                      ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
-                      : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                      ? 'border-cyan-400/40 bg-cyan-950 text-cyan-200'
+                      : 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800'
                   }`}
                 >
                   {option.label}
