@@ -415,10 +415,6 @@ export default function AlphaTalentsWorkspace() {
                   : 'Nothing found'
                 : t.empty}
             </div>
-          ) : searchQuery.trim() ? (
-            <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-              {locale === 'RU' ? 'Ничего не найдено' : 'Nothing found'}
-            </div>
           ) : (
             <div className="space-y-3">
               {items.map((item) => {
