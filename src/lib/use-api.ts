@@ -159,10 +159,41 @@ export function useApi() {
 
   const apiDeleteVoid = useCallback(
     async (path: string, init: RequestInit = {}): Promise<void> => {
-      await apiFetch(path, {
+      const response = await apiFetch(path, {
         ...init,
         method: 'DELETE',
       });
+
+      let parsedBody: unknown = null;
+
+      if (response.body) {
+        try {
+          parsedBody = JSON.parse(response.body);
+        } catch {
+          parsedBody = response.body;
+        }
+      }
+
+      if (response.status >= 400) {
+        if (
+          parsedBody &&
+          typeof parsedBody === 'object' &&
+          'message' in parsedBody &&
+          typeof (parsedBody as { message?: unknown }).message === 'string'
+        ) {
+          throw new ApiError(
+            (parsedBody as { message: string }).message,
+            response.status,
+            parsedBody,
+          );
+        }
+
+        throw new ApiError(
+          `Request failed with status ${response.status}`,
+          response.status,
+          parsedBody,
+        );
+      }
     },
     [apiFetch],
   );
