@@ -28,6 +28,13 @@ export const EMPTY_LOCALIZED_TEXT: LocalizedText = {
   en: '',
 };
 
+export type CostumeBonus = {
+  attack?: number | null;
+  armor?: number | null;
+  hp?: number | null;
+  mana?: number | null;
+};
+
 export type EmblemPathType = 'DAMAGE' | 'DEFENSE';
 
 export type EvolutionStageCode =
@@ -55,6 +62,18 @@ export function isLatinText(value: string): boolean {
   return /^[A-Za-z0-9\s"'.,:;!?()\-/%+&]+$/.test(normalized);
 }
 
+export function isFlexibleCyrillicText(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return /^[\p{Script=Cyrillic}0-9\s"'.,:;!?()\-/%+№&•]+$/u.test(normalized);
+}
+
+export function isFlexibleLatinText(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return /^[A-Za-z0-9\s"'.,:;!?()\-/%+&•]+$/.test(normalized);
+}
+
 export function validateLocalizedTextPair(
   value: LocalizedText,
   ruRequiredLabel: string,
@@ -68,11 +87,11 @@ export function validateLocalizedTextPair(
     return `${enRequiredLabel} is required`;
   }
 
-  if (!isCyrillicText(value.ru)) {
+  if (!isFlexibleCyrillicText(value.ru)) {
     return `${ruRequiredLabel} должно содержать кириллицу`;
   }
 
-  if (!isLatinText(value.en)) {
+  if (!isFlexibleLatinText(value.en)) {
     return `${enRequiredLabel} must contain Latin characters`;
   }
 
