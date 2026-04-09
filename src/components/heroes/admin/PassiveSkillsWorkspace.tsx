@@ -37,6 +37,19 @@ type FormState = {
   description: LocalizedText;
 };
 
+type DeleteUsageHero = {
+  id: number;
+  slug: string;
+  nameJson: LocalizedText;
+  status: string;
+};
+
+type DeleteUsageErrorPayload = {
+  code?: string;
+  message?: string;
+  heroes?: DeleteUsageHero[];
+};
+
 const EMPTY_FORM: FormState = {
   name: { ...EMPTY_LOCALIZED_TEXT },
   description: { ...EMPTY_LOCALIZED_TEXT },
@@ -115,6 +128,7 @@ export default function PassiveSkillsWorkspace() {
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [deleteUsageHeroes, setDeleteUsageHeroes] = useState<DeleteUsageHero[]>([]);
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
@@ -233,6 +247,7 @@ export default function PassiveSkillsWorkspace() {
       description: { ...EMPTY_LOCALIZED_TEXT },
     });
     setSubmitError(null);
+    setDeleteUsageHeroes([]);
   };
 
   const resetEditForm = (item: PassiveSkillItem) => {
@@ -241,6 +256,7 @@ export default function PassiveSkillsWorkspace() {
       description: { ...item.description },
     });
     setSubmitError(null);
+    setDeleteUsageHeroes([]);
   };
 
   const buildPayload = (form: FormState): CreatePassiveSkillRequest => ({
@@ -263,6 +279,7 @@ export default function PassiveSkillsWorkspace() {
 
     setSubmitting(true);
     setSubmitError(null);
+    setDeleteUsageHeroes([]);
 
     try {
       const created = await apiPostJson<CreatePassiveSkillRequest, PassiveSkillResponseDto>(
@@ -302,6 +319,7 @@ export default function PassiveSkillsWorkspace() {
 
     setSubmitting(true);
     setSubmitError(null);
+    setDeleteUsageHeroes([]);
 
     try {
       const updated = await apiPutJson<UpdatePassiveSkillRequest, PassiveSkillResponseDto>(
@@ -331,6 +349,7 @@ export default function PassiveSkillsWorkspace() {
 
     setSubmitting(true);
     setSubmitError(null);
+    setDeleteUsageHeroes([]);
 
     try {
       await apiDeleteVoid(`${API}/${selectedItem.id}`);
@@ -345,6 +364,13 @@ export default function PassiveSkillsWorkspace() {
         setSelectedItem(null);
       }
     } catch (error) {
+      if (error instanceof ApiError) {
+        const payload = error.payload as DeleteUsageErrorPayload | undefined;
+        if (payload?.code === 'ENTITY_IN_USE' && Array.isArray(payload.heroes)) {
+          setDeleteUsageHeroes(payload.heroes);
+        }
+      }
+
       const message =
         error instanceof ApiError || error instanceof Error
           ? error.message
@@ -480,7 +506,31 @@ export default function PassiveSkillsWorkspace() {
 
           {submitError && (
             <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {submitError}
+              <div>{submitError}</div>
+              {deleteUsageHeroes.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-red-200/90">
+                    {locale === 'RU'
+                      ? 'Сначала уберите этот навык у следующих героев:'
+                      : 'Remove this skill from these heroes first:'}
+                  </div>
+                  <div className="space-y-2">
+                    {deleteUsageHeroes.map((hero) => (
+                      <div
+                        key={hero.id}
+                        className="rounded-lg border border-red-400/20 bg-black/10 px-3 py-2 text-xs text-red-100"
+                      >
+                        <div className="font-medium">
+                          {getLocalizedText(hero.nameJson, locale)} ({hero.slug})
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wide text-red-200/80">
+                          {hero.status}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 
