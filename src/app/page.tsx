@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
@@ -12,25 +13,26 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 type QuickLinkItem = {
   label: string;
   href?: string;
+  imageSrc: string;
 };
 
 export default function HomePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   const { loading } = useAuth();
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
 
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
-      { label: messages.home.navHeroes, href: '/heroes' },
-      { label: messages.home.navEvents },
-      { label: messages.home.navGuides },
-      { label: messages.home.navAlliances },
+      { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
+      { label: messages.home.navEvents, imageSrc: '/home-quick-links/events.png' },
+      { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
+      { label: messages.home.navAlliances, imageSrc: '/home-quick-links/alliances.png' },
     ],
     [
+      locale,
       messages.home.navHeroes,
       messages.home.navEvents,
-      messages.home.navGuides,
       messages.home.navAlliances,
     ],
   );
@@ -94,11 +96,17 @@ export default function HomePage() {
           {quickLinks.map((item) => {
             const content = (
               <>
-                <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-hover)] transition-transform group-hover:scale-110">
-                  <div className="h-6 w-6 rounded-full border border-blue-500/40 bg-blue-500/20" />
+                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition-transform group-hover:scale-105">
+                  <Image
+                    src={item.imageSrc}
+                    alt={item.label}
+                    width={64}
+                    height={64}
+                    className="h-12 w-12 object-contain"
+                  />
                 </div>
 
-                <span className="text-xs font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-400">
+                <span className="text-center text-xs font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300">
                   {item.label}
                 </span>
               </>
@@ -109,7 +117,7 @@ export default function HomePage() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)]"
+                  className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)] sm:w-32"
                 >
                   {content}
                 </Link>
@@ -120,7 +128,7 @@ export default function HomePage() {
               <button
                 key={item.label}
                 type="button"
-                className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)]"
+                className="group flex w-28 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)] sm:w-32"
               >
                 {content}
               </button>
