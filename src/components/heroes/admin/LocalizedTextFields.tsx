@@ -1,6 +1,6 @@
 'use client';
 
-import { isCyrillicText, isLatinText, type LocalizedText } from '@/lib/types/hero';
+import { isFlexibleCyrillicText, isFlexibleLatinText, type LocalizedText } from '@/lib/types/hero';
 
 type LocalizedTextFieldsProps = {
   value: LocalizedText;
@@ -23,12 +23,12 @@ export default function LocalizedTextFields({
   const enHasValue = value.en.trim().length > 0;
 
   const ruError =
-    showValidation && ruHasValue && !isCyrillicText(value.ru)
+    showValidation && ruHasValue && !isFlexibleCyrillicText(value.ru)
       ? 'Допустима кириллица'
       : '';
 
   const enError =
-    showValidation && enHasValue && !isLatinText(value.en)
+    showValidation && enHasValue && !isFlexibleLatinText(value.en)
       ? 'Latin characters only'
       : '';
 
