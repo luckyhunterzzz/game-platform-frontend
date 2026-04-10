@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Moon,
@@ -93,9 +94,17 @@ export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
         <Link
           href="/"
-          className="hidden text-xl font-bold text-cyan-400 transition hover:text-cyan-300 sm:inline-block"
+          className="flex items-center rounded-xl transition hover:opacity-90"
+          aria-label="GameOps home"
         >
-          GameOps
+          <Image
+            src="/brand-dragon.png"
+            alt="GameOps"
+            width={64}
+            height={64}
+            priority
+            className="h-10 w-10 object-contain sm:h-12 sm:w-12"
+          />
         </Link>
       </div>
 
