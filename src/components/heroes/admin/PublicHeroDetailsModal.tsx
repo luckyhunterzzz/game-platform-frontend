@@ -51,8 +51,23 @@ export type PublicHeroDetailsItem = {
     slug: string;
     name: string;
     costumeIndex?: number | null;
+    bonus?: {
+      attack?: number | null;
+      armor?: number | null;
+      hp?: number | null;
+      mana?: number | null;
+    } | null;
   }>;
   baseHeroId?: number | null;
+  baseAttack?: number | null;
+  baseArmor?: number | null;
+  baseHp?: number | null;
+  costumeBonusJson?: {
+    attack?: number | null;
+    armor?: number | null;
+    hp?: number | null;
+    mana?: number | null;
+  } | null;
   imageUrl?: string | null;
   releaseDate?: string | null;
 };
@@ -102,6 +117,40 @@ function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallb
 
 function relationName(value: string | null | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value : fallback;
+}
+
+function formatCostumeBonusContent(
+  locale: 'RU' | 'EN',
+  bonus:
+    | {
+        attack?: number | null;
+        armor?: number | null;
+        hp?: number | null;
+        mana?: number | null;
+      }
+    | null
+    | undefined,
+) {
+  if (!bonus) {
+    return '';
+  }
+
+  const lines =
+    locale === 'RU'
+      ? [
+          `Бонус к атаке: +${bonus.attack ?? 0}%`,
+          `Бонус к защите: +${bonus.armor ?? 0}%`,
+          `Бонус к здоровью: +${bonus.hp ?? 0}%`,
+          `Бонус к мане: +${bonus.mana ?? 0}%`,
+        ]
+      : [
+          `Attack Bonus: +${bonus.attack ?? 0}%`,
+          `Defence Bonus: +${bonus.armor ?? 0}%`,
+          `Health Bonus: +${bonus.hp ?? 0}%`,
+          `Mana Bonus: +${bonus.mana ?? 0}%`,
+        ];
+
+  return lines.join('\n');
 }
 
 export default function PublicHeroDetailsModal({
@@ -318,6 +367,17 @@ export default function PublicHeroDetailsModal({
                     ) : null}
                   </div>
                 </div>
+                {heroDetails.costumeBonusJson ? (
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+                    <div className="flex items-center gap-2">
+                      <span>{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>
+                      <HeroInfoPopover
+                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                        content={formatCostumeBonusContent(locale, heroDetails.costumeBonusJson)}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -388,13 +448,13 @@ export default function PublicHeroDetailsModal({
                 <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.baseStats}</div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseAttack}: {heroCard.baseAttack ?? t.noValue}
+                    {t.baseAttack}: {heroDetails.baseAttack ?? heroCard.baseAttack ?? t.noValue}
                   </div>
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseArmor}: {heroCard.baseArmor ?? t.noValue}
+                    {t.baseArmor}: {heroDetails.baseArmor ?? heroCard.baseArmor ?? t.noValue}
                   </div>
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseHp}: {heroCard.baseHp ?? t.noValue}
+                    {t.baseHp}: {heroDetails.baseHp ?? heroCard.baseHp ?? t.noValue}
                   </div>
                 </div>
               </div>
@@ -405,9 +465,9 @@ export default function PublicHeroDetailsModal({
                 heroSlug={heroDetails.slug}
                 calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
                 isCostume={heroDetails.baseHeroId != null}
-                baseAttack={heroCard.baseAttack ?? null}
-                baseArmor={heroCard.baseArmor ?? null}
-                baseHp={heroCard.baseHp ?? null}
+                baseAttack={heroDetails.baseAttack ?? heroCard.baseAttack ?? null}
+                baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
+                baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
                 costumes={heroDetails.costumes}
               />
 
