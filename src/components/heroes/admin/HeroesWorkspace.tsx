@@ -119,6 +119,15 @@ type PublicCatalogFiltersState = {
   alphaTalentIds: number[];
 };
 
+type PublicCatalogFilterSearchState = {
+  elementIds: string;
+  rarityIds: string;
+  heroClassIds: string;
+  familyIds: string;
+  manaSpeedIds: string;
+  alphaTalentIds: string;
+};
+
 type PublicHeroVariantsResponse = {
   currentHero: PublicHeroDetailsItem;
   baseHero: PublicHeroVariantSummaryItem;
@@ -278,6 +287,52 @@ const EMPTY_PUBLIC_FILTERS: PublicCatalogFiltersState = {
   manaSpeedIds: [],
   alphaTalentIds: [],
 };
+
+const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
+  elementIds: '',
+  rarityIds: '',
+  heroClassIds: '',
+  familyIds: '',
+  manaSpeedIds: '',
+  alphaTalentIds: '',
+};
+
+function sortFilterOptions<T extends HeroFilterOption | HeroRarityFilterOption>(
+  options: T[],
+  locale: 'RU' | 'EN',
+): T[] {
+  const language = locale === 'RU' ? 'ru' : 'en';
+
+  return [...options].sort((left, right) => {
+    const byName = left.name.localeCompare(right.name, language, { sensitivity: 'base' });
+    if (byName !== 0) {
+      return byName;
+    }
+
+    if ('stars' in left && 'stars' in right) {
+      const byStars = left.stars - right.stars;
+      if (byStars !== 0) {
+        return byStars;
+      }
+    }
+
+    return left.id - right.id;
+  });
+}
+
+function sortPublicFilterOptions(
+  response: HeroCatalogFiltersResponse,
+  locale: 'RU' | 'EN',
+): HeroCatalogFiltersResponse {
+  return {
+    elements: sortFilterOptions(response.elements, locale),
+    rarities: sortFilterOptions(response.rarities, locale),
+    heroClasses: sortFilterOptions(response.heroClasses, locale),
+    families: sortFilterOptions(response.families, locale),
+    manaSpeeds: sortFilterOptions(response.manaSpeeds, locale),
+    alphaTalents: sortFilterOptions(response.alphaTalents, locale),
+  };
+}
 
 function mapHero(dto: AdminHeroResponseDto): HeroItem {
   return {
@@ -449,6 +504,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [publicSearch, setPublicSearch] = useState('');
   const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
   const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
+  const [publicFilterSearch, setPublicFilterSearch] =
+    useState<PublicCatalogFilterSearchState>(EMPTY_PUBLIC_FILTER_SEARCH);
   const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
   const [publicFiltersExpanded, setPublicFiltersExpanded] = useState(false);
   const [loadingMorePublic, setLoadingMorePublic] = useState(false);
@@ -712,7 +769,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
 
     const response = await apiJson<HeroCatalogFiltersResponse>(`${PUBLIC_FILTERS_API}?language=${locale}`);
-    setPublicFilterOptions(response);
+    setPublicFilterOptions(sortPublicFilterOptions(response, locale));
   }, [adminMode, apiJson, locale]);
 
   const buildPublicCatalogQuery = useCallback(
@@ -942,13 +999,17 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       return;
     }
 
+    let closeTimeoutId: number | null = null;
+
     const handlePointerDown = (event: MouseEvent) => {
       if (!publicFiltersPanelRef.current) {
         return;
       }
 
       if (!publicFiltersPanelRef.current.contains(event.target as Node)) {
-        setOpenPublicFilterKey(null);
+        closeTimeoutId = window.setTimeout(() => {
+          setOpenPublicFilterKey(null);
+        }, 0);
       }
     };
 
@@ -958,11 +1019,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('click', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
+      if (closeTimeoutId !== null) {
+        window.clearTimeout(closeTimeoutId);
+      }
+      document.removeEventListener('click', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [openPublicFilterKey]);
@@ -1199,6 +1263,18 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     return item ? item.name : `#${id}`;
   };
 
+  const sortLocalizedDictionary = useCallback(
+    <T extends { id: number; name: LocalizedText }>(list: T[]) =>
+      [...list].sort((a, b) =>
+        getLocalizedText(a.name, locale).localeCompare(
+          getLocalizedText(b.name, locale),
+          locale === 'RU' ? 'ru' : 'en',
+          { sensitivity: 'base' },
+        ),
+      ),
+    [locale],
+  );
+
   const togglePublicFilter = (key: keyof PublicCatalogFiltersState, id: number) => {
     setPublicFilters((prev) => ({
       ...prev,
@@ -1226,9 +1302,26 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     return locale === 'RU' ? `\u0412\u044b\u0431\u0440\u0430\u043d\u043e: ${selected.length}` : `${selected.length} selected`;
   };
 
+  const getFilteredPublicOptions = (
+    key: keyof PublicCatalogFiltersState,
+    options: Array<HeroFilterOption | HeroRarityFilterOption>,
+  ) => {
+    const query = publicFilterSearch[key].trim().toLocaleLowerCase(locale === 'RU' ? 'ru' : 'en');
+
+    if (!query) {
+      return options;
+    }
+
+    return options.filter((option) => {
+      const label = 'stars' in option ? `${option.name} ${option.stars}` : option.name;
+      return label.toLocaleLowerCase(locale === 'RU' ? 'ru' : 'en').includes(query);
+    });
+  };
+
   const resetPublicFilters = () => {
     setPublicSearch('');
     setPublicFilters(EMPTY_PUBLIC_FILTERS);
+    setPublicFilterSearch(EMPTY_PUBLIC_FILTER_SEARCH);
     setOpenPublicFilterKey(null);
     setPublicFiltersExpanded(false);
   };
@@ -1448,7 +1541,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       return imageLocale === 'RU' ? createRuImageInputRef : createEnImageInputRef;
     };
-    const familyOptions = families.map((item) => ({
+    const sortedElements = sortLocalizedDictionary(elements);
+    const sortedRarities = sortLocalizedDictionary(rarities);
+    const sortedHeroClasses = sortLocalizedDictionary(heroClasses);
+    const sortedManaSpeeds = sortLocalizedDictionary(manaSpeeds);
+    const sortedFamilies = sortLocalizedDictionary(families);
+    const sortedAlphaTalents = sortLocalizedDictionary(alphaTalents);
+    const familyOptions = sortedFamilies.map((item) => ({
       value: String(item.id),
       label: getLocalizedText(item.name, locale),
     }));
@@ -1481,10 +1580,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       <LocalizedTextFields value={form.specialSkillName} onChange={(value) => setForm((prev) => ({ ...prev, specialSkillName: value }))} ruLabel={t.skillNameRu} enLabel={t.skillNameEn} />
       <LocalizedTextareaFields value={form.specialSkillDescription} onChange={(value) => setForm((prev) => ({ ...prev, specialSkillDescription: value }))} ruLabel={t.skillDescriptionRu} enLabel={t.skillDescriptionEn} rows={5} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.element}</span><select value={form.elementId} onChange={(e) => setForm((prev) => ({ ...prev, elementId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectElement}</option>{elements.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.rarity}</span><select value={form.rarityId} onChange={(e) => setForm((prev) => ({ ...prev, rarityId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectRarity}</option>{rarities.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)} ({item.stars}*)</option>)}</select></label>
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.heroClass}</span><select value={form.heroClassId} onChange={(e) => setForm((prev) => ({ ...prev, heroClassId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectHeroClass}</option>{heroClasses.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.manaSpeed}</span><select value={form.manaSpeedId} onChange={(e) => setForm((prev) => ({ ...prev, manaSpeedId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectManaSpeed}</option>{manaSpeeds.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.element}</span><select value={form.elementId} onChange={(e) => setForm((prev) => ({ ...prev, elementId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectElement}</option>{sortedElements.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.rarity}</span><select value={form.rarityId} onChange={(e) => setForm((prev) => ({ ...prev, rarityId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectRarity}</option>{sortedRarities.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)} ({item.stars}*)</option>)}</select></label>
+        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.heroClass}</span><select value={form.heroClassId} onChange={(e) => setForm((prev) => ({ ...prev, heroClassId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectHeroClass}</option>{sortedHeroClasses.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.manaSpeed}</span><select value={form.manaSpeedId} onChange={(e) => setForm((prev) => ({ ...prev, manaSpeedId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectManaSpeed}</option>{sortedManaSpeeds.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
         <SearchableSelectField
           label={t.family}
           value={form.familyId}
@@ -1497,7 +1596,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           emptyOptionLabel={t.noFamily}
           noResultsLabel={locale === 'RU' ? 'Семья не найдена' : 'No family found'}
         />
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.alphaTalent}</span><select value={form.alphaTalentId} onChange={(e) => setForm((prev) => ({ ...prev, alphaTalentId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.noAlphaTalent}</option>{alphaTalents.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.alphaTalent}</span><select value={form.alphaTalentId} onChange={(e) => setForm((prev) => ({ ...prev, alphaTalentId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.noAlphaTalent}</option>{sortedAlphaTalents.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
       </div>
       <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{heroImageSectionTitle}</div>
@@ -1732,6 +1831,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                     const selectedCount = publicFilters[group.key].length;
                     const summary = getPublicFilterSummary(group.key, group.options);
                     const isOpen = openPublicFilterKey === group.key;
+                    const filteredOptions = getFilteredPublicOptions(group.key, group.options);
 
                     return (
                       <div key={group.key} className="relative">
@@ -1762,8 +1862,29 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
                               {group.label}
                             </div>
+                            <SearchField
+                              value={publicFilterSearch[group.key]}
+                              onChange={(value) =>
+                                setPublicFilterSearch((prev) => ({
+                                  ...prev,
+                                  [group.key]: value,
+                                }))
+                              }
+                              placeholder={
+                                locale === 'RU'
+                                  ? `Поиск: ${group.label.toLowerCase()}`
+                                  : `Search ${group.label.toLowerCase()}`
+                              }
+                              ariaLabel={
+                                locale === 'RU'
+                                  ? `Поиск по фильтру ${group.label.toLowerCase()}`
+                                  : `Search ${group.label.toLowerCase()} filter`
+                              }
+                              clearLabel={locale === 'RU' ? 'Очистить поиск фильтра' : 'Clear filter search'}
+                              className="mb-3"
+                            />
                             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                              {group.options.map((option) => {
+                              {filteredOptions.map((option) => {
                                 const isSelected = publicFilters[group.key].includes(option.id);
                                 const label =
                                   'stars' in option ? `${option.name} (${option.stars}*)` : option.name;
@@ -1783,6 +1904,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                                   </label>
                                 );
                               })}
+                              {filteredOptions.length === 0 ? (
+                                <div className="rounded-xl border border-dashed border-[var(--border)] px-3 py-3 text-xs text-[var(--foreground-soft)]">
+                                  {t.noResults}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         ) : null}

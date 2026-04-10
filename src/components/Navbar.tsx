@@ -19,7 +19,13 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 import type { Locale } from '@/lib/i18n/types';
 import { useTheme, type ThemeMode } from '@/lib/theme/theme-context';
 
-export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
+export const Navbar = ({
+  onMenuClick,
+  onHomeClick,
+}: {
+  onMenuClick: () => void;
+  onHomeClick?: () => void;
+}) => {
   const { authenticated, login, logout, displayName } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -94,6 +100,14 @@ export const Navbar = ({ onMenuClick }: { onMenuClick: () => void }) => {
 
         <Link
           href="/"
+          onClick={(event) => {
+            if (!onHomeClick) {
+              return;
+            }
+
+            event.preventDefault();
+            onHomeClick();
+          }}
           className="flex items-center rounded-xl transition hover:opacity-90"
           aria-label="GameOps home"
         >

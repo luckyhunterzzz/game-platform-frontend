@@ -10,9 +10,17 @@ export default function HeroesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { messages } = useI18n();
 
+  const navigateHome = () => {
+    setSidebarOpen(false);
+    window.location.assign('/');
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar
+        onMenuClick={() => setSidebarOpen((prev) => !prev)}
+        onHomeClick={navigateHome}
+      />
 
       {isSidebarOpen && (
         <div className="fixed inset-0 z-40 flex">
@@ -21,13 +29,13 @@ export default function HeroesPage() {
 
             <ul className="space-y-4">
               <li>
-                <Link
-                  href="/"
-                  onClick={() => setSidebarOpen(false)}
+                <button
+                  type="button"
+                  onClick={navigateHome}
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.menuPageOne}
-                </Link>
+                </button>
               </li>
               <li>
                 <Link

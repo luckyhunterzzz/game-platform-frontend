@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import DictionaryModal from './admin/DictionaryModal';
+import HeroInfoPopover from './admin/HeroInfoPopover';
 
 type Reference = {
   id: number;
@@ -19,10 +20,18 @@ type PassiveSkill = {
   description: string;
 };
 
+type CostumeBonus = {
+  attack?: number | null;
+  armor?: number | null;
+  hp?: number | null;
+  mana?: number | null;
+} | null;
+
 type Costume = {
   id: number;
   slug: string;
   name: string;
+  bonus?: CostumeBonus;
 };
 
 export type PublicHeroDetails = {
@@ -42,6 +51,10 @@ export type PublicHeroDetails = {
   passiveSkills: PassiveSkill[];
   costumes: Costume[];
   baseHeroId: number | null;
+  baseAttack?: number | null;
+  baseArmor?: number | null;
+  baseHp?: number | null;
+  costumeBonusJson?: CostumeBonus;
   imageUrl: string | null;
   releaseDate: string | null;
 };
@@ -62,6 +75,29 @@ type PublicHeroDetailsModalProps = {
   onClose: () => void;
   onOpenHero?: (slug: string) => void;
 };
+
+function formatCostumeBonusContent(locale: 'RU' | 'EN', bonus: CostumeBonus | undefined): string {
+  if (!bonus) {
+    return '';
+  }
+
+  const lines =
+    locale === 'RU'
+      ? [
+          `Бонус к атаке: +${bonus.attack ?? 0}%`,
+          `Бонус к защите: +${bonus.armor ?? 0}%`,
+          `Бонус к здоровью: +${bonus.hp ?? 0}%`,
+          `Бонус к мане: +${bonus.mana ?? 0}%`,
+        ]
+      : [
+          `Attack Bonus: +${bonus.attack ?? 0}%`,
+          `Defence Bonus: +${bonus.armor ?? 0}%`,
+          `Health Bonus: +${bonus.hp ?? 0}%`,
+          `Mana Bonus: +${bonus.mana ?? 0}%`,
+        ];
+
+  return lines.join('\n');
+}
 
 export default function PublicHeroDetailsModal({
   open,
@@ -210,6 +246,17 @@ export default function PublicHeroDetailsModal({
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
                   {t.alphaTalent}: {renderValue(details.alphaTalent?.name)}
                 </div>
+                {details.costumeBonusJson ? (
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
+                    <div className="flex items-center gap-2">
+                      <span>{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>
+                      <HeroInfoPopover
+                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                        content={formatCostumeBonusContent(locale, details.costumeBonusJson)}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -228,13 +275,13 @@ export default function PublicHeroDetailsModal({
             <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.baseStats}</div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                {t.baseAttack}: {renderValue(stats?.baseAttack)}
+                {t.baseAttack}: {renderValue(details.baseAttack ?? stats?.baseAttack)}
               </div>
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                {t.baseArmor}: {renderValue(stats?.baseArmor)}
+                {t.baseArmor}: {renderValue(details.baseArmor ?? stats?.baseArmor)}
               </div>
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                {t.baseHp}: {renderValue(stats?.baseHp)}
+                {t.baseHp}: {renderValue(details.baseHp ?? stats?.baseHp)}
               </div>
             </div>
           </div>
