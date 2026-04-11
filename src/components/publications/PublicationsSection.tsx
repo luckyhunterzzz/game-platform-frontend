@@ -11,7 +11,7 @@ import type {
   PublicationFeedResponse,
   PublicationItem,
 } from '@/lib/types/publication';
-import { PublicationStatus } from '@/lib/types/publication';
+import { PublicationStatus, PublicationType } from '@/lib/types/publication';
 import CreatePublicationModal from './CreatePublicationModal';
 import PublicationCard from './PublicationCard';
 
@@ -61,6 +61,7 @@ export default function PublicationsSection() {
   const [activeAdminStatus, setActiveAdminStatus] = useState<PublicationStatus>(
     PublicationStatus.PUBLISHED,
   );
+  const [activePublicType, setActivePublicType] = useState<PublicationType>(PublicationType.NEWS);
 
   const successTimerRef = useRef<number | null>(null);
 
@@ -94,7 +95,7 @@ export default function PublicationsSection() {
 
         const endpoint = isAdmin
           ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}`
-          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}`;
+          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}&type=${activePublicType}`;
 
         if (isAdmin) {
           const response = await apiJson<PublicationAdminFeedResponse>(endpoint);
@@ -124,7 +125,7 @@ export default function PublicationsSection() {
         setLoadingMore(false);
       }
     },
-    [activeAdminStatus, apiJson, isAdmin, locale, messages.publications.loadError],
+    [activeAdminStatus, activePublicType, apiJson, isAdmin, locale, messages.publications.loadError],
   );
 
   useEffect(() => {
@@ -189,6 +190,13 @@ export default function PublicationsSection() {
     { status: PublicationStatus.SCHEDULED, label: messages.publications.scheduledTab },
   ];
 
+  const publicTypeTabs = [
+    PublicationType.NEWS,
+    PublicationType.EVENT,
+    PublicationType.SCHEDULE,
+    PublicationType.GUIDE,
+  ];
+
   return (
     <section className="mx-auto mt-10 w-full max-w-5xl px-4">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -229,6 +237,32 @@ export default function PublicationsSection() {
                   }
                 >
                   {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!isAdmin && (
+          <div className="flex flex-wrap gap-2">
+            {publicTypeTabs.map((type) => {
+              const active = activePublicType === type;
+
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setActivePublicType(type);
+                    setPage(0);
+                  }}
+                  className={
+                    active
+                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
+                      : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                  }
+                >
+                  {messages.publicationType[type]}
                 </button>
               );
             })}

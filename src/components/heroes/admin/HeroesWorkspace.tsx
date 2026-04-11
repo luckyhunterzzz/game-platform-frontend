@@ -2143,7 +2143,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         </div>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-[var(--foreground)]">{hero.name}</div>
+                    <div className="text-xl font-semibold text-[var(--foreground)] md:text-2xl">{hero.name}</div>
                     <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
                       <div>{t.element}: {hero.elementName}</div>
                       <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
