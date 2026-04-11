@@ -147,7 +147,7 @@ export const Navbar = ({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex w-full items-center justify-between overflow-x-hidden border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 py-3 text-[var(--foreground)] backdrop-blur sm:px-4">
+      <nav className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 py-3 text-[var(--foreground)] backdrop-blur sm:px-4">
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <button
           onClick={onMenuClick}
@@ -396,7 +396,7 @@ export const Navbar = ({
                   {aboutProjectContent.rightsDisclaimer}
                 </p>
 
-                <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-4 text-cyan-100">
+                <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-4 text-[var(--foreground)]">
                   <p>
                     {aboutProjectContent.contactPrefix}
                     {' '}
@@ -404,7 +404,7 @@ export const Navbar = ({
                       href="https://t.me/gameops_platform"
                       target="_blank"
                       rel="noreferrer"
-                      className="font-bold text-cyan-50 underline decoration-cyan-200/60 underline-offset-4 transition hover:text-white"
+                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-100"
                     >
                       {aboutProjectContent.contactHandle}
                     </a>
@@ -416,7 +416,7 @@ export const Navbar = ({
                       href="https://t.me/gameopsplatform"
                       target="_blank"
                       rel="noreferrer"
-                      className="font-bold text-cyan-50 underline decoration-cyan-200/60 underline-offset-4 transition hover:text-white"
+                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-100"
                     >
                       {aboutProjectContent.channelHandle}
                     </a>

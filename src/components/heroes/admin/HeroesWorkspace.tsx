@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
@@ -509,6 +510,9 @@ function formatAdminDate(value: string | null | undefined, locale: HeroLocale, f
 }
 
 export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boolean }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid, apiPostFormData } = useApi();
   const { locale: appLocale } = useI18n();
   const { userId, userEmail, displayName } = useAuth();
@@ -518,6 +522,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const editRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const editEnImageInputRef = useRef<HTMLInputElement | null>(null);
   const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
+  const publicHeroSlugRef = useRef<string | null>(null);
 
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
   const [publicItems, setPublicItems] = useState<PublicHeroCardItem[]>([]);
@@ -993,6 +998,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         findBaseHeroCardBySlug(response.currentHero.slug) ?? toSyntheticPublicHeroCard(response.currentHero, response),
       );
     } catch (error) {
+      publicHeroSlugRef.current = null;
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
       setSelectedPublicHeroVariants(null);
@@ -1000,6 +1006,62 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setLoadingPublicDetails(false);
     }
   }, [apiJson, findBaseHeroCardBySlug, locale, toSyntheticPublicHeroCard]);
+
+  const syncPublicHeroQuery = useCallback((slug: string | null, mode: 'push' | 'replace' = 'push') => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (slug) {
+      nextParams.set('hero', slug);
+    } else {
+      nextParams.delete('hero');
+    }
+
+    const nextQuery = nextParams.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+    if (mode === 'replace') {
+      router.replace(nextUrl, { scroll: false });
+      return;
+    }
+
+    router.push(nextUrl, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const closePublicHeroState = useCallback(() => {
+    publicHeroSlugRef.current = null;
+    setPublicDetailsOpen(false);
+    setSelectedPublicHero(null);
+    setSelectedPublicHeroDetails(null);
+    setSelectedPublicHeroVariants(null);
+    setPublicDetailsError(null);
+  }, []);
+
+  const openPublicHeroBySlug = useCallback(async (slug: string, heroCard?: PublicHeroCardItem | null) => {
+    const normalizedSlug = slug.trim().toLowerCase();
+    if (!normalizedSlug) {
+      return;
+    }
+
+    const alreadyLoadingSameHero =
+      publicHeroSlugRef.current === normalizedSlug &&
+      (loadingPublicDetails || selectedPublicHeroDetails?.slug === normalizedSlug);
+
+    if (alreadyLoadingSameHero && isPublicDetailsOpen) {
+      return;
+    }
+
+    publicHeroSlugRef.current = normalizedSlug;
+
+    if (heroCard) {
+      setSelectedPublicHero(heroCard);
+    }
+
+    setSelectedPublicHeroDetails(null);
+    setSelectedPublicHeroVariants(null);
+    setPublicDetailsError(null);
+    setPublicDetailsOpen(true);
+    await loadPublicVariants(normalizedSlug);
+  }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, selectedPublicHeroDetails?.slug]);
 
   useEffect(() => {
     void loadList();
@@ -1028,6 +1090,36 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setSelectedAdminVariants(null);
     }
   }, [adminMode, selectedId, loadAdminVariants, loadDetails]);
+
+  useEffect(() => {
+    if (adminMode) {
+      return;
+    }
+
+    const heroSlugFromQuery = searchParams.get('hero')?.trim().toLowerCase() ?? '';
+
+    if (!heroSlugFromQuery) {
+      if (isPublicDetailsOpen || publicHeroSlugRef.current !== null) {
+        closePublicHeroState();
+      }
+      return;
+    }
+
+    const currentOpenSlug = selectedPublicHeroDetails?.slug ?? publicHeroSlugRef.current;
+    if (currentOpenSlug === heroSlugFromQuery && isPublicDetailsOpen) {
+      return;
+    }
+
+    void openPublicHeroBySlug(heroSlugFromQuery, findBaseHeroCardBySlug(heroSlugFromQuery) ?? null);
+  }, [
+    adminMode,
+    closePublicHeroState,
+    findBaseHeroCardBySlug,
+    isPublicDetailsOpen,
+    openPublicHeroBySlug,
+    searchParams,
+    selectedPublicHeroDetails?.slug,
+  ]);
 
   useEffect(() => {
     if (!createForm.isCostume) {
@@ -1496,6 +1588,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (!form.elementId) return `${t.element}: ${t.required}`;
     if (!form.rarityId) return `${t.rarity}: ${t.required}`;
     if (!form.heroClassId) return `${t.heroClass}: ${t.required}`;
+    if (!form.familyId) return `${t.family}: ${t.required}`;
     if (!form.manaSpeedId) return `${t.manaSpeed}: ${t.required}`;
     if (form.isCostume && !form.baseHeroId) return t.costumeBaseHeroRequired;
     if (form.isCostume && !form.costumeIndex.trim()) {
@@ -1930,28 +2023,18 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const handleOpenPublicHero = async (hero: PublicHeroCardItem) => {
-    setSelectedPublicHero(hero);
-    setSelectedPublicHeroDetails(null);
-    setSelectedPublicHeroVariants(null);
-    setPublicDetailsError(null);
-    setPublicDetailsOpen(true);
-    await loadPublicVariants(hero.slug);
+    syncPublicHeroQuery(hero.slug);
+    await openPublicHeroBySlug(hero.slug, hero);
   };
 
   const handleOpenPublicHeroBySlug = async (slug: string) => {
-    setSelectedPublicHeroDetails(null);
-    setSelectedPublicHeroVariants(null);
-    setPublicDetailsError(null);
-    setPublicDetailsOpen(true);
-    await loadPublicVariants(slug);
+    syncPublicHeroQuery(slug);
+    await openPublicHeroBySlug(slug, findBaseHeroCardBySlug(slug) ?? null);
   };
 
   const handleClosePublicHero = () => {
-    setPublicDetailsOpen(false);
-    setSelectedPublicHero(null);
-    setSelectedPublicHeroDetails(null);
-    setSelectedPublicHeroVariants(null);
-    setPublicDetailsError(null);
+    syncPublicHeroQuery(null, 'replace');
+    closePublicHeroState();
   };
 
   if (!adminMode) {
