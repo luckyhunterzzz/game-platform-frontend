@@ -128,13 +128,13 @@ export default function PublicationCard({
           <button
             type="button"
             onClick={() => setImagePreviewOpen(true)}
-            className="mb-4 block w-full overflow-hidden rounded-xl border border-[var(--border)] transition hover:opacity-95"
+            className="mb-4 block w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] transition hover:opacity-95"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={publication.imageUrl}
               alt={publication.title}
-              className="h-64 w-full object-cover"
+              className="max-h-[32rem] w-full object-contain"
             />
           </button>
         )}
