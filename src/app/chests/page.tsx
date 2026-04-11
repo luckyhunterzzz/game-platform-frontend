@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
@@ -493,14 +492,6 @@ export default function ChestsPage() {
         ))}
       </main>
 
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] shadow-[0_18px_40px_rgba(0,0,0,0.16)] transition hover:border-cyan-400/20 hover:bg-[var(--surface-hover)]"
-      >
-        <ArrowUp size={16} />
-        <span>{t.topButton}</span>
-      </button>
     </div>
   );
 }
