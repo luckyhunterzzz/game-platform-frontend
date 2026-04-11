@@ -76,6 +76,7 @@ export type PublicHeroVariantSummaryItem = {
   id: number;
   slug: string;
   name: string;
+  costumeIndex?: number | null;
   imageUrl?: string | null;
   elementName?: string | null;
   rarityName?: string | null;
@@ -117,6 +118,15 @@ function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallb
 
 function relationName(value: string | null | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value : fallback;
+}
+
+function formatCostumeVariantName(name: string | null | undefined, costumeIndex?: number | null) {
+  const resolvedName = relationName(name, '');
+  if (!resolvedName) {
+    return costumeIndex != null ? `C${costumeIndex}` : '';
+  }
+
+  return costumeIndex != null ? `${resolvedName} C${costumeIndex}` : resolvedName;
 }
 
 function formatCostumeBonusContent(
@@ -254,8 +264,14 @@ export default function PublicHeroDetailsModal({
     .filter(Boolean)
     .join('\n\n');
 
-  const renderRelatedHeroChip = (slug: string, name: string, key: string | number) => {
+  const renderRelatedHeroChip = (
+    slug: string,
+    name: string,
+    key: string | number,
+    costumeIndex?: number | null,
+  ) => {
     const isCurrent = currentHeroSlug === slug;
+    const label = formatCostumeVariantName(name, costumeIndex);
 
     if (onOpenRelatedHero) {
       return (
@@ -270,7 +286,7 @@ export default function PublicHeroDetailsModal({
               : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
           }`}
         >
-          {name}
+          {label}
         </button>
       );
     }
@@ -280,7 +296,7 @@ export default function PublicHeroDetailsModal({
         key={key}
         className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)]"
       >
-        {name}
+        {label}
       </span>
     );
   };
@@ -418,7 +434,7 @@ export default function PublicHeroDetailsModal({
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {resolvedCostumes.map((costume) =>
-                      renderRelatedHeroChip(costume.slug, costume.name, costume.id),
+                      renderRelatedHeroChip(costume.slug, costume.name, costume.id, costume.costumeIndex),
                     )}
                   </div>
                 )}
@@ -465,6 +481,11 @@ export default function PublicHeroDetailsModal({
                 heroSlug={heroDetails.slug}
                 calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
                 isCostume={heroDetails.baseHeroId != null}
+                currentCostumeIndex={
+                  heroDetails.baseHeroId != null
+                    ? heroVariants?.costumes.find((item) => item.slug === heroDetails.slug)?.costumeIndex ?? null
+                    : null
+                }
                 baseAttack={heroDetails.baseAttack ?? heroCard.baseAttack ?? null}
                 baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
                 baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
