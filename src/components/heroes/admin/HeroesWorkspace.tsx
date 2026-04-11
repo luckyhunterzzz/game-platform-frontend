@@ -53,6 +53,8 @@ import PublicHeroDetailsModal, {
 const PUBLIC_API = '/api/v1/public/heroes';
 const ADMIN_API = '/api/v1/admin/heroes';
 const ADMIN_CATALOG_API = '/api/v1/admin/heroes/catalog';
+const ADMIN_SLUG_AVAILABILITY_API = '/api/v1/admin/heroes/slug-availability';
+const ADMIN_NEXT_COSTUME_INDEX_API = '/api/v1/admin/heroes/next-costume-index';
 const PUBLIC_FILTERS_API = '/api/v1/public/heroes/filters';
 const PUBLIC_NAMES_API = '/api/v1/public/heroes/names';
 const ELEMENTS_API = '/api/v1/admin/heroes/elements';
@@ -132,6 +134,20 @@ type PublicHeroVariantsResponse = {
   currentHero: PublicHeroDetailsItem;
   baseHero: PublicHeroVariantSummaryItem;
   costumes: PublicHeroVariantSummaryItem[];
+};
+
+type AdminHeroVariantsResponse = {
+  currentHero: PublicHeroVariantSummaryItem;
+  baseHero: PublicHeroVariantSummaryItem;
+  costumes: PublicHeroVariantSummaryItem[];
+};
+
+type HeroSlugAvailabilityResponse = {
+  available: boolean;
+};
+
+type HeroNextCostumeIndexResponse = {
+  nextCostumeIndex: number;
 };
 
 type AdminHeroResponseDto = {
@@ -269,10 +285,10 @@ const EMPTY_FORM: HeroFormState = {
   baseArmor: '',
   baseHp: '',
   status: 'READY',
-  costumeBonusAttack: '0',
-  costumeBonusArmor: '0',
-  costumeBonusHp: '0',
-  costumeBonusMana: '0',
+  costumeBonusAttack: '',
+  costumeBonusArmor: '',
+  costumeBonusHp: '',
+  costumeBonusMana: '',
   releaseDate: '',
   isCostume: false,
   baseHeroId: '',
@@ -429,6 +445,10 @@ function applyCostumeSlugSuffix(baseSlug: string, isCostume: boolean, costumeInd
   return `${normalizedBaseSlug}-c${costumeIndex.trim()}`;
 }
 
+function formatCostumeVariantName(name: string, costumeIndex?: number | null) {
+  return costumeIndex != null ? `${name} C${costumeIndex}` : name;
+}
+
 function formatCostumeBonusContent(locale: HeroLocale, bonus: CostumeBonus | null | undefined): string {
   if (!bonus) {
     return '';
@@ -519,6 +539,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [loadingMoreAdmin, setLoadingMoreAdmin] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
+  const [selectedAdminVariants, setSelectedAdminVariants] = useState<AdminHeroVariantsResponse | null>(null);
   const [elements, setElements] = useState<ElementItem[]>([]);
   const [rarities, setRarities] = useState<RarityItem[]>([]);
   const [heroClasses, setHeroClasses] = useState<HeroClassItem[]>([]);
@@ -559,6 +580,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [isPublicDetailsOpen, setPublicDetailsOpen] = useState(false);
   const [createForm, setCreateForm] = useState<HeroFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<HeroFormState>(EMPTY_FORM);
+  const [createBaseHeroSearch, setCreateBaseHeroSearch] = useState('');
+  const [createBaseHeroSelectOpen, setCreateBaseHeroSelectOpen] = useState(false);
+  const [createSlugAvailable, setCreateSlugAvailable] = useState<boolean | null>(null);
+  const [createSlugCheckLoading, setCreateSlugCheckLoading] = useState(false);
   const [createImagePreviewUrl, setCreateImagePreviewUrl] = useState<Record<HeroLocale, string | null>>({
     RU: null,
     EN: null,
@@ -636,9 +661,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             updatedAt: '\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e',
             noValue: '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u043e',
             invalidSlug: 'Slug \u0434\u043e\u043b\u0436\u0435\u043d \u0441\u043e\u0434\u0435\u0440\u0436\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0441\u0442\u0440\u043e\u0447\u043d\u044b\u0435 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0435 \u0431\u0443\u043a\u0432\u044b, \u0446\u0438\u0444\u0440\u044b \u0438 \u0434\u0435\u0444\u0438\u0441',
+            slugChecking: '\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c slug...',
+            slugExists: '\u0413\u0435\u0440\u043e\u0439 \u0441 \u0442\u0430\u043a\u0438\u043c slug \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442',
+            slugAvailable: 'Slug \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d',
             required: '\u041f\u043e\u043b\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e',
             nonNegative: '\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c 0 \u0438\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435',
             costumeBaseHeroRequired: '\u0414\u043b\u044f \u043a\u043e\u0441\u0442\u044e\u043c\u0430 \u043d\u0443\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
+            costumeIndexLabel: '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430',
+            relatedCostumes: '\u041a\u043e\u0441\u0442\u044e\u043c\u044b',
+            noRelatedCostumes: '\u041a\u043e\u0441\u0442\u044e\u043c\u043e\u0432 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442',
             search: '\u041f\u043e\u0438\u0441\u043a',
             searchHeroes: '\u041f\u043e\u0438\u0441\u043a \u0433\u0435\u0440\u043e\u0435\u0432',
             searchHeroesPlaceholder: '\u0418\u043c\u044f \u0433\u0435\u0440\u043e\u044f',
@@ -706,9 +737,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             updatedAt: 'Updated at',
             noValue: 'Not set',
             invalidSlug: 'Slug must contain lowercase Latin letters, digits and hyphen',
+            slugChecking: 'Checking slug...',
+            slugExists: 'Hero with this slug already exists',
+            slugAvailable: 'Slug is available',
             required: 'Field is required',
             nonNegative: 'Value must be 0 or greater',
             costumeBaseHeroRequired: 'Costume hero requires a base hero',
+            costumeIndexLabel: 'Costume index',
+            relatedCostumes: 'Costumes',
+            noRelatedCostumes: 'No costumes yet',
             search: 'Search',
             searchHeroes: 'Search heroes',
             searchHeroesPlaceholder: 'Hero name',
@@ -901,6 +938,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
   }, [apiJson]);
 
+  const loadAdminVariants = useCallback(async (id: number) => {
+    try {
+      const response = await apiJson<AdminHeroVariantsResponse>(`${ADMIN_API}/${id}/variants?language=${locale}`);
+      setSelectedAdminVariants(response);
+    } catch {
+      setSelectedAdminVariants(null);
+    }
+  }, [apiJson, locale]);
+
   const findBaseHeroCardBySlug = useCallback((slug: string) => {
     return publicItems.find((item) => item.slug === slug) ?? null;
   }, [publicItems]);
@@ -977,8 +1023,103 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   useEffect(() => {
     if (adminMode && selectedId !== null) {
       void loadDetails(selectedId);
+      void loadAdminVariants(selectedId);
+    } else if (adminMode) {
+      setSelectedAdminVariants(null);
     }
-  }, [adminMode, selectedId, loadDetails]);
+  }, [adminMode, selectedId, loadAdminVariants, loadDetails]);
+
+  useEffect(() => {
+    if (!createForm.isCostume) {
+      setCreateBaseHeroSearch('');
+      setCreateBaseHeroSelectOpen(false);
+      return;
+    }
+
+    const nextSearchValue = (locale === 'RU' ? createForm.name.ru : createForm.name.en).trim();
+    setCreateBaseHeroSearch(nextSearchValue);
+    setCreateBaseHeroSelectOpen(nextSearchValue.length > 0 && !createForm.baseHeroId);
+  }, [createForm.isCostume, createForm.name.en, createForm.name.ru, createForm.baseHeroId, locale]);
+
+  useEffect(() => {
+    if (!createForm.isCostume || !createForm.baseHeroId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadNextCostumeIndex = async () => {
+      try {
+        const response = await apiJson<HeroNextCostumeIndexResponse>(
+          `${ADMIN_NEXT_COSTUME_INDEX_API}?baseHeroId=${createForm.baseHeroId}`,
+        );
+
+        if (!cancelled) {
+          setCreateForm((prev) => {
+            if (!prev.isCostume || prev.baseHeroId !== createForm.baseHeroId) {
+              return prev;
+            }
+
+            const nextCostumeIndex = String(response.nextCostumeIndex);
+            if (prev.costumeIndex === nextCostumeIndex) {
+              return prev;
+            }
+
+            return {
+              ...prev,
+              costumeIndex: nextCostumeIndex,
+              slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, nextCostumeIndex),
+            };
+          });
+        }
+      } catch {
+        // Keep manual input if helper endpoint is unavailable.
+      }
+    };
+
+    void loadNextCostumeIndex();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, createForm.baseHeroId, createForm.isCostume]);
+
+  useEffect(() => {
+    const normalizedSlug = createForm.slug.trim().toLowerCase();
+    if (!isCreateOpen || normalizedSlug.length === 0 || !SLUG_PATTERN.test(normalizedSlug)) {
+      setCreateSlugAvailable(null);
+      setCreateSlugCheckLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCreateSlugCheckLoading(true);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await apiJson<HeroSlugAvailabilityResponse>(
+          `${ADMIN_SLUG_AVAILABILITY_API}?slug=${encodeURIComponent(normalizedSlug)}`,
+        );
+
+        if (!cancelled) {
+          setCreateSlugAvailable(response.available);
+        }
+      } catch {
+        if (!cancelled) {
+          setCreateSlugAvailable(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCreateSlugCheckLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [apiJson, createForm.slug, isCreateOpen]);
 
   useEffect(() => {
     setCreateForm((prev) => {
@@ -1177,6 +1318,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   const resetCreateModalState = () => {
     setCreateForm(EMPTY_FORM);
+    setCreateBaseHeroSearch('');
+    setCreateBaseHeroSelectOpen(false);
+    setCreateSlugAvailable(null);
+    setCreateSlugCheckLoading(false);
     setSubmitError(null);
     setCreateImagePreviewUrl({ RU: null, EN: null });
     setCreateImageFileName({ RU: null, EN: null });
@@ -1236,6 +1381,25 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     () => [...baseHeroOptions].sort((a, b) => a.name.localeCompare(b.name, locale === 'RU' ? 'ru' : 'en')),
     [baseHeroOptions, locale],
   );
+
+  useEffect(() => {
+    if (!createForm.isCostume || createForm.baseHeroId || !createBaseHeroSearch.trim()) {
+      return;
+    }
+
+    const normalizedSearch = createBaseHeroSearch.trim().toLocaleLowerCase(locale === 'RU' ? 'ru' : 'en');
+    const matchedBaseHero = baseHeroes.find(
+      (item) => item.name.toLocaleLowerCase(locale === 'RU' ? 'ru' : 'en') === normalizedSearch,
+    );
+
+    if (matchedBaseHero) {
+      setCreateForm((prev) => ({
+        ...prev,
+        baseHeroId: String(matchedBaseHero.id),
+      }));
+      setCreateBaseHeroSelectOpen(false);
+    }
+  }, [baseHeroes, createBaseHeroSearch, createForm.baseHeroId, createForm.isCostume, locale]);
 
   const hasActivePublicFilters = useMemo(
     () =>
@@ -1408,6 +1572,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     });
     setSelectedId(hero.id);
     setSelectedItem(hero);
+    void loadAdminVariants(hero.id);
   };
 
   const handleCreate = async () => {
@@ -1423,6 +1588,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     const error = validateForm(createForm);
     if (error) return setSubmitError(error);
+    if (createSlugAvailable === false) {
+      return setSubmitError(t.slugExists);
+    }
+    if (createSlugCheckLoading) {
+      return setSubmitError(t.slugChecking);
+    }
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -1575,6 +1746,25 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
         />
         <span className="text-xs text-[var(--foreground-muted)]">{t.slugHint}</span>
+        {!isEdit && createForm.slug.trim() ? (
+          <span
+            className={`text-xs ${
+              createSlugAvailable === false
+                ? 'text-red-300'
+                : createSlugAvailable === true
+                  ? 'text-emerald-300'
+                  : 'text-[var(--foreground-muted)]'
+            }`}
+          >
+            {createSlugCheckLoading
+              ? t.slugChecking
+              : createSlugAvailable === false
+                ? t.slugExists
+                : createSlugAvailable === true
+                  ? t.slugAvailable
+                  : null}
+          </span>
+        ) : null}
       </label>
       <LocalizedTextFields value={form.name} onChange={(value) => setForm((prev) => ({ ...prev, name: value }))} ruLabel={t.nameRu} enLabel={t.nameEn} />
       <LocalizedTextFields value={form.specialSkillName} onChange={(value) => setForm((prev) => ({ ...prev, specialSkillName: value }))} ruLabel={t.skillNameRu} enLabel={t.skillNameEn} />
@@ -1732,8 +1922,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       </div>
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
-      <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack || '0' : '0', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor || '0' : '0', costumeBonusHp: e.target.checked ? prev.costumeBonusHp || '0' : '0', costumeBonusMana: e.target.checked ? prev.costumeBonusMana || '0' : '0', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
-{form.isCostume && <div className="space-y-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><SearchableSelectField label={t.baseHero} value={form.baseHeroId} onChange={(value) => setForm((prev) => ({ ...prev, baseHeroId: value }))} options={baseHeroSelectOptions} placeholder={t.selectBaseHero} searchPlaceholder={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} searchAriaLabel={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} clearSearchLabel={locale === 'RU' ? 'Очистить поиск героя' : 'Clear hero search'} noResultsLabel={locale === 'RU' ? 'Базовый герой не найден' : 'No base hero found'} /><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume index'}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value, slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, e.target.value) }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0430\u0442\u0430\u043a\u0435, %' : 'Attack bonus, %'}</span><input type="number" min="0" value={form.costumeBonusAttack} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusAttack: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0430\u0449\u0438\u0442\u0435, %' : 'Defence bonus, %'}</span><input type="number" min="0" value={form.costumeBonusArmor} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusArmor: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044e, %' : 'Health bonus, %'}</span><input type="number" min="0" value={form.costumeBonusHp} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusHp: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u043c\u0430\u043d\u0435, %' : 'Mana bonus, %'}</span><input type="number" min="0" value={form.costumeBonusMana} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusMana: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div></div></div>}
+      <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack : '', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor : '', costumeBonusHp: e.target.checked ? prev.costumeBonusHp : '', costumeBonusMana: e.target.checked ? prev.costumeBonusMana : '', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
+{form.isCostume && <div className="space-y-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><SearchableSelectField label={t.baseHero} value={form.baseHeroId} onChange={(value) => { setForm((prev) => ({ ...prev, baseHeroId: value })); if (!isEdit) { setCreateBaseHeroSelectOpen(false); } }} options={baseHeroSelectOptions} placeholder={t.selectBaseHero} searchPlaceholder={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} searchAriaLabel={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} clearSearchLabel={locale === 'RU' ? 'Очистить поиск героя' : 'Clear hero search'} noResultsLabel={locale === 'RU' ? 'Базовый герой не найден' : 'No base hero found'} searchQuery={!isEdit ? createBaseHeroSearch : undefined} onSearchQueryChange={!isEdit ? setCreateBaseHeroSearch : undefined} open={!isEdit ? createBaseHeroSelectOpen : undefined} onOpenChange={!isEdit ? setCreateBaseHeroSelectOpen : undefined} /><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.costumeIndexLabel}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value, slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, e.target.value) }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0430\u0442\u0430\u043a\u0435, %' : 'Attack bonus, %'}</span><input type="number" min="0" value={form.costumeBonusAttack} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusAttack: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0430\u0449\u0438\u0442\u0435, %' : 'Defence bonus, %'}</span><input type="number" min="0" value={form.costumeBonusArmor} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusArmor: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044e, %' : 'Health bonus, %'}</span><input type="number" min="0" value={form.costumeBonusHp} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusHp: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u043c\u0430\u043d\u0435, %' : 'Mana bonus, %'}</span><input type="number" min="0" value={form.costumeBonusMana} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusMana: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div></div></div>}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
@@ -2168,9 +2358,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 )}
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
-              <HeroStatCalculatorPanel locale={locale} heroId={selectedItem.id} heroSlug={selectedItem.slug} calculateEndpoint={`/api/v1/admin/heroes/${selectedItem.id}/stats/calculate`} isCostume={selectedItem.isCostume} baseAttack={selectedItem.baseAttack ?? null} baseArmor={selectedItem.baseArmor ?? null} baseHp={selectedItem.baseHp ?? null} />
+              <HeroStatCalculatorPanel locale={locale} heroId={selectedItem.id} heroSlug={selectedItem.slug} calculateEndpoint={`/api/v1/admin/heroes/${selectedItem.id}/stats/calculate`} isCostume={selectedItem.isCostume} currentCostumeIndex={selectedItem.costumeIndex ?? null} baseAttack={selectedItem.baseAttack ?? null} baseArmor={selectedItem.baseArmor ?? null} baseHp={selectedItem.baseHp ?? null} costumes={selectedAdminVariants?.costumes} />
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
-{selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{locale === 'RU' ? '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume index'}: {selectedItem.costumeIndex ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]"><div className="flex items-center gap-2"><span>{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'}</span>{selectedItem.costumeBonus ? <HeroInfoPopover label={locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'} content={formatCostumeBonusContent(locale, selectedItem.costumeBonus)} /> : null}</div></div></div>}
+{selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.costumeIndexLabel}: {selectedItem.costumeIndex ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]"><div className="flex items-center gap-2"><span>{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'}</span>{selectedItem.costumeBonus ? <HeroInfoPopover label={locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'} content={formatCostumeBonusContent(locale, selectedItem.costumeBonus)} /> : null}</div></div></div>}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.relatedCostumes}</div>
+                {selectedAdminVariants?.costumes && selectedAdminVariants.costumes.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAdminVariants.costumes.map((costume) => (
+                      <span key={costume.id} className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200">
+                        {formatCostumeVariantName(costume.name, costume.costumeIndex)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-[var(--foreground-soft)]">{t.noRelatedCostumes}</div>
+                )}
+              </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]"><div className="mb-2 font-semibold text-[var(--foreground)]">{t.metadata}</div><div>{t.createdAt}: {formatAdminDate(selectedItem.createdAt, locale, t.noValue)}</div><div>{t.updatedBy}: {selectedItem.updatedByEmail ?? selectedItem.updatedBy}</div><div>{t.updatedAt}: {formatAdminDate(selectedItem.updatedAt, locale, t.noValue)}</div></div>
             </div>
           )}

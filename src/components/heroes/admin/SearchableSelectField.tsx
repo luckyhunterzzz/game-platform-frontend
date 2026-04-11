@@ -20,6 +20,10 @@ type SearchableSelectFieldProps = {
   clearSearchLabel: string;
   emptyOptionLabel?: string;
   noResultsLabel: string;
+  searchQuery?: string;
+  onSearchQueryChange?: (value: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export default function SearchableSelectField({
@@ -33,22 +37,42 @@ export default function SearchableSelectField({
   clearSearchLabel,
   emptyOptionLabel,
   noResultsLabel,
+  searchQuery,
+  onSearchQueryChange,
+  open: controlledOpen,
+  onOpenChange,
 }: SearchableSelectFieldProps) {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const open = controlledOpen ?? internalOpen;
+  const resolvedSearchQuery = searchQuery ?? internalSearchQuery;
+
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
+
+  const setResolvedSearchQuery = (nextValue: string) => {
+    if (searchQuery === undefined) {
+      setInternalSearchQuery(nextValue);
+    }
+    onSearchQueryChange?.(nextValue);
+  };
 
   const selectedOption = options.find((option) => option.value === value) ?? null;
 
   const filteredOptions = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+    const normalizedQuery = resolvedSearchQuery.trim().toLocaleLowerCase();
 
     return options.filter((option) =>
       normalizedQuery.length === 0
         ? true
         : option.label.toLocaleLowerCase().includes(normalizedQuery),
     );
-  }, [options, searchQuery]);
+  }, [options, resolvedSearchQuery]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,13 +105,11 @@ export default function SearchableSelectField({
       <button
         type="button"
         onClick={() => {
-          setOpen((prev) => {
-            const next = !prev;
-            if (!next) {
-              setSearchQuery('');
-            }
-            return next;
-          });
+          const nextOpen = !open;
+          if (!nextOpen) {
+            setResolvedSearchQuery('');
+          }
+          setOpen(nextOpen);
         }}
         className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
       >
@@ -100,8 +122,8 @@ export default function SearchableSelectField({
       {open ? (
         <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
           <SearchField
-            value={searchQuery}
-            onChange={setSearchQuery}
+            value={resolvedSearchQuery}
+            onChange={setResolvedSearchQuery}
             placeholder={searchPlaceholder}
             ariaLabel={searchAriaLabel}
             clearLabel={clearSearchLabel}
@@ -113,7 +135,7 @@ export default function SearchableSelectField({
                 type="button"
                 onClick={() => {
                   onChange('');
-                  setSearchQuery('');
+                  setResolvedSearchQuery('');
                   setOpen(false);
                 }}
                 className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
@@ -137,7 +159,7 @@ export default function SearchableSelectField({
                   type="button"
                   onClick={() => {
                     onChange(option.value);
-                    setSearchQuery('');
+                    setResolvedSearchQuery('');
                     setOpen(false);
                   }}
                   className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
