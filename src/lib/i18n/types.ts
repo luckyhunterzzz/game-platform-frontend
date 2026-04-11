@@ -63,6 +63,8 @@ export type Messages = {
   publications: {
     title: string;
     subtitle: string;
+    alliancesTitle: string;
+    alliancesSubtitle: string;
     publishedTab: string;
     draftsTab: string;
     scheduledTab: string;
@@ -96,6 +98,12 @@ export type Messages = {
     scheduledHint: string;
     scheduledPlaceholder: string;
     pinnedLabel: string;
+    pinnedUntilLabel: string;
+    pinnedUntilHint: string;
+    pinnedUntilPlaceholder: string;
+    pinnedUntilInvalid: string;
+    pinnedUntilFuture: string;
+    showInNewsFeedLabel: string;
     cancel: string;
     submit: string;
     submitting: string;

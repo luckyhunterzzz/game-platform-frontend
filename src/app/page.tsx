@@ -27,7 +27,7 @@ export default function HomePage() {
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
       { label: messages.home.navEvents, imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
-      { label: messages.home.navAlliances, imageSrc: '/home-quick-links/alliances.png' },
+      { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
     ],
     [
       locale,

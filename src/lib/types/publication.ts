@@ -5,6 +5,8 @@ export enum PublicationType {
   EVENT = 'EVENT',
   SCHEDULE = 'SCHEDULE',
   GUIDE = 'GUIDE',
+  ALLIANCE = 'ALLIANCE',
+  GIFTCODES = 'GIFTCODES',
 }
 
 export enum PublicationStatus {
@@ -25,6 +27,7 @@ export interface PublicationItem {
   imageUrl?: string | null;
   publishedAt?: string | null;
   pinned: boolean;
+  showInNewsFeed?: boolean;
 }
 
 export interface PublicationFeedResponse {
@@ -45,6 +48,8 @@ export interface PublicationAdminSummary {
   imageUrl?: string | null;
   publishedAt?: string | null;
   pinned: boolean;
+  pinnedUntil?: string | null;
+  showInNewsFeed: boolean;
 }
 
 export interface PublicationAdminFeedResponse {
@@ -62,6 +67,8 @@ export interface PublicationUpsertRequest {
   type: PublicationType;
   status: PublicationStatus;
   pinned: boolean;
+  pinnedUntil?: string | null;
+  showInNewsFeed: boolean;
   publishedAt?: string | null;
   imageBucket?: string | null;
   imageObjectKey?: string | null;
@@ -78,6 +85,8 @@ export interface PublicationAdminDetails {
   imageUrl?: string | null;
   publishedAt?: string | null;
   pinned: boolean;
+  pinnedUntil?: string | null;
+  showInNewsFeed: boolean;
 }
 
 export interface ImageUploadResponse {
