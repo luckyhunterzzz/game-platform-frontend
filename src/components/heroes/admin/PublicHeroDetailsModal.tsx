@@ -175,6 +175,7 @@ export default function PublicHeroDetailsModal({
   onOpenRelatedHero,
 }: PublicHeroDetailsModalProps) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [copiedHeroLink, setCopiedHeroLink] = useState(false);
 
   const t = useMemo(
     () =>
@@ -249,6 +250,10 @@ export default function PublicHeroDetailsModal({
   const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
   const resolvedImageUrl = heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
   const currentHeroSlug = heroDetails?.slug ?? heroCard?.slug ?? null;
+  const copyHeroLinkLabel =
+    locale === 'RU' ? '\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u0441\u044b\u043b\u043a\u0443 \u043d\u0430 \u0433\u0435\u0440\u043e\u044f' : 'Copy hero link';
+  const copiedHeroLinkLabel =
+    locale === 'RU' ? '\u0421\u0441\u044b\u043b\u043a\u0430 \u0441\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0430' : 'Hero link copied';
   const currentHeroIsCostume =
     heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
@@ -263,6 +268,24 @@ export default function PublicHeroDetailsModal({
   ]
     .filter(Boolean)
     .join('\n\n');
+  const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
+
+  const handleCopyHeroLink = async () => {
+    if (!currentHeroSlug || typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL('/heroes', window.location.origin);
+    url.searchParams.set('hero', currentHeroSlug);
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setCopiedHeroLink(true);
+      window.setTimeout(() => setCopiedHeroLink(false), 1800);
+    } catch {
+      setCopiedHeroLink(false);
+    }
+  };
 
   const renderRelatedHeroChip = (
     slug: string,
@@ -342,7 +365,23 @@ export default function PublicHeroDetailsModal({
 
             <div className="space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
+                  {currentHeroSlug ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyHeroLink()}
+                      title={heroLinkTooltip}
+                      aria-label={heroLinkTooltip}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-strong)] text-[10px] leading-none text-[var(--foreground-soft)] transition hover:border-cyan-400/40 hover:text-cyan-300"
+                    >
+                      <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
+                        <rect x="5" y="3" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                        <rect x="3" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

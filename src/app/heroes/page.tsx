@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import HeroesPageClient from '@/components/heroes/HeroesPageClient';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -56,7 +56,9 @@ export default function HeroesPage() {
         </div>
       )}
 
-      <HeroesPageClient />
+      <Suspense fallback={null}>
+        <HeroesPageClient />
+      </Suspense>
     </div>
   );
 }
