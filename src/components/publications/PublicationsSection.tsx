@@ -61,6 +61,7 @@ export default function PublicationsSection() {
   const [activeAdminStatus, setActiveAdminStatus] = useState<PublicationStatus>(
     PublicationStatus.PUBLISHED,
   );
+  const [activeAdminType, setActiveAdminType] = useState<PublicationType | 'ALL'>('ALL');
   const [activePublicType, setActivePublicType] = useState<PublicationType>(PublicationType.NEWS);
 
   const successTimerRef = useRef<number | null>(null);
@@ -94,7 +95,7 @@ export default function PublicationsSection() {
         }
 
         const endpoint = isAdmin
-          ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}`
+          ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}${activeAdminType === 'ALL' ? '' : `&type=${activeAdminType}`}`
           : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}&type=${activePublicType}`;
 
         if (isAdmin) {
@@ -125,7 +126,7 @@ export default function PublicationsSection() {
         setLoadingMore(false);
       }
     },
-    [activeAdminStatus, activePublicType, apiJson, isAdmin, locale, messages.publications.loadError],
+    [activeAdminStatus, activeAdminType, activePublicType, apiJson, isAdmin, locale, messages.publications.loadError],
   );
 
   useEffect(() => {
@@ -190,6 +191,14 @@ export default function PublicationsSection() {
     { status: PublicationStatus.SCHEDULED, label: messages.publications.scheduledTab },
   ];
 
+  const adminTypeTabs: Array<{ type: PublicationType | 'ALL'; label: string }> = [
+    { type: 'ALL', label: locale === 'ru' ? 'Все' : 'All' },
+    { type: PublicationType.NEWS, label: messages.publicationType[PublicationType.NEWS] },
+    { type: PublicationType.EVENT, label: messages.publicationType[PublicationType.EVENT] },
+    { type: PublicationType.SCHEDULE, label: messages.publicationType[PublicationType.SCHEDULE] },
+    { type: PublicationType.GUIDE, label: messages.publicationType[PublicationType.GUIDE] },
+  ];
+
   const publicTypeTabs = [
     PublicationType.NEWS,
     PublicationType.EVENT,
@@ -210,36 +219,62 @@ export default function PublicationsSection() {
         </div>
 
         {authenticated && isAdmin && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2">
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15"
+              className="w-fit rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15"
             >
               {messages.publications.createButton}
             </button>
 
-            {publicationTabs.map((tab) => {
-              const active = activeAdminStatus === tab.status;
+            <div className="flex flex-wrap gap-2">
+              {publicationTabs.map((tab) => {
+                const active = activeAdminStatus === tab.status;
 
-              return (
-                <button
-                  key={tab.status}
-                  type="button"
-                  onClick={() => {
-                    setActiveAdminStatus(tab.status);
-                    setPage(0);
-                  }}
-                  className={
-                    active
-                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
-                      : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
-                  }
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={tab.status}
+                    type="button"
+                    onClick={() => {
+                      setActiveAdminStatus(tab.status);
+                      setPage(0);
+                    }}
+                    className={
+                      active
+                        ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
+                        : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                    }
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {adminTypeTabs.map((tab) => {
+                const active = activeAdminType === tab.type;
+
+                return (
+                  <button
+                    key={tab.type}
+                    type="button"
+                    onClick={() => {
+                      setActiveAdminType(tab.type);
+                      setPage(0);
+                    }}
+                    className={
+                      active
+                        ? 'rounded-xl border border-violet-400/40 bg-violet-400/10 px-4 py-2 text-sm font-medium text-violet-300'
+                        : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                    }
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
