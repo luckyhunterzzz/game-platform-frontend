@@ -49,6 +49,8 @@ function createDefaultForm(): PublicationUpsertRequest {
     type: PublicationType.NEWS,
     status: PublicationStatus.PUBLISHED,
     pinned: false,
+    pinnedUntil: null,
+    showInNewsFeed: false,
     publishedAt: null,
     imageBucket: null,
     imageObjectKey: null,
@@ -186,6 +188,8 @@ function toFormFromPublication(publication: PublicationAdminDetails): Publicatio
     type: publication.type,
     status: publication.status,
     pinned: publication.pinned,
+    pinnedUntil: publication.pinnedUntil ?? null,
+    showInNewsFeed: publication.showInNewsFeed,
     publishedAt: publication.publishedAt ?? null,
     imageBucket: publication.imageBucket ?? null,
     imageObjectKey: publication.imageObjectKey ?? null,
@@ -222,6 +226,8 @@ export default function CreatePublicationModal({
 
   const isScheduled = form.status === PublicationStatus.SCHEDULED;
   const scheduledDate = fromIsoStringOrNull(form.publishedAt);
+  const pinnedUntilDate = fromIsoStringOrNull(form.pinnedUntil);
+  const isAllianceType = form.type === PublicationType.ALLIANCE;
 
   const now = new Date();
   const roundedNow = roundUpToNextQuarterHour(now);
@@ -366,6 +372,22 @@ export default function CreatePublicationModal({
     }));
   };
 
+  const handlePinnedChange = (pinned: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      pinned,
+      pinnedUntil: pinned ? prev.pinnedUntil : null,
+    }));
+  };
+
+  const handleTypeChange = (type: PublicationType) => {
+    setForm((prev) => ({
+      ...prev,
+      type,
+      showInNewsFeed: type === PublicationType.ALLIANCE ? prev.showInNewsFeed : false,
+    }));
+  };
+
   const clearUploadedImage = () => {
     resetUploadedImageState();
     setErrorMessage(null);
@@ -473,10 +495,26 @@ export default function CreatePublicationModal({
         }
       }
 
+      if (form.pinnedUntil) {
+        const pinnedUntil = new Date(form.pinnedUntil);
+
+        if (Number.isNaN(pinnedUntil.getTime())) {
+          setErrorMessage(messages.createPublicationModal.pinnedUntilInvalid);
+          return;
+        }
+
+        if (pinnedUntil <= new Date()) {
+          setErrorMessage(messages.createPublicationModal.pinnedUntilFuture);
+          return;
+        }
+      }
+
       const payload: PublicationUpsertRequest = {
         ...form,
         titleJson: cloneLocalizedText(form.titleJson),
         contentJson: cloneLocalizedText(form.contentJson),
+        pinnedUntil: form.pinned ? form.pinnedUntil : null,
+        showInNewsFeed: form.type === PublicationType.ALLIANCE ? form.showInNewsFeed : false,
         publishedAt: form.status === PublicationStatus.SCHEDULED ? form.publishedAt : null,
       };
 
@@ -665,7 +703,7 @@ export default function CreatePublicationModal({
                   </label>
                   <select
                     value={form.type}
-                    onChange={(e) => handleChange('type', e.target.value as PublicationType)}
+                    onChange={(e) => handleTypeChange(e.target.value as PublicationType)}
                     className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none"
                   >
                     {Object.values(PublicationType).map((type) => (
@@ -730,10 +768,53 @@ export default function CreatePublicationModal({
                 <input
                   type="checkbox"
                   checked={form.pinned}
-                  onChange={(e) => handleChange('pinned', e.target.checked)}
+                  onChange={(e) => handlePinnedChange(e.target.checked)}
                 />
                 {messages.createPublicationModal.pinnedLabel}
               </label>
+
+              {form.pinned && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
+                    {messages.createPublicationModal.pinnedUntilLabel}
+                  </label>
+
+                  <DatePicker
+                    selected={pinnedUntilDate}
+                    onChange={(date: Date | null) =>
+                      handleChange('pinnedUntil', toIsoStringOrNull(date))
+                    }
+                    locale={mapLocaleToDatePickerLocale(locale)}
+                    showTimeSelect
+                    timeIntervals={15}
+                    timeCaption={messages.createPublicationModal.timeCaption}
+                    dateFormat={mapLocaleToDateFormat(locale)}
+                    minDate={now}
+                    minTime={pinnedUntilDate && !isSameDay(pinnedUntilDate, now) ? startOfDay(pinnedUntilDate) : roundedNow}
+                    maxTime={pinnedUntilDate ? endOfDay(pinnedUntilDate) : endOfDay(now)}
+                    placeholderText={messages.createPublicationModal.pinnedUntilPlaceholder}
+                    wrapperClassName="gp-datepicker-wrapper"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
+                    calendarClassName="gp-datepicker"
+                    popperClassName="gp-datepicker-popper"
+                  />
+
+                  <p className="mt-2 text-xs text-[var(--foreground-soft)]">
+                    {messages.createPublicationModal.pinnedUntilHint}
+                  </p>
+                </div>
+              )}
+
+              {isAllianceType && (
+                <label className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={form.showInNewsFeed}
+                    onChange={(e) => handleChange('showInNewsFeed', e.target.checked)}
+                  />
+                  {messages.createPublicationModal.showInNewsFeedLabel}
+                </label>
+              )}
 
               {errorMessage && (
                 <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">

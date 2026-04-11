@@ -40,10 +40,23 @@ function mapAdminSummaryToCard(summary: PublicationAdminSummary, locale: 'ru' | 
     imageUrl: summary.imageUrl ?? null,
     publishedAt: summary.publishedAt ?? null,
     pinned: summary.pinned,
+    showInNewsFeed: summary.showInNewsFeed,
   };
 }
 
-export default function PublicationsSection() {
+type PublicationsSectionProps = {
+  publicView?: 'main' | 'alliances';
+  title?: string;
+  subtitle?: string;
+  forcePublic?: boolean;
+};
+
+export default function PublicationsSection({
+  publicView = 'main',
+  title,
+  subtitle,
+  forcePublic = false,
+}: PublicationsSectionProps) {
   const { apiJson } = useApi();
   const { roles, authenticated } = useAuth();
   const { locale, messages } = useI18n();
@@ -67,8 +80,8 @@ export default function PublicationsSection() {
   const successTimerRef = useRef<number | null>(null);
 
   const isAdmin = useMemo(() => {
-    return roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin');
-  }, [roles]);
+    return !forcePublic && (roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin'));
+  }, [forcePublic, roles]);
 
   const showTemporarySuccess = useCallback((message: string) => {
     setSuccessMessage(message);
@@ -96,7 +109,9 @@ export default function PublicationsSection() {
 
         const endpoint = isAdmin
           ? `/api/v1/admin/publications?status=${activeAdminStatus}&page=${targetPage}&size=${PAGE_SIZE}${activeAdminType === 'ALL' ? '' : `&type=${activeAdminType}`}`
-          : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}&type=${activePublicType}`;
+          : publicView === 'alliances'
+            ? `/api/v1/public/publications/alliances?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}`
+            : `/api/v1/public/publications?page=${targetPage}&size=${PAGE_SIZE}&language=${mapAppLocaleToPublicationLanguage(locale)}&type=${activePublicType}`;
 
         if (isAdmin) {
           const response = await apiJson<PublicationAdminFeedResponse>(endpoint);
@@ -126,7 +141,7 @@ export default function PublicationsSection() {
         setLoadingMore(false);
       }
     },
-    [activeAdminStatus, activeAdminType, activePublicType, apiJson, isAdmin, locale, messages.publications.loadError],
+    [activeAdminStatus, activeAdminType, activePublicType, apiJson, isAdmin, locale, messages.publications.loadError, publicView],
   );
 
   useEffect(() => {
@@ -197,6 +212,8 @@ export default function PublicationsSection() {
     { type: PublicationType.EVENT, label: messages.publicationType[PublicationType.EVENT] },
     { type: PublicationType.SCHEDULE, label: messages.publicationType[PublicationType.SCHEDULE] },
     { type: PublicationType.GUIDE, label: messages.publicationType[PublicationType.GUIDE] },
+    { type: PublicationType.ALLIANCE, label: messages.publicationType[PublicationType.ALLIANCE] },
+    { type: PublicationType.GIFTCODES, label: messages.publicationType[PublicationType.GIFTCODES] },
   ];
 
   const publicTypeTabs = [
@@ -204,6 +221,7 @@ export default function PublicationsSection() {
     PublicationType.EVENT,
     PublicationType.SCHEDULE,
     PublicationType.GUIDE,
+    PublicationType.GIFTCODES,
   ];
 
   return (
@@ -211,10 +229,10 @@ export default function PublicationsSection() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold text-[var(--foreground)]">
-            {messages.publications.title}
+            {title ?? messages.publications.title}
           </h2>
           <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-            {messages.publications.subtitle}
+            {subtitle ?? messages.publications.subtitle}
           </p>
         </div>
 
@@ -278,7 +296,7 @@ export default function PublicationsSection() {
           </div>
         )}
 
-        {!isAdmin && (
+        {!isAdmin && publicView === 'main' && (
           <div className="flex flex-wrap gap-2">
             {publicTypeTabs.map((type) => {
               const active = activePublicType === type;
