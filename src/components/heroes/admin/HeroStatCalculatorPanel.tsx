@@ -46,6 +46,7 @@ type HeroStatCalculatorPanelProps = {
   heroSlug: string;
   calculateEndpoint: string;
   isCostume: boolean;
+  currentCostumeIndex?: number | null;
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
@@ -70,12 +71,17 @@ function sortCostumes(costumes: HeroVariantSummary[]) {
   });
 }
 
+function formatCostumeName(name: string, costumeIndex?: number | null) {
+  return costumeIndex != null ? `${name} C${costumeIndex}` : name;
+}
+
 export default function HeroStatCalculatorPanel({
   locale,
   heroId,
   heroSlug,
   calculateEndpoint,
   isCostume,
+  currentCostumeIndex = null,
   baseAttack,
   baseArmor,
   baseHp,
@@ -139,8 +145,23 @@ export default function HeroStatCalculatorPanel({
   );
 
   useEffect(() => {
-    setCostumeOptions(sortCostumes(costumes));
-  }, [costumes]);
+    const sortedCostumes = sortCostumes(costumes);
+    const nextCostumeOptions =
+      isCostume && currentCostumeIndex != null
+        ? sortedCostumes.filter((costume) => (costume.costumeIndex ?? 0) > currentCostumeIndex)
+        : sortedCostumes;
+
+    setCostumeOptions(nextCostumeOptions);
+  }, [costumes, currentCostumeIndex, isCostume]);
+
+  useEffect(() => {
+    if (
+      selectedCostumeHeroId != null &&
+      !costumeOptions.some((costume) => costume.id === selectedCostumeHeroId)
+    ) {
+      setSelectedCostumeHeroId(null);
+    }
+  }, [costumeOptions, selectedCostumeHeroId]);
 
   useEffect(() => {
     if (isCostume || costumes.length > 0 || !heroSlug) {
@@ -248,6 +269,22 @@ export default function HeroStatCalculatorPanel({
     armor: baseArmor,
     hp: baseHp,
   };
+  const costumeFieldLabel =
+    isCostume
+      ? locale === 'RU'
+        ? 'Целевой костюм'
+        : 'Target costume'
+      : t.costume;
+  const currentCostumeLabel =
+    isCostume
+      ? currentCostumeIndex != null
+        ? locale === 'RU'
+          ? `Текущий костюм (C${currentCostumeIndex})`
+          : `Current costume (C${currentCostumeIndex})`
+        : locale === 'RU'
+          ? 'Текущий костюм'
+          : 'Current costume'
+      : t.noCostume;
 
   const statCards = [
     { key: 'attack', icon: '⚔️', label: t.attack, value: finalStats.attack, base: baseAttack },
@@ -283,10 +320,10 @@ export default function HeroStatCalculatorPanel({
           </div>
         </div>
 
-        {!isCostume ? (
+        {!isCostume || currentCostumeIndex != null || costumeOptions.length > 0 || loadingCostumes ? (
           <label className="flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
-              {t.costume}
+              {costumeFieldLabel}
             </span>
             <select
               value={selectedCostumeHeroId ?? ''}
@@ -296,11 +333,10 @@ export default function HeroStatCalculatorPanel({
               }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
             >
-              <option value="">{t.noCostume}</option>
+              <option value="">{currentCostumeLabel}</option>
               {costumeOptions.map((costume) => (
                 <option key={costume.id} value={costume.id}>
-                  {costume.costumeIndex ? `#${costume.costumeIndex} ` : ''}
-                  {costume.name}
+                  {formatCostumeName(costume.name, costume.costumeIndex)}
                 </option>
               ))}
             </select>
