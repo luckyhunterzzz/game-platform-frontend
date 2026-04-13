@@ -1,5 +1,7 @@
 ﻿'use client';
 
+import { format as formatDateValue, isValid as isValidDateValue, parse as parseDateValue, type Locale } from 'date-fns';
+import { enGB, enUS, ru } from 'date-fns/locale';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -509,6 +511,48 @@ function formatAdminDate(value: string | null | undefined, locale: HeroLocale, f
   }).format(date);
 }
 
+function normalizeReleaseDateInput(value: string): string | null {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const directDate = new Date(trimmedValue);
+  if (!Number.isNaN(directDate.getTime())) {
+    return formatDateValue(directDate, 'yyyy-MM-dd');
+  }
+
+  const sanitizedValue = trimmedValue.replace(/\s*г\.?$/i, '').replace(/,/g, '').trim();
+  const referenceDate = new Date();
+  const formats: Array<{ pattern: string; locale?: Locale }> = [
+    { pattern: 'yyyy-MM-dd' },
+    { pattern: 'd.M.yyyy' },
+    { pattern: 'd.MM.yyyy' },
+    { pattern: 'dd.MM.yyyy' },
+    { pattern: 'd/M/yyyy' },
+    { pattern: 'dd/MM/yyyy' },
+    { pattern: 'd MMM yyyy', locale: ru },
+    { pattern: 'd MMMM yyyy', locale: ru },
+    { pattern: 'd MMM yyyy', locale: enGB },
+    { pattern: 'd MMMM yyyy', locale: enGB },
+    { pattern: 'MMM d yyyy', locale: enUS },
+    { pattern: 'MMMM d yyyy', locale: enUS },
+  ];
+
+  for (const candidate of formats) {
+    const parsedDate = parseDateValue(sanitizedValue, candidate.pattern, referenceDate, {
+      locale: candidate.locale,
+    });
+
+    if (isValidDateValue(parsedDate)) {
+      return formatDateValue(parsedDate, 'yyyy-MM-dd');
+    }
+  }
+
+  return null;
+}
+
 export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -656,6 +700,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             statsHint: '\u041c\u043e\u0436\u043d\u043e \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c',
             status: '\u0421\u0442\u0430\u0442\u0443\u0441',
             releaseDate: '\u0414\u0430\u0442\u0430 \u0432\u044b\u0445\u043e\u0434\u0430',
+            releaseDatePlaceholder: '6 \u043c\u0430\u044f 2024 \u0433. / 2024-05-06',
+            releaseDateHint:
+              '\u041c\u043e\u0436\u043d\u043e \u0432\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0434\u0430\u0442\u0443 \u0442\u0435\u043a\u0441\u0442\u043e\u043c. \u041c\u044b \u0441\u0430\u043c\u0438 \u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0435\u043c \u0435\u0451 \u0432 \u043d\u0443\u0436\u043d\u044b\u0439 \u0444\u043e\u0440\u043c\u0430\u0442.',
             isCostume: '\u042d\u0442\u043e \u043a\u043e\u0441\u0442\u044e\u043c',
             baseHero: '\u0411\u0430\u0437\u043e\u0432\u044b\u0439 \u0433\u0435\u0440\u043e\u0439',
             selectBaseHero: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
@@ -671,6 +718,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             slugAvailable: 'Slug \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d',
             required: '\u041f\u043e\u043b\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e',
             nonNegative: '\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c 0 \u0438\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435',
+            invalidReleaseDate:
+              '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0440\u0430\u0441\u043f\u043e\u0437\u043d\u0430\u0442\u044c \u0434\u0430\u0442\u0443. \u041f\u0440\u0438\u043c\u0435\u0440: 6 \u043c\u0430\u044f 2024 \u0433. \u0438\u043b\u0438 2024-05-06',
             costumeBaseHeroRequired: '\u0414\u043b\u044f \u043a\u043e\u0441\u0442\u044e\u043c\u0430 \u043d\u0443\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0431\u0430\u0437\u043e\u0432\u043e\u0433\u043e \u0433\u0435\u0440\u043e\u044f',
             costumeIndexLabel: '\u041d\u043e\u043c\u0435\u0440 \u043a\u043e\u0441\u0442\u044e\u043c\u0430',
             relatedCostumes: '\u041a\u043e\u0441\u0442\u044e\u043c\u044b',
@@ -732,6 +781,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             statsHint: 'Can be left empty',
             status: 'Status',
             releaseDate: 'Release date',
+            releaseDatePlaceholder: '6 May 2024 / 2024-05-06',
+            releaseDateHint: 'You can paste the date as text. We will convert it to the correct format.',
             isCostume: 'Is costume',
             baseHero: 'Base hero',
             selectBaseHero: 'Select base hero',
@@ -747,6 +798,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             slugAvailable: 'Slug is available',
             required: 'Field is required',
             nonNegative: 'Value must be 0 or greater',
+            invalidReleaseDate: 'Could not parse release date. Example: 6 May 2024 or 2024-05-06',
             costumeBaseHeroRequired: 'Costume hero requires a base hero',
             costumeIndexLabel: 'Costume index',
             relatedCostumes: 'Costumes',
@@ -1612,6 +1664,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         return t.nonNegative;
       }
     }
+    if (form.releaseDate.trim() && !normalizeReleaseDateInput(form.releaseDate)) {
+      return t.invalidReleaseDate;
+    }
     return null;
   };
 
@@ -1648,7 +1703,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           mana: optionalNonNegativeInteger(form.costumeBonusMana) ?? 0,
         }
       : null,
-    releaseDate: form.releaseDate || null,
+    releaseDate: normalizeReleaseDateInput(form.releaseDate) ?? null,
     status: form.status,
     updatedBy: userId ?? '',
     updatedByEmail: userEmail ?? null,
@@ -2014,7 +2069,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         )}
       </div>
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="date" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="text" inputMode="text" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} onBlur={(e) => { const normalizedValue = normalizeReleaseDateInput(e.target.value); if (!e.target.value.trim()) { setForm((prev) => ({ ...prev, releaseDate: '' })); return; } if (normalizedValue) { setForm((prev) => ({ ...prev, releaseDate: normalizedValue })); } }} placeholder={t.releaseDatePlaceholder} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><span className="text-xs text-[var(--foreground-muted)]">{t.releaseDateHint}</span></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack : '', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor : '', costumeBonusHp: e.target.checked ? prev.costumeBonusHp : '', costumeBonusMana: e.target.checked ? prev.costumeBonusMana : '', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
 {form.isCostume && <div className="space-y-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><SearchableSelectField label={t.baseHero} value={form.baseHeroId} onChange={(value) => { setForm((prev) => ({ ...prev, baseHeroId: value })); if (!isEdit) { setCreateBaseHeroSelectOpen(false); } }} options={baseHeroSelectOptions} placeholder={t.selectBaseHero} searchPlaceholder={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} searchAriaLabel={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} clearSearchLabel={locale === 'RU' ? 'Очистить поиск героя' : 'Clear hero search'} noResultsLabel={locale === 'RU' ? 'Базовый герой не найден' : 'No base hero found'} searchQuery={!isEdit ? createBaseHeroSearch : undefined} onSearchQueryChange={!isEdit ? setCreateBaseHeroSearch : undefined} open={!isEdit ? createBaseHeroSelectOpen : undefined} onOpenChange={!isEdit ? setCreateBaseHeroSelectOpen : undefined} /><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.costumeIndexLabel}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value, slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, e.target.value) }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0430\u0442\u0430\u043a\u0435, %' : 'Attack bonus, %'}</span><input type="number" min="0" value={form.costumeBonusAttack} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusAttack: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0430\u0449\u0438\u0442\u0435, %' : 'Defence bonus, %'}</span><input type="number" min="0" value={form.costumeBonusArmor} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusArmor: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044e, %' : 'Health bonus, %'}</span><input type="number" min="0" value={form.costumeBonusHp} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusHp: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u043c\u0430\u043d\u0435, %' : 'Mana bonus, %'}</span><input type="number" min="0" value={form.costumeBonusMana} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusMana: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div></div></div>}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}

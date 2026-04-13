@@ -9,6 +9,11 @@ import ScrollToTopButton from '@/components/ScrollToTopButton';
 export const metadata: Metadata = {
   title: 'GameOps Platform',
   description: 'Stage',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
