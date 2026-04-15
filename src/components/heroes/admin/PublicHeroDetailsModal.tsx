@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import DictionaryModal from './DictionaryModal';
 import DictionaryInlineValue from '../DictionaryInlineValue';
@@ -255,7 +255,7 @@ export default function PublicHeroDetailsModal({
 }: PublicHeroDetailsModalProps) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
-  const [specialSkillExpanded, setSpecialSkillExpanded] = useState(false);
+  const [expandedSpecialSkillHeroId, setExpandedSpecialSkillHeroId] = useState<number | null>(null);
 
   const t = useMemo(
     () =>
@@ -356,9 +356,7 @@ export default function PublicHeroDetailsModal({
     .join('\n\n');
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
 
-  useEffect(() => {
-    setSpecialSkillExpanded(false);
-  }, [heroDetails?.id]);
+  const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
 
   const handleCopyHeroLink = async () => {
     if (!currentHeroSlug || typeof window === 'undefined') {
@@ -587,7 +585,11 @@ export default function PublicHeroDetailsModal({
             {hasLongSpecialSkill ? (
               <button
                 type="button"
-                onClick={() => setSpecialSkillExpanded((prev) => !prev)}
+                onClick={() =>
+                  setExpandedSpecialSkillHeroId((prev) =>
+                    heroDetails?.id == null ? null : prev === heroDetails.id ? null : heroDetails.id,
+                  )
+                }
                 className="mt-3 text-sm font-semibold text-[var(--accent-strong)] transition hover:text-[var(--accent)]"
               >
                 {specialSkillExpanded ? t.showLess : t.showMore}
