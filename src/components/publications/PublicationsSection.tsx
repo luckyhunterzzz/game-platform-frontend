@@ -241,7 +241,7 @@ export default function PublicationsSection({
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="w-fit rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/15"
+              className="w-fit rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-emerald-300 transition hover:bg-emerald-400/15"
             >
               {messages.publications.createButton}
             </button>
@@ -260,7 +260,7 @@ export default function PublicationsSection({
                     }}
                     className={
                       active
-                        ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
+                        ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-cyan-300'
                         : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
                     }
                   >
@@ -284,7 +284,7 @@ export default function PublicationsSection({
                     }}
                     className={
                       active
-                        ? 'rounded-xl border border-violet-400/40 bg-violet-400/10 px-4 py-2 text-sm font-medium text-violet-300'
+                        ? 'rounded-xl border border-violet-400/40 bg-violet-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-violet-300'
                         : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
                     }
                   >
@@ -311,7 +311,7 @@ export default function PublicationsSection({
                   }}
                   className={
                     active
-                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300'
+                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-cyan-300'
                       : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
                   }
                 >

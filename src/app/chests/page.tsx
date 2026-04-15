@@ -5,10 +5,19 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
+import ScrollToTopButton from '@/components/ScrollToTopButton';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { chestColumns, chestRows } from '@/lib/static/guides/chest-table';
 
-type RowKey = 'season1' | 'season2' | 'season3' | 'season4' | 'season5' | 'stories1' | 'stories2';
+type RowKey =
+  | 'season1'
+  | 'season2'
+  | 'season3'
+  | 'season4'
+  | 'season5'
+  | 'stories1'
+  | 'stories2';
+
 type ColorKey = 'dark' | 'holy' | 'ice' | 'nature' | 'fire';
 
 type LocalizedSection = {
@@ -42,6 +51,18 @@ export default function ChestsPage() {
             season: 'Сезон',
             backHome: 'Главная',
             backHeroes: 'Герои',
+            backAlliances: 'Альянсы',
+            recruits: 'Рекруты',
+            experience: 'Опыт',
+            colorChests: 'Цветные сундуки',
+            energy: 'Энергия',
+            topButton: 'Наверх',
+            hard: 'Сложно',
+            copyLink: 'Скопировать',
+            copiedLink: 'Ссылка скопирована',
+            sectionSubtitle:
+              'Краткий ориентир по лучшим этапам для рекрутов, опыта, цветных сундуков и энергии.',
+            unknownEnergy: '?',
             rows: {
               season1: 'Сезон 1',
               season2: 'Сезон 2',
@@ -51,15 +72,6 @@ export default function ChestsPage() {
               stories1: 'Истории 1',
               stories2: 'Истории 2',
             } as Record<RowKey, string>,
-            recruits: 'Рекруты',
-            experience: 'Опыт',
-            colorChests: 'Цветные сундуки',
-            energy: 'Энергия',
-            topButton: 'Наверх',
-            hard: 'Сложно',
-            sectionSubtitle:
-              'Краткий ориентир по лучшим этапам для рекрутов, опыта, цветных сундуков и энергии.',
-            unknownEnergy: '?',
           }
         : {
             title: 'Chests',
@@ -71,6 +83,18 @@ export default function ChestsPage() {
             season: 'Season',
             backHome: 'Home',
             backHeroes: 'Heroes',
+            backAlliances: 'Alliances',
+            recruits: 'Recruits',
+            experience: 'Experience',
+            colorChests: 'Color chests',
+            energy: 'Energy',
+            topButton: 'Back to top',
+            hard: 'Hard',
+            copyLink: 'Copy',
+            copiedLink: 'Link copied',
+            sectionSubtitle:
+              'Quick reference for the best stages for recruits, experience, color chests, and energy.',
+            unknownEnergy: '?',
             rows: {
               season1: 'Season 1',
               season2: 'Season 2',
@@ -80,15 +104,6 @@ export default function ChestsPage() {
               stories1: 'Stories 1',
               stories2: 'Stories 2',
             } as Record<RowKey, string>,
-            recruits: 'Recruits',
-            experience: 'Experience',
-            colorChests: 'Color chests',
-            energy: 'Energy',
-            topButton: 'Back to top',
-            hard: 'Hard',
-            sectionSubtitle:
-              'Quick reference for the best stages for recruits, experience, color chests, and energy.',
-            unknownEnergy: '?',
           };
 
     const sections: LocalizedSection[] =
@@ -413,6 +428,15 @@ export default function ChestsPage() {
                   {t.backHeroes}
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/alliance"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {t.backAlliances}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -440,7 +464,10 @@ export default function ChestsPage() {
 
         <section className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-6">
           <div className="mb-5">
-            <h2 className="text-xl font-bold text-[var(--foreground)] md:text-2xl">{t.tableTitle}</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-xl font-bold text-[var(--foreground)] md:text-2xl">{t.tableTitle}</h2>
+              <CopyLinkButton href="/chests" copyLabel={t.copyLink} copiedLabel={t.copiedLink} />
+            </div>
             <p className="mt-2 text-sm text-[var(--foreground-soft)]">{t.tableSubtitle}</p>
           </div>
 
@@ -488,10 +515,13 @@ export default function ChestsPage() {
             experienceLabel={t.experience}
             colorChestsLabel={t.colorChests}
             energyLabel={t.energy}
+            copyLabel={t.copyLink}
+            copiedLabel={t.copiedLink}
           />
         ))}
       </main>
 
+      <ScrollToTopButton />
     </div>
   );
 }
@@ -502,12 +532,16 @@ function SeasonSection({
   experienceLabel,
   colorChestsLabel,
   energyLabel,
+  copyLabel,
+  copiedLabel,
 }: {
   section: LocalizedSection;
   recruitsLabel: string;
   experienceLabel: string;
   colorChestsLabel: string;
   energyLabel: string;
+  copyLabel: string;
+  copiedLabel: string;
 }) {
   return (
     <section
@@ -526,9 +560,16 @@ function SeasonSection({
         </div>
 
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
-            {section.title}
-          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
+              {section.title}
+            </h2>
+            <CopyLinkButton
+              href={`/chests#${section.anchorId}`}
+              copyLabel={copyLabel}
+              copiedLabel={copiedLabel}
+            />
+          </div>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--foreground-soft)] md:text-base">
             {section.subtitle}
           </p>
@@ -586,6 +627,72 @@ function SeasonSection({
         </div>
       </div>
     </section>
+  );
+}
+
+function CopyLinkButton({
+  href,
+  copyLabel,
+  copiedLabel,
+}: {
+  href: string;
+  copyLabel: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(href, window.location.origin);
+
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-flex">
+      {copied ? (
+        <div className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-[var(--border)] bg-slate-700/95 px-2.5 py-1 text-xs font-medium text-slate-100 shadow-lg">
+          {copiedLabel}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => void handleCopy()}
+        title={copied ? copiedLabel : copyLabel}
+        aria-label={copied ? copiedLabel : copyLabel}
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold transition ${
+          copied
+            ? 'border-emerald-400/35 bg-emerald-400/10 text-[var(--success-text)]'
+            : 'border-cyan-400/18 bg-cyan-400/10 text-[var(--info-text)] hover:border-cyan-400/28'
+        }`}
+      >
+        {copied ? (
+          <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
+            <path
+              d="M3.5 8.5 6.5 11.5 12.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
+            <rect x="5" y="3" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="3" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        )}
+      </button>
+    </div>
   );
 }
 

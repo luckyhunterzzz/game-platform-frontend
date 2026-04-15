@@ -16,6 +16,8 @@ import {
   mapFamilyDto,
 } from '@/lib/types/hero';
 import DictionaryModal from './DictionaryModal';
+import DictionaryCatalogListItem from './DictionaryCatalogListItem';
+import DictionaryImageUploadField from './DictionaryImageUploadField';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
 import SearchField from './SearchField';
@@ -35,11 +37,17 @@ type CatalogResponseDto<T> = {
 type FormState = {
   name: LocalizedText;
   description: LocalizedText;
+  imageBucket: string | null;
+  imageObjectKey: string | null;
+  imageUrl: string | null;
 };
 
 const EMPTY_FORM: FormState = {
   name: { ...EMPTY_LOCALIZED_TEXT },
   description: { ...EMPTY_LOCALIZED_TEXT },
+  imageBucket: null,
+  imageObjectKey: null,
+  imageUrl: null,
 };
 
 export default function FamiliesWorkspace() {
@@ -117,6 +125,10 @@ export default function FamiliesWorkspace() {
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createImageUploadError, setCreateImageUploadError] = useState<string | null>(null);
+  const [editImageUploadError, setEditImageUploadError] = useState<string | null>(null);
+  const [createUploadingImage, setCreateUploadingImage] = useState(false);
+  const [editUploadingImage, setEditUploadingImage] = useState(false);
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
@@ -233,8 +245,12 @@ export default function FamiliesWorkspace() {
     setCreateForm({
       name: { ...EMPTY_LOCALIZED_TEXT },
       description: { ...EMPTY_LOCALIZED_TEXT },
+      imageBucket: null,
+      imageObjectKey: null,
+      imageUrl: null,
     });
     setSubmitError(null);
+    setCreateImageUploadError(null);
   };
 
   const resetEditForm = (item: FamilyItem) => {
@@ -243,8 +259,12 @@ export default function FamiliesWorkspace() {
       description: item.description
         ? { ...item.description }
         : { ...EMPTY_LOCALIZED_TEXT },
+      imageBucket: item.imageBucket ?? null,
+      imageObjectKey: item.imageObjectKey ?? null,
+      imageUrl: item.imageUrl ?? null,
     });
     setSubmitError(null);
+    setEditImageUploadError(null);
   };
 
   const buildPayload = (form: FormState): CreateFamilyRequest => ({
@@ -259,9 +279,16 @@ export default function FamiliesWorkspace() {
             en: form.description.en.trim(),
           }
         : null,
+    imageBucket: form.imageBucket,
+    imageObjectKey: form.imageObjectKey,
   });
 
   const handleCreate = async () => {
+    if (createImageUploadError) {
+      setSubmitError(createImageUploadError);
+      return;
+    }
+
     const validationError = validateForm(createForm);
     if (validationError) {
       setSubmitError(validationError);
@@ -298,6 +325,11 @@ export default function FamiliesWorkspace() {
 
   const handleUpdate = async () => {
     if (!selectedItem) return;
+
+    if (editImageUploadError) {
+      setSubmitError(editImageUploadError);
+      return;
+    }
 
     const validationError = validateForm(editForm);
     if (validationError) {
@@ -415,28 +447,19 @@ export default function FamiliesWorkspace() {
                 const isActive = item.id === selectedId;
 
                 return (
-                  <button
+                  <DictionaryCatalogListItem
                     key={item.id}
-                    type="button"
+                    active={isActive}
                     onClick={() => setSelectedId(item.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
-                      isActive
-                        ? 'border-cyan-400/40 bg-cyan-400/10'
-                        : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
-                    }`}
-                  >
-                    <div className="text-sm font-semibold text-[var(--foreground)]">
-                      {getLocalizedText(item.name, locale)}
-                    </div>
-                    <div className="mt-1 line-clamp-2 text-xs text-[var(--foreground-soft)]">
-                      {item.description
+                    title={getLocalizedText(item.name, locale)}
+                    description={
+                      item.description
                         ? getLocalizedText(item.description, locale)
-                        : t.noDescription}
-                    </div>
-                    <div className="mt-2 text-[11px] uppercase tracking-wide text-[var(--foreground-muted)]">
-                      ID: {item.id}
-                    </div>
-                  </button>
+                        : t.noDescription
+                    }
+                    id={item.id}
+                    imageUrl={item.imageUrl}
+                  />
                 );
               })}
               {catalogPage?.hasNext ? (
@@ -567,10 +590,19 @@ export default function FamiliesWorkspace() {
             enLabel="Description EN"
           />
 
+          <DictionaryImageUploadField
+            locale={locale}
+            value={createForm}
+            onChange={(value) => setCreateForm((prev) => ({ ...prev, ...value }))}
+            onUploadingChange={setCreateUploadingImage}
+            onErrorChange={setCreateImageUploadError}
+            disabled={submitting}
+          />
+
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || createUploadingImage}
               onClick={() => setCreateOpen(false)}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
             >
@@ -579,7 +611,7 @@ export default function FamiliesWorkspace() {
 
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || createUploadingImage}
               onClick={handleCreate}
               className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
             >
@@ -618,10 +650,19 @@ export default function FamiliesWorkspace() {
             enLabel="Description EN"
           />
 
+          <DictionaryImageUploadField
+            locale={locale}
+            value={editForm}
+            onChange={(value) => setEditForm((prev) => ({ ...prev, ...value }))}
+            onUploadingChange={setEditUploadingImage}
+            onErrorChange={setEditImageUploadError}
+            disabled={submitting}
+          />
+
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || editUploadingImage}
               onClick={() => setEditOpen(false)}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
             >
@@ -630,7 +671,7 @@ export default function FamiliesWorkspace() {
 
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || editUploadingImage}
               onClick={handleUpdate}
               className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/15"
             >

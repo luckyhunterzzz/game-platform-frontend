@@ -113,7 +113,7 @@ export default function PublicationCard({
             <button
               type="button"
               onClick={onEdit}
-              className="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300 transition hover:bg-sky-400/15"
+              className="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold tracking-wide text-sky-300 transition hover:bg-sky-400/15"
             >
               {locale === 'ru' ? 'Редактировать' : 'Edit'}
             </button>
@@ -149,7 +149,7 @@ export default function PublicationCard({
               <button
                 type="button"
                 onClick={() => setExpanded((prev) => !prev)}
-                className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200"
+                className="text-sm font-semibold text-cyan-300 transition hover:text-cyan-200"
               >
                 {expanded
                   ? messages.publications.showLess

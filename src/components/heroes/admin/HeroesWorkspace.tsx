@@ -39,6 +39,8 @@ import {
 } from '@/lib/types/hero';
 
 import DictionaryModal from './DictionaryModal';
+import DictionaryInlineValue from '../DictionaryInlineValue';
+import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroImageUploadField from './HeroImageUploadField';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
@@ -94,6 +96,7 @@ type AdminHeroPageResponse = {
 type HeroFilterOption = {
   id: number;
   name: string;
+  imageUrl?: string | null;
 };
 
 type HeroRarityFilterOption = HeroFilterOption & {
@@ -1866,9 +1869,31 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const sortedManaSpeeds = sortLocalizedDictionary(manaSpeeds);
     const sortedFamilies = sortLocalizedDictionary(families);
     const sortedAlphaTalents = sortLocalizedDictionary(alphaTalents);
+    const elementOptions = sortedElements.map((item) => ({
+      value: String(item.id),
+      label: getLocalizedText(item.name, locale),
+      imageUrl: item.imageUrl,
+    }));
+    const rarityOptions = sortedRarities.map((item) => ({
+      value: String(item.id),
+      label: getLocalizedText(item.name, locale),
+      imageUrl: item.imageUrl,
+      badge: `${item.stars}★`,
+    }));
+    const heroClassOptions = sortedHeroClasses.map((item) => ({
+      value: String(item.id),
+      label: getLocalizedText(item.name, locale),
+      imageUrl: item.imageUrl,
+    }));
     const familyOptions = sortedFamilies.map((item) => ({
       value: String(item.id),
       label: getLocalizedText(item.name, locale),
+      imageUrl: item.imageUrl,
+    }));
+    const alphaTalentOptions = sortedAlphaTalents.map((item) => ({
+      value: String(item.id),
+      label: getLocalizedText(item.name, locale),
+      imageUrl: item.imageUrl,
     }));
     const baseHeroSelectOptions = baseHeroes
       .filter((item) => !isEdit || item.id !== selectedItem?.id)
@@ -1918,9 +1943,39 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       <LocalizedTextFields value={form.specialSkillName} onChange={(value) => setForm((prev) => ({ ...prev, specialSkillName: value }))} ruLabel={t.skillNameRu} enLabel={t.skillNameEn} />
       <LocalizedTextareaFields value={form.specialSkillDescription} onChange={(value) => setForm((prev) => ({ ...prev, specialSkillDescription: value }))} ruLabel={t.skillDescriptionRu} enLabel={t.skillDescriptionEn} rows={5} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.element}</span><select value={form.elementId} onChange={(e) => setForm((prev) => ({ ...prev, elementId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectElement}</option>{sortedElements.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.rarity}</span><select value={form.rarityId} onChange={(e) => setForm((prev) => ({ ...prev, rarityId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectRarity}</option>{sortedRarities.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)} ({item.stars}*)</option>)}</select></label>
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.heroClass}</span><select value={form.heroClassId} onChange={(e) => setForm((prev) => ({ ...prev, heroClassId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectHeroClass}</option>{sortedHeroClasses.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <SearchableSelectField
+          label={t.element}
+          value={form.elementId}
+          onChange={(value) => setForm((prev) => ({ ...prev, elementId: value }))}
+          options={elementOptions}
+          placeholder={t.selectElement}
+          searchPlaceholder={locale === 'RU' ? 'Поиск элемента' : 'Search element'}
+          searchAriaLabel={locale === 'RU' ? 'Поиск элемента' : 'Search element'}
+          clearSearchLabel={locale === 'RU' ? 'Очистить поиск элемента' : 'Clear element search'}
+          noResultsLabel={locale === 'RU' ? 'Элемент не найден' : 'No element found'}
+        />
+        <SearchableSelectField
+          label={t.rarity}
+          value={form.rarityId}
+          onChange={(value) => setForm((prev) => ({ ...prev, rarityId: value }))}
+          options={rarityOptions}
+          placeholder={t.selectRarity}
+          searchPlaceholder={locale === 'RU' ? 'Поиск редкости' : 'Search rarity'}
+          searchAriaLabel={locale === 'RU' ? 'Поиск редкости' : 'Search rarity'}
+          clearSearchLabel={locale === 'RU' ? 'Очистить поиск редкости' : 'Clear rarity search'}
+          noResultsLabel={locale === 'RU' ? 'Редкость не найдена' : 'No rarity found'}
+        />
+        <SearchableSelectField
+          label={t.heroClass}
+          value={form.heroClassId}
+          onChange={(value) => setForm((prev) => ({ ...prev, heroClassId: value }))}
+          options={heroClassOptions}
+          placeholder={t.selectHeroClass}
+          searchPlaceholder={locale === 'RU' ? 'Поиск класса героя' : 'Search hero class'}
+          searchAriaLabel={locale === 'RU' ? 'Поиск класса героя' : 'Search hero class'}
+          clearSearchLabel={locale === 'RU' ? 'Очистить поиск класса' : 'Clear hero class search'}
+          noResultsLabel={locale === 'RU' ? 'Класс героя не найден' : 'No hero class found'}
+        />
         <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.manaSpeed}</span><select value={form.manaSpeedId} onChange={(e) => setForm((prev) => ({ ...prev, manaSpeedId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.selectManaSpeed}</option>{sortedManaSpeeds.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
         <SearchableSelectField
           label={t.family}
@@ -1934,7 +1989,18 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           emptyOptionLabel={t.noFamily}
           noResultsLabel={locale === 'RU' ? 'Семья не найдена' : 'No family found'}
         />
-        <label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.alphaTalent}</span><select value={form.alphaTalentId} onChange={(e) => setForm((prev) => ({ ...prev, alphaTalentId: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"><option value="">{t.noAlphaTalent}</option>{sortedAlphaTalents.map((item) => <option key={item.id} value={item.id}>{getLocalizedText(item.name, locale)}</option>)}</select></label>
+        <SearchableSelectField
+          label={t.alphaTalent}
+          value={form.alphaTalentId}
+          onChange={(value) => setForm((prev) => ({ ...prev, alphaTalentId: value }))}
+          options={alphaTalentOptions}
+          placeholder={t.noAlphaTalent}
+          searchPlaceholder={locale === 'RU' ? 'Поиск альфа-таланта' : 'Search alpha talent'}
+          searchAriaLabel={locale === 'RU' ? 'Поиск альфа-таланта' : 'Search alpha talent'}
+          clearSearchLabel={locale === 'RU' ? 'Очистить поиск альфа-таланта' : 'Clear alpha talent search'}
+          emptyOptionLabel={t.noAlphaTalent}
+          noResultsLabel={locale === 'RU' ? 'Альфа-талант не найден' : 'No alpha talent found'}
+        />
       </div>
       <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{heroImageSectionTitle}</div>
@@ -2004,6 +2070,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/10 px-3 py-2"
                       >
                         <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                          <DictionaryMiniIcon
+                            imageUrl={skill.imageUrl}
+                            label={getLocalizedText(skill.name, locale)}
+                            size={20}
+                            className="border-white/10 bg-white/5"
+                          />
                           <span>{getLocalizedText(skill.name, locale)}</span>
                           <HeroInfoPopover
                             label={getLocalizedText(skill.name, locale)}
@@ -2012,12 +2084,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             setForm((prev) => ({
                               ...prev,
                               passiveSkillIds: [...prev.passiveSkillIds, skill.id],
-                            }))
-                          }
+                            }));
+                            setPassiveSkillQuery('');
+                          }}
                           className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200 transition hover:bg-cyan-400/15"
                         >
                           {addPassiveSkillActionLabel}
@@ -2042,6 +2115,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                       key={skill.id}
                       className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
                     >
+                      <DictionaryMiniIcon
+                        imageUrl={skill.imageUrl}
+                        label={getLocalizedText(skill.name, locale)}
+                        size={18}
+                        className="border-cyan-300/20 bg-cyan-950/40"
+                      />
                       <span>{getLocalizedText(skill.name, locale)}</span>
                       <HeroInfoPopover
                         label={getLocalizedText(skill.name, locale)}
@@ -2228,7 +2307,17 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                                       onChange={() => togglePublicFilter(group.key, option.id)}
                                       className="mt-0.5 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-cyan-400"
                                     />
-                                    <span className="leading-5">{label}</span>
+                                    <span className="flex min-w-0 items-center gap-2 leading-5">
+                                      {'imageUrl' in option ? (
+                                        <DictionaryMiniIcon
+                                          imageUrl={option.imageUrl}
+                                          label={label}
+                                          size={18}
+                                          className="border-white/10 bg-white/5"
+                                        />
+                                      ) : null}
+                                      <span className="truncate">{label}</span>
+                                    </span>
                                   </label>
                                 );
                               })}
@@ -2419,11 +2508,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.element}: {resolveName(elements, selectedItem.elementId)}</div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.rarity}: {resolveName(rarities, selectedItem.rarityId)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]"><DictionaryInlineValue label={t.element} value={resolveName(elements, selectedItem.elementId)} imageUrl={resolveItem(elements, selectedItem.elementId)?.imageUrl} /></div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]"><DictionaryInlineValue label={t.rarity} value={resolveName(rarities, selectedItem.rarityId)} imageUrl={resolveItem(rarities, selectedItem.rarityId)?.imageUrl} /></div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <div className="flex items-center gap-2">
-                    <span>{t.heroClass}: {resolveName(heroClasses, selectedItem.heroClassId)}</span>
+                    <DictionaryInlineValue label={t.heroClass} value={resolveName(heroClasses, selectedItem.heroClassId)} imageUrl={resolveItem(heroClasses, selectedItem.heroClassId)?.imageUrl} />
                     {(() => {
                       const heroClass = resolveItem(heroClasses, selectedItem.heroClassId);
                       const heroClassContent = heroClass
@@ -2450,7 +2539,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <div className="flex items-center gap-2">
-                    <span>{t.family}: {resolveName(families, selectedItem.familyId)}</span>
+                    <DictionaryInlineValue label={t.family} value={resolveName(families, selectedItem.familyId)} imageUrl={resolveItem(families, selectedItem.familyId)?.imageUrl} />
                     {(() => {
                       const family = resolveItem(families, selectedItem.familyId);
                       const description = family?.description ? getLocalizedText(family.description, locale) : '';
@@ -2460,7 +2549,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <div className="flex items-center gap-2">
-                    <span>{t.alphaTalent}: {resolveName(alphaTalents, selectedItem.alphaTalentId)}</span>
+                    <DictionaryInlineValue label={t.alphaTalent} value={resolveName(alphaTalents, selectedItem.alphaTalentId)} imageUrl={resolveItem(alphaTalents, selectedItem.alphaTalentId)?.imageUrl} />
                     {(() => {
                       const alphaTalent = resolveItem(alphaTalents, selectedItem.alphaTalentId);
                       const description = alphaTalent?.description ? getLocalizedText(alphaTalent.description, locale) : '';
@@ -2484,6 +2573,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                           key={skillId}
                           className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
                         >
+                          <DictionaryMiniIcon imageUrl={skill.imageUrl} label={getLocalizedText(skill.name, locale)} size={18} className="border-cyan-300/20 bg-cyan-950/40" />
                           {getLocalizedText(skill.name, locale)}
                           <HeroInfoPopover
                             label={getLocalizedText(skill.name, locale)}
