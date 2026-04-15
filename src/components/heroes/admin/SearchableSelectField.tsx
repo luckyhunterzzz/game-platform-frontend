@@ -151,7 +151,7 @@ export default function SearchableSelectField({
                 }}
                 className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                   value === ''
-                    ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
+                    ? 'border-[var(--accent-text-strong)]/35 bg-[color-mix(in_srgb,var(--accent-text)_14%,transparent)] text-[var(--info-text)]'
                     : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                 }`}
               >
@@ -175,7 +175,7 @@ export default function SearchableSelectField({
                   }}
                   className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                     option.value === value
-                      ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
+                      ? 'border-[var(--accent-text-strong)]/35 bg-[color-mix(in_srgb,var(--accent-text)_14%,transparent)] text-[var(--info-text)]'
                       : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
