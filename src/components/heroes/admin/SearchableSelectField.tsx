@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import SearchField from './SearchField';
 
 type SearchableSelectOption = {
   value: string;
   label: string;
+  imageUrl?: string | null;
+  secondaryLabel?: string | null;
+  badge?: string | null;
 };
 
 type SearchableSelectFieldProps = {
@@ -113,14 +117,21 @@ export default function SearchableSelectField({
         }}
         className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
       >
-        <span className={selectedOption ? 'text-[var(--foreground)]' : 'text-[var(--foreground-soft)]'}>
-          {selectedOption?.label ?? placeholder}
+        <span className={`flex min-w-0 items-center gap-2 ${selectedOption ? 'text-[var(--foreground)]' : 'text-[var(--foreground-soft)]'}`}>
+          {selectedOption ? (
+            <DictionaryMiniIcon
+              imageUrl={selectedOption.imageUrl}
+              label={selectedOption.label}
+              size={20}
+            />
+          ) : null}
+          <span className="truncate">{selectedOption?.label ?? placeholder}</span>
         </span>
         <span className="text-xs text-[var(--foreground-muted)]">{open ? '\u25b2' : '\u25bc'}</span>
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+        <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
           <SearchField
             value={resolvedSearchQuery}
             onChange={setResolvedSearchQuery}
@@ -140,16 +151,16 @@ export default function SearchableSelectField({
                 }}
                 className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                   value === ''
-                    ? 'border-cyan-400/40 bg-cyan-950 text-cyan-200'
-                    : 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800'
+                    ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                 }`}
               >
-                {emptyOptionLabel}
+                <span className="truncate">{emptyOptionLabel}</span>
               </button>
             ) : null}
 
             {filteredOptions.length === 0 ? (
-              <div className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
                 {noResultsLabel}
               </div>
             ) : (
@@ -164,11 +175,31 @@ export default function SearchableSelectField({
                   }}
                   className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                     option.value === value
-                      ? 'border-cyan-400/40 bg-cyan-950 text-cyan-200'
-                      : 'border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800'
+                      ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
-                  {option.label}
+                  <div className="flex items-start gap-3">
+                    <DictionaryMiniIcon
+                      imageUrl={option.imageUrl}
+                      label={option.label}
+                      size={22}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{option.label}</span>
+                        {option.badge ? (
+                          <span className="shrink-0 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                            {option.badge}
+                          </span>
+                        ) : null}
+                      </div>
+                      {option.secondaryLabel ? (
+                        <div className="mt-1 text-xs text-[var(--foreground-soft)]">{option.secondaryLabel}</div>
+                      ) : null}
+                    </div>
+                  </div>
                 </button>
               ))
             )}

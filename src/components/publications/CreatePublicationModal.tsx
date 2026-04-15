@@ -646,8 +646,22 @@ export default function CreatePublicationModal({
                     accept="image/png,image/jpeg,image/webp"
                     onChange={(e) => void handleImageSelected(e.target.files?.[0] ?? null)}
                     disabled={uploadingImage || submitting}
-                    className="block w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-400/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-emerald-300"
+                    className="hidden"
                   />
+
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage || submitting}
+                      className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {locale === 'ru' ? 'Выбрать файл' : 'Choose file'}
+                    </button>
+                    <span className="min-w-0 flex-1 truncate text-sm text-[var(--foreground-soft)]">
+                      {uploadedFileName ?? (locale === 'ru' ? 'Файл не выбран' : 'No file selected')}
+                    </span>
+                  </div>
 
                   <p className="text-xs text-[var(--foreground-soft)]">{imageText.hint}</p>
 

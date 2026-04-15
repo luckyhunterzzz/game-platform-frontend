@@ -3,21 +3,26 @@
 import { useMemo, useState } from 'react';
 import DictionaryModal from './admin/DictionaryModal';
 import HeroInfoPopover from './admin/HeroInfoPopover';
+import DictionaryInlineValue from './DictionaryInlineValue';
+import DictionaryMiniIcon from './DictionaryMiniIcon';
 
 type Reference = {
   id: number;
   name: string;
+  imageUrl?: string | null;
 } | null;
 
 type Rarity = {
   id: number;
   stars: number;
+  imageUrl?: string | null;
 } | null;
 
 type PassiveSkill = {
   id: number;
   name: string;
   description: string;
+  imageUrl?: string | null;
 };
 
 type CostumeBonus = {
@@ -97,6 +102,31 @@ function formatCostumeBonusContent(locale: 'RU' | 'EN', bonus: CostumeBonus | un
         ];
 
   return lines.join('\n');
+}
+
+function LabeledReferenceRow({
+  label,
+  value,
+  imageUrl,
+  tooltipContent,
+}: {
+  label: string;
+  value: string;
+  imageUrl?: string | null;
+  tooltipContent?: string | null;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium text-[var(--foreground-soft)]">{label}:</div>
+      <div className="flex min-w-0 items-start gap-2 text-[var(--foreground)]">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <DictionaryMiniIcon imageUrl={imageUrl} label={value} size={20} />
+          <span className="min-w-0 leading-5 [overflow-wrap:anywhere]">{value}</span>
+        </div>
+        {tooltipContent ? <HeroInfoPopover label={label} content={tooltipContent} /> : null}
+      </div>
+    </div>
+  );
 }
 
 export default function PublicHeroDetailsModal({
@@ -229,32 +259,53 @@ export default function PublicHeroDetailsModal({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.element}: {renderValue(details.element?.name)}
+                  <LabeledReferenceRow
+                    label={t.element}
+                    value={String(renderValue(details.element?.name))}
+                    imageUrl={details.element?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.rarity}: {details.rarity ? `${details.rarity.stars}*` : t.noValue}
+                  <LabeledReferenceRow
+                    label={t.rarity}
+                    value={details.rarity ? `${details.rarity.stars}*` : t.noValue}
+                    imageUrl={details.rarity?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.heroClass}: {renderValue(details.heroClass?.name)}
+                  <LabeledReferenceRow
+                    label={t.heroClass}
+                    value={String(renderValue(details.heroClass?.name))}
+                    imageUrl={details.heroClass?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.family}: {renderValue(details.family?.name)}
+                  <LabeledReferenceRow
+                    label={t.family}
+                    value={String(renderValue(details.family?.name))}
+                    imageUrl={details.family?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.manaSpeed}: {renderValue(details.manaSpeed?.name)}
+                  <LabeledReferenceRow
+                    label={t.manaSpeed}
+                    value={String(renderValue(details.manaSpeed?.name))}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                  {t.alphaTalent}: {renderValue(details.alphaTalent?.name)}
+                  <LabeledReferenceRow
+                    label={t.alphaTalent}
+                    value={String(renderValue(details.alphaTalent?.name))}
+                    imageUrl={details.alphaTalent?.imageUrl}
+                  />
                 </div>
                 {details.costumeBonusJson ? (
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    <div className="flex items-center gap-2">
-                      <span>{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>
-                      <HeroInfoPopover
-                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
-                        content={formatCostumeBonusContent(locale, details.costumeBonusJson)}
-                      />
-                    </div>
+                    <LabeledReferenceRow
+                      label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                      value={locale === 'RU' ? 'Показать детали' : 'Show details'}
+                      tooltipContent={formatCostumeBonusContent(locale, details.costumeBonusJson)}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -315,8 +366,15 @@ export default function PublicHeroDetailsModal({
                     key={skill.id}
                     className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
                   >
-                    <div className="text-sm font-medium text-[var(--foreground)]">{skill.name}</div>
-                    <div className="mt-2 text-sm text-[var(--foreground-soft)]">
+                    <div className="mb-2">
+                      <DictionaryInlineValue
+                        label={locale === 'RU' ? 'Навык' : 'Skill'}
+                        value={skill.name}
+                        imageUrl={skill.imageUrl}
+                        valueClassName="font-medium text-[var(--foreground)]"
+                      />
+                    </div>
+                    <div className="text-sm text-[var(--foreground-soft)]">
                       {skill.description}
                     </div>
                   </div>

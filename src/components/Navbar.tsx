@@ -147,13 +147,13 @@ export const Navbar = ({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 py-3 text-[var(--foreground)] backdrop-blur sm:px-4">
-      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+      <nav className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 py-2 text-[var(--foreground)] backdrop-blur sm:px-4 sm:py-3">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 transition-colors hover:bg-[var(--surface-hover)]"
+          className="rounded-lg p-1.5 transition-colors hover:bg-[var(--surface-hover)] sm:p-2"
         >
-          <Menu size={20} className="sm:h-6 sm:w-6" />
+          <Menu size={18} className="sm:h-6 sm:w-6" />
         </button>
 
         <Link
@@ -175,19 +175,19 @@ export const Navbar = ({
             width={64}
             height={64}
             priority
-            className="h-9 w-9 shrink-0 object-contain sm:h-12 sm:w-12"
+            className="h-8 w-8 shrink-0 object-contain sm:h-12 sm:w-12"
           />
         </Link>
       </div>
 
-      <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-3 md:gap-6">
+      <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3 md:gap-6">
         <button
           type="button"
           onClick={() => setIsAboutModalOpen(true)}
-          className="flex shrink items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3"
+          className="flex shrink items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
           title={aboutProjectContent.button}
         >
-          <Info size={16} className="sm:h-[18px] sm:w-[18px]" />
+          <Info size={15} className="sm:h-[18px] sm:w-[18px]" />
           <span className="hidden sm:inline">{aboutProjectContent.button}</span>
         </button>
 
@@ -195,14 +195,14 @@ export const Navbar = ({
           <button
             type="button"
             onClick={() => setIsThemeMenuOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3"
+            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
             title={messages.navbar.theme}
             aria-haspopup="menu"
             aria-expanded={isThemeMenuOpen}
           >
-            <ThemeIcon size={16} className="sm:h-[18px] sm:w-[18px]" />
+            <ThemeIcon size={15} className="sm:h-[18px] sm:w-[18px]" />
             <span className="hidden sm:inline">{currentThemeLabel}</span>
-            <ResolvedThemeIcon size={14} className="opacity-60 sm:h-4 sm:w-4" />
+            <ResolvedThemeIcon size={12} className="opacity-60 sm:h-4 sm:w-4" />
           </button>
 
           {isThemeMenuOpen && (
@@ -262,12 +262,12 @@ export const Navbar = ({
           <button
             type="button"
             onClick={() => setIsLanguageMenuOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:text-sm"
+            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
             title={messages.navbar.language}
             aria-haspopup="menu"
             aria-expanded={isLanguageMenuOpen}
           >
-            <Globe size={16} className="sm:h-[18px] sm:w-[18px]" />
+            <Globe size={15} className="sm:h-[18px] sm:w-[18px]" />
             <span>{currentLocaleLabel}</span>
           </button>
 
@@ -312,18 +312,18 @@ export const Navbar = ({
 
             <button
               onClick={logout}
-              className="rounded-lg bg-[var(--surface)] p-2 text-red-400 transition-colors hover:bg-red-500/10"
+              className="rounded-lg bg-[var(--surface)] p-1.5 text-red-400 transition-colors hover:bg-red-500/10 sm:p-2"
               title={messages.navbar.logout}
             >
-              <LogOut size={18} className="sm:h-5 sm:w-5" />
+              <LogOut size={16} className="sm:h-5 sm:w-5" />
             </button>
           </div>
         ) : (
           <button
             onClick={login}
-            className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-2 font-medium text-white transition-colors hover:bg-blue-700 sm:gap-2 sm:px-4"
+            className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 sm:gap-2 sm:px-4 sm:py-2"
           >
-            <User size={16} className="sm:h-[18px] sm:w-[18px]" />
+            <User size={15} className="sm:h-[18px] sm:w-[18px]" />
             <span className="hidden md:inline">{messages.navbar.login}</span>
           </button>
         )}
