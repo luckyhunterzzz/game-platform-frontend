@@ -60,8 +60,22 @@ export default function HeroImageUploadField({
         accept="image/png,image/jpeg,image/webp"
         onChange={(e) => void onSelect(e.target.files?.[0] ?? null)}
         disabled={disabled || uploading}
-        className="block w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-400/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-cyan-300"
+        className="hidden"
       />
+
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || uploading}
+          className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {locale === 'RU' ? 'Выбрать файл' : 'Choose file'}
+        </button>
+        <span className="min-w-0 flex-1 truncate text-sm text-[var(--foreground-soft)]">
+          {uploadedFileName ?? storedImageLabel ?? (locale === 'RU' ? 'Файл не выбран' : 'No file selected')}
+        </span>
+      </div>
 
       <p className="text-xs text-[var(--foreground-muted)]">{t.hint}</p>
 

@@ -88,7 +88,7 @@ export default function HeroInfoPopover({ label, content }: HeroInfoPopoverProps
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+        className="mt-0.5 inline-flex h-5 w-5 shrink-0 self-start items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
         aria-label={label}
       >
         ?

@@ -11,6 +11,16 @@ html.light {
   --foreground: #0f172a;
   --foreground-muted: rgba(15, 23, 42, 0.82);
   --foreground-soft: rgba(15, 23, 42, 0.64);
+  --accent-text: #0f4fcf;
+  --accent-text-strong: #0a63d8;
+  --info-text: #0f4fcf;
+  --info-text-strong: #0a63d8;
+  --success-text: #166534;
+  --success-text-strong: #15803d;
+  --secondary-text: #6d28d9;
+  --secondary-text-strong: #7c3aed;
+  --warning-text: #9a5a00;
+  --danger-text: #b42318;
 
   --surface: rgba(255, 255, 255, 0.86);
   --surface-strong: rgba(255, 255, 255, 0.96);
@@ -40,6 +50,16 @@ html.dark {
   --foreground: #f8fafc;
   --foreground-muted: rgba(248, 250, 252, 0.8);
   --foreground-soft: rgba(248, 250, 252, 0.58);
+  --accent-text: #58b7ff;
+  --accent-text-strong: #7fd0ff;
+  --info-text: #58b7ff;
+  --info-text-strong: #8bd8ff;
+  --success-text: #5ee38b;
+  --success-text-strong: #8cf7b0;
+  --secondary-text: #c084fc;
+  --secondary-text-strong: #d8b4fe;
+  --warning-text: #ffbf47;
+  --danger-text: #ff7b72;
 
   --surface: rgba(255, 255, 255, 0.05);
   --surface-strong: #0f172a;
@@ -91,6 +111,58 @@ body {
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
+}
+
+.text-cyan-200,
+.text-cyan-300,
+.text-cyan-400,
+.text-sky-200,
+.text-sky-300,
+.text-sky-400,
+.hover\:text-cyan-200:hover,
+.hover\:text-cyan-300:hover,
+.hover\:text-cyan-400:hover,
+.hover\:text-sky-200:hover,
+.hover\:text-sky-300:hover,
+.hover\:text-sky-400:hover,
+.group:hover .group-hover\:text-cyan-300,
+.group:hover .group-hover\:text-blue-300,
+.text-blue-300,
+.text-blue-400,
+.text-cyan-700,
+.text-sky-700,
+.hover\:text-cyan-600:hover,
+.hover\:text-sky-600:hover,
+.hover\:text-cyan-100:hover {
+  color: var(--info-text) !important;
+}
+
+.text-emerald-300,
+.text-emerald-400,
+.hover\:text-emerald-300:hover,
+.hover\:text-emerald-400:hover {
+  color: var(--success-text) !important;
+}
+
+.text-violet-300,
+.text-violet-400,
+.text-purple-300,
+.text-purple-400,
+.hover\:text-violet-300:hover,
+.hover\:text-purple-300:hover {
+  color: var(--secondary-text) !important;
+}
+
+.text-amber-300,
+.text-amber-400,
+.hover\:text-amber-300:hover {
+  color: var(--warning-text) !important;
+}
+
+.text-red-300,
+.text-red-400,
+.hover\:text-red-300:hover {
+  color: var(--danger-text) !important;
 }
 
 /* Global form controls */

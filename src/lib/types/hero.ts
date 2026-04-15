@@ -35,6 +35,12 @@ export type CostumeBonus = {
   mana?: number | null;
 };
 
+export interface DictionaryImageFields {
+  imageBucket?: string | null;
+  imageObjectKey?: string | null;
+  imageUrl?: string | null;
+}
+
 export type EmblemPathType = 'DAMAGE' | 'DEFENSE';
 
 export type EvolutionStageCode =
@@ -102,21 +108,21 @@ export function validateLocalizedTextPair(
  * Elements
  * ========================= */
 
-export interface ElementResponseDto {
+export interface ElementResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
 }
 
-export interface ElementItem {
+export interface ElementItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
 }
 
-export interface CreateElementRequest {
+export interface CreateElementRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
 }
 
-export interface UpdateElementRequest {
+export interface UpdateElementRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
 }
 
@@ -124,6 +130,9 @@ export function mapElementDto(dto: ElementResponseDto): ElementItem {
   return {
     id: dto.id,
     name: dto.nameJson,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 
@@ -131,24 +140,24 @@ export function mapElementDto(dto: ElementResponseDto): ElementItem {
  * Rarities
  * ========================= */
 
-export interface RarityResponseDto {
+export interface RarityResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
   stars: number;
 }
 
-export interface RarityItem {
+export interface RarityItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
   stars: number;
 }
 
-export interface CreateRarityRequest {
+export interface CreateRarityRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   stars: number;
 }
 
-export interface UpdateRarityRequest {
+export interface UpdateRarityRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   stars: number;
 }
@@ -158,6 +167,9 @@ export function mapRarityDto(dto: RarityResponseDto): RarityItem {
     id: dto.id,
     name: dto.nameJson,
     stars: dto.stars,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 
@@ -165,24 +177,24 @@ export function mapRarityDto(dto: RarityResponseDto): RarityItem {
  * Families
  * ========================= */
 
-export interface FamilyResponseDto {
+export interface FamilyResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
 
-export interface FamilyItem {
+export interface FamilyItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
   description?: LocalizedText | null;
 }
 
-export interface CreateFamilyRequest {
+export interface CreateFamilyRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
 
-export interface UpdateFamilyRequest {
+export interface UpdateFamilyRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
@@ -192,6 +204,9 @@ export function mapFamilyDto(dto: FamilyResponseDto): FamilyItem {
     id: dto.id,
     name: dto.nameJson,
     description: dto.descriptionJson ?? null,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 
@@ -233,24 +248,24 @@ export function mapManaSpeedDto(dto: ManaSpeedResponseDto): ManaSpeedItem {
  * Alpha Talents
  * ========================= */
 
-export interface AlphaTalentResponseDto {
+export interface AlphaTalentResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
 
-export interface AlphaTalentItem {
+export interface AlphaTalentItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
   description?: LocalizedText | null;
 }
 
-export interface CreateAlphaTalentRequest {
+export interface CreateAlphaTalentRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
 
-export interface UpdateAlphaTalentRequest {
+export interface UpdateAlphaTalentRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
 }
@@ -260,6 +275,9 @@ export function mapAlphaTalentDto(dto: AlphaTalentResponseDto): AlphaTalentItem 
     id: dto.id,
     name: dto.nameJson,
     description: dto.descriptionJson ?? null,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 
@@ -267,24 +285,24 @@ export function mapAlphaTalentDto(dto: AlphaTalentResponseDto): AlphaTalentItem 
  * Passive Skills
  * ========================= */
 
-export interface PassiveSkillResponseDto {
+export interface PassiveSkillResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
   descriptionJson: LocalizedText;
 }
 
-export interface PassiveSkillItem {
+export interface PassiveSkillItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
   description: LocalizedText;
 }
 
-export interface CreatePassiveSkillRequest {
+export interface CreatePassiveSkillRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson: LocalizedText;
 }
 
-export interface UpdatePassiveSkillRequest {
+export interface UpdatePassiveSkillRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   descriptionJson: LocalizedText;
 }
@@ -294,6 +312,9 @@ export function mapPassiveSkillDto(dto: PassiveSkillResponseDto): PassiveSkillIt
     id: dto.id,
     name: dto.nameJson,
     description: dto.descriptionJson,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 
@@ -301,7 +322,7 @@ export function mapPassiveSkillDto(dto: PassiveSkillResponseDto): PassiveSkillIt
  * Hero Classes
  * ========================= */
 
-export interface HeroClassResponseDto {
+export interface HeroClassResponseDto extends DictionaryImageFields {
   id: number;
   nameJson: LocalizedText;
   baseNameJson: LocalizedText;
@@ -310,7 +331,7 @@ export interface HeroClassResponseDto {
   masterDescriptionJson: LocalizedText;
 }
 
-export interface HeroClassItem {
+export interface HeroClassItem extends DictionaryImageFields {
   id: number;
   name: LocalizedText;
   baseName: LocalizedText;
@@ -319,7 +340,7 @@ export interface HeroClassItem {
   masterDescription: LocalizedText;
 }
 
-export interface CreateHeroClassRequest {
+export interface CreateHeroClassRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   baseNameJson: LocalizedText;
   baseDescriptionJson: LocalizedText;
@@ -327,7 +348,7 @@ export interface CreateHeroClassRequest {
   masterDescriptionJson: LocalizedText;
 }
 
-export interface UpdateHeroClassRequest {
+export interface UpdateHeroClassRequest extends DictionaryImageFields {
   nameJson: LocalizedText;
   baseNameJson: LocalizedText;
   baseDescriptionJson: LocalizedText;
@@ -343,6 +364,9 @@ export function mapHeroClassDto(dto: HeroClassResponseDto): HeroClassItem {
     baseDescription: dto.baseDescriptionJson,
     masterName: dto.masterNameJson,
     masterDescription: dto.masterDescriptionJson,
+    imageBucket: dto.imageBucket ?? null,
+    imageObjectKey: dto.imageObjectKey ?? null,
+    imageUrl: dto.imageUrl ?? null,
   };
 }
 

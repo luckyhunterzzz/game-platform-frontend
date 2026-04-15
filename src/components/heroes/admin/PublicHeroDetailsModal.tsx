@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 
 import DictionaryModal from './DictionaryModal';
+import DictionaryInlineValue from '../DictionaryInlineValue';
+import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 
@@ -27,24 +29,26 @@ export type PublicHeroDetailsItem = {
   id: number;
   slug: string;
   name: string;
-  element?: { id: number; name: string } | null;
-  rarity?: { id: number; stars: number } | null;
+  element?: { id: number; name: string; imageUrl?: string | null } | null;
+  rarity?: { id: number; stars: number; imageUrl?: string | null } | null;
   heroClass?: {
     id: number;
     name: string;
+    imageUrl?: string | null;
     baseName?: string | null;
     baseDescription?: string | null;
     masterName?: string | null;
     masterDescription?: string | null;
   } | null;
-  family?: { id: number; name: string; description?: string | null } | null;
+  family?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
   manaSpeed?: { id: number; name: string; description?: string | null } | null;
-  alphaTalent?: { id: number; name: string; description?: string | null } | null;
+  alphaTalent?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
   specialSkill?: { name: string; description: string } | null;
   passiveSkills: Array<{
     id: number;
     name: string;
     description: string;
+    imageUrl?: string | null;
   }>;
   costumes: Array<{
     id: number;
@@ -161,6 +165,54 @@ function formatCostumeBonusContent(
         ];
 
   return lines.join('\n');
+}
+
+function StackedReferenceRow({
+  label,
+  value,
+  imageUrl,
+  tooltipContent,
+}: {
+  label: string;
+  value: string;
+  imageUrl?: string | null;
+  tooltipContent?: string | null;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium text-[var(--foreground-soft)]">{label}:</div>
+      <div className="flex min-w-0 items-start gap-2 text-[var(--foreground)]">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <DictionaryMiniIcon imageUrl={imageUrl} label={value} size={20} />
+          <span className="min-w-0 leading-5 [overflow-wrap:anywhere]">{value}</span>
+        </div>
+        {tooltipContent ? <HeroInfoPopover label={label} content={tooltipContent} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function CopyHeroLinkIcon({ copied }: { copied: boolean }) {
+  if (copied) {
+    return (
+      <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
+        <path
+          d="M3.5 8.5 6.5 11.5 12.5 4.5"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
+      <rect x="5" y="3" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="3" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
 }
 
 export default function PublicHeroDetailsModal({
@@ -281,7 +333,7 @@ export default function PublicHeroDetailsModal({
     try {
       await navigator.clipboard.writeText(url.toString());
       setCopiedHeroLink(true);
-      window.setTimeout(() => setCopiedHeroLink(false), 1800);
+      window.setTimeout(() => setCopiedHeroLink(false), 1400);
     } catch {
       setCopiedHeroLink(false);
     }
@@ -339,7 +391,7 @@ export default function PublicHeroDetailsModal({
           {t.detailsUnavailable}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 text-[15px] md:text-base">
           <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
             <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)]">
               {resolvedImageUrl ? (
@@ -365,66 +417,82 @@ export default function PublicHeroDetailsModal({
 
             <div className="space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
                   {currentHeroSlug ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleCopyHeroLink()}
-                      title={heroLinkTooltip}
-                      aria-label={heroLinkTooltip}
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-strong)] text-[10px] leading-none text-[var(--foreground-soft)] transition hover:border-cyan-400/40 hover:text-cyan-300"
-                    >
-                      <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true" fill="none">
-                        <rect x="5" y="3" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                        <rect x="3" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                      </svg>
-                    </button>
+                    <div className="relative inline-flex">
+                      {copiedHeroLink ? (
+                        <div className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-[var(--border)] bg-slate-700/95 px-2.5 py-1 text-xs font-medium text-slate-100 shadow-lg">
+                          {copiedHeroLinkLabel}
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyHeroLink()}
+                        title={heroLinkTooltip}
+                        aria-label={heroLinkTooltip}
+                        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-sm leading-none transition ${
+                          copiedHeroLink
+                            ? 'border-emerald-400/40 bg-emerald-400/10 text-[var(--success-text)]'
+                            : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:border-cyan-400/40 hover:text-cyan-300'
+                        }`}
+                      >
+                        <CopyHeroLinkIcon copied={copiedHeroLink} />
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.element}: {heroDetails.element?.name ?? heroCard.elementName ?? t.noValue}
+                  <StackedReferenceRow
+                    label={t.element}
+                    value={heroDetails.element?.name ?? heroCard.elementName ?? t.noValue}
+                    imageUrl={heroDetails.element?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  {t.rarity}:{' '}
-                  {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
+                  <StackedReferenceRow
+                    label={t.rarity}
+                    value={resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
+                    imageUrl={heroDetails.rarity?.imageUrl}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <div className="flex items-center gap-2">
-                    <span>{t.heroClass}: {heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}</span>
-                    {heroClassTooltip ? <HeroInfoPopover label={t.heroClass} content={heroClassTooltip} /> : null}
-                  </div>
+                  <StackedReferenceRow
+                    label={t.heroClass}
+                    value={heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}
+                    imageUrl={heroDetails.heroClass?.imageUrl}
+                    tooltipContent={heroClassTooltip || null}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <div className="flex items-center gap-2">
-                    <span>{t.manaSpeed}: {heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}</span>
-                    {heroDetails.manaSpeed?.description ? (
-                      <HeroInfoPopover label={t.manaSpeed} content={heroDetails.manaSpeed.description} />
-                    ) : null}
-                  </div>
+                  <StackedReferenceRow
+                    label={t.manaSpeed}
+                    value={heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}
+                    tooltipContent={heroDetails.manaSpeed?.description ?? null}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <div className="flex items-center gap-2">
-                    <span>{t.family}: {heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}</span>
-                    {heroDetails.family?.description ? (
-                      <HeroInfoPopover label={t.family} content={heroDetails.family.description} />
-                    ) : null}
-                  </div>
+                  <StackedReferenceRow
+                    label={t.family}
+                    value={heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}
+                    imageUrl={heroDetails.family?.imageUrl}
+                    tooltipContent={heroDetails.family?.description ?? null}
+                  />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <div className="flex items-center gap-2">
-                    <span>{t.alphaTalent}: {heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}</span>
-                    {heroDetails.alphaTalent?.description ? (
-                      <HeroInfoPopover label={t.alphaTalent} content={heroDetails.alphaTalent.description} />
-                    ) : null}
-                  </div>
+                  <StackedReferenceRow
+                    label={t.alphaTalent}
+                    value={heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}
+                    imageUrl={heroDetails.alphaTalent?.imageUrl}
+                    tooltipContent={heroDetails.alphaTalent?.description ?? null}
+                  />
                 </div>
                 {heroDetails.costumeBonusJson ? (
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-start gap-2">
                       <span>{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>
                       <HeroInfoPopover
                         label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
@@ -455,8 +523,13 @@ export default function PublicHeroDetailsModal({
               <div className="space-y-3">
                 {heroDetails.passiveSkills.map((skill) => (
                   <div key={skill.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
-                      <span>{skill.name}</span>
+                    <div className="flex min-w-0 items-start gap-2 text-sm font-semibold text-[var(--foreground)]">
+                      <DictionaryInlineValue
+                        label={locale === 'RU' ? 'Навык' : 'Skill'}
+                        value={skill.name}
+                        imageUrl={skill.imageUrl}
+                        valueClassName="font-semibold text-[var(--foreground)]"
+                      />
                       <HeroInfoPopover label={skill.name} content={skill.description} />
                     </div>
                   </div>
