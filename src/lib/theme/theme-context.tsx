@@ -49,10 +49,6 @@ function getInitialTheme(): ThemeMode {
   return 'system';
 }
 
-function resolveTheme(theme: ThemeMode): ResolvedTheme {
-  return theme === 'system' ? getSystemTheme() : theme;
-}
-
 function applyThemeToDocument(theme: ResolvedTheme) {
   const root = document.documentElement;
   root.classList.remove('light', 'dark');
