@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import SearchField from './SearchField';
@@ -52,12 +52,12 @@ export default function SearchableSelectField({
   const open = controlledOpen ?? internalOpen;
   const resolvedSearchQuery = searchQuery ?? internalSearchQuery;
 
-  const setOpen = (nextOpen: boolean) => {
+  const setOpen = useCallback((nextOpen: boolean) => {
     if (controlledOpen === undefined) {
       setInternalOpen(nextOpen);
     }
     onOpenChange?.(nextOpen);
-  };
+  }, [controlledOpen, onOpenChange]);
 
   const setResolvedSearchQuery = (nextValue: string) => {
     if (searchQuery === undefined) {
@@ -100,7 +100,7 @@ export default function SearchableSelectField({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <div ref={containerRef} className="relative flex flex-col gap-2">
