@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import DictionaryModal from './DictionaryModal';
 import DictionaryInlineValue from '../DictionaryInlineValue';
@@ -172,19 +172,46 @@ function StackedReferenceRow({
   value,
   imageUrl,
   tooltipContent,
+  imageSize = 40,
+  showImage = true,
+  chromelessImage = true,
+  labelClassName = '',
+  valueClassName = '',
+  hideValue = false,
 }: {
   label: string;
   value: string;
   imageUrl?: string | null;
   tooltipContent?: string | null;
+  imageSize?: number;
+  showImage?: boolean;
+  chromelessImage?: boolean;
+  labelClassName?: string;
+  valueClassName?: string;
+  hideValue?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-[var(--foreground-soft)]">{label}:</div>
-      <div className="flex min-w-0 items-start gap-2 text-[var(--foreground)]">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <DictionaryMiniIcon imageUrl={imageUrl} label={value} size={20} />
-          <span className="min-w-0 leading-5 [overflow-wrap:anywhere]">{value}</span>
+    <div className="space-y-3">
+      <div className={`text-base font-bold text-[var(--foreground)] ${labelClassName}`}>{label}:</div>
+      <div className="flex min-w-0 items-center gap-3 text-[var(--foreground)]">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {showImage ? (
+            <DictionaryMiniIcon
+              imageUrl={imageUrl}
+              label={value}
+              size={imageSize}
+              chromeless={chromelessImage}
+              fallbackToLetter={false}
+              className="self-center"
+            />
+          ) : null}
+          {!hideValue ? (
+            <span
+              className={`min-w-0 whitespace-nowrap text-[clamp(0.82rem,1vw,1rem)] leading-tight ${valueClassName}`}
+            >
+              {value}
+            </span>
+          ) : null}
         </div>
         {tooltipContent ? <HeroInfoPopover label={label} content={tooltipContent} /> : null}
       </div>
@@ -228,6 +255,7 @@ export default function PublicHeroDetailsModal({
 }: PublicHeroDetailsModalProps) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
+  const [specialSkillExpanded, setSpecialSkillExpanded] = useState(false);
 
   const t = useMemo(
     () =>
@@ -258,6 +286,8 @@ export default function PublicHeroDetailsModal({
             computedStatsHint: 'Здесь позже появится отдельный блок с расчетными статами героя.',
             show: 'Показать',
             hide: 'Скрыть',
+            showMore: 'Показать еще',
+            showLess: 'Скрыть',
             noValue: 'Не указано',
             noPassiveSkills: 'Пассивные навыки пока не указаны',
             noCostumes: 'Костюмы пока не указаны',
@@ -290,6 +320,8 @@ export default function PublicHeroDetailsModal({
             computedStatsHint: 'A separate block with calculated hero stats will appear here later.',
             show: 'Show',
             hide: 'Hide',
+            showMore: 'Show more',
+            showLess: 'Show less',
             noValue: 'Not set',
             noPassiveSkills: 'No passive skills yet',
             noCostumes: 'No costumes yet',
@@ -310,6 +342,8 @@ export default function PublicHeroDetailsModal({
     heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
   const resolvedCostumes = heroVariants?.costumes ?? [];
+  const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
+  const hasLongSpecialSkill = specialSkillDescription.length > 320;
   const heroClassTooltip = [
     heroDetails?.heroClass?.baseName && heroDetails.heroClass.baseDescription
       ? `${heroDetails.heroClass.baseName}: ${heroDetails.heroClass.baseDescription}`
@@ -321,6 +355,10 @@ export default function PublicHeroDetailsModal({
     .filter(Boolean)
     .join('\n\n');
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
+
+  useEffect(() => {
+    setSpecialSkillExpanded(false);
+  }, [heroDetails?.id]);
 
   const handleCopyHeroLink = async () => {
     if (!currentHeroSlug || typeof window === 'undefined') {
@@ -392,30 +430,30 @@ export default function PublicHeroDetailsModal({
         </div>
       ) : (
         <div className="space-y-6 text-[15px] md:text-base">
-          <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)]">
+          <div className="space-y-4 md:flex md:items-start md:gap-4 md:space-y-0">
+            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] md:w-[360px] md:flex-none">
               {resolvedImageUrl ? (
                 <button
                   type="button"
                   onClick={() => setImagePreviewOpen(true)}
-                  className="block w-full bg-[var(--surface-strong)] transition hover:bg-[var(--surface)]"
+                  className="block aspect-[4/5] w-full bg-[var(--surface-strong)] transition hover:bg-[var(--surface)] sm:aspect-[5/6] md:aspect-auto"
                   aria-label={t.openImage}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={resolvedImageUrl}
                     alt={heroDetails.name}
-                    className="h-[32rem] w-full object-contain object-top"
+                    className="max-h-[75vh] w-full object-contain object-top"
                   />
                 </button>
               ) : (
-                <div className="flex h-[32rem] items-center justify-center px-6 text-center text-sm text-[var(--foreground-muted)]">
+                <div className="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--foreground-muted)] sm:aspect-[5/6] md:min-h-[24rem] md:aspect-auto">
                   {t.imagePlaceholder}
                 </div>
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 flex-1 space-y-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
@@ -444,20 +482,33 @@ export default function PublicHeroDetailsModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <StackedReferenceRow
                     label={t.element}
                     value={heroDetails.element?.name ?? heroCard.elementName ?? t.noValue}
                     imageUrl={heroDetails.element?.imageUrl}
+                    imageSize={42}
                   />
                 </div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <StackedReferenceRow
-                    label={t.rarity}
-                    value={resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
-                    imageUrl={heroDetails.rarity?.imageUrl}
-                  />
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]">
+                  <div className="space-y-1.5">
+                    <div className="text-base font-bold text-[var(--foreground)]">{t.rarity}:</div>
+                    <div className="flex min-h-[25px] items-center">
+                      {heroDetails.rarity?.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={heroDetails.rarity.imageUrl}
+                          alt={resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
+                          className="h-[25px] w-[180px] max-w-full object-contain object-left"
+                        />
+                      ) : (
+                        <span className="text-base font-semibold text-[var(--foreground)]">
+                          {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <StackedReferenceRow
@@ -465,6 +516,7 @@ export default function PublicHeroDetailsModal({
                     value={heroDetails.heroClass?.name ?? heroCard.heroClassName ?? t.noValue}
                     imageUrl={heroDetails.heroClass?.imageUrl}
                     tooltipContent={heroClassTooltip || null}
+                    imageSize={42}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
@@ -472,37 +524,52 @@ export default function PublicHeroDetailsModal({
                     label={t.manaSpeed}
                     value={heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ?? t.noValue}
                     tooltipContent={heroDetails.manaSpeed?.description ?? null}
+                    showImage={false}
                   />
                 </div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <StackedReferenceRow
-                    label={t.family}
-                    value={heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}
-                    imageUrl={heroDetails.family?.imageUrl}
-                    tooltipContent={heroDetails.family?.description ?? null}
-                  />
-                </div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                  <StackedReferenceRow
-                    label={t.alphaTalent}
-                    value={heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}
-                    imageUrl={heroDetails.alphaTalent?.imageUrl}
-                    tooltipContent={heroDetails.alphaTalent?.description ?? null}
-                  />
-                </div>
-                {heroDetails.costumeBonusJson ? (
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
-                    <div className="flex min-w-0 items-start gap-2">
-                      <span>{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>
-                      <HeroInfoPopover
-                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
-                        content={formatCostumeBonusContent(locale, heroDetails.costumeBonusJson)}
-                      />
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+              <StackedReferenceRow
+                label={t.family}
+                value={heroDetails.family?.name ?? heroCard.familyName ?? t.noValue}
+                imageUrl={heroDetails.family?.imageUrl}
+                tooltipContent={heroDetails.family?.description ?? null}
+                imageSize={42}
+              />
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
+              <StackedReferenceRow
+                label={t.alphaTalent}
+                value={heroDetails.alphaTalent?.name ?? heroCard.alphaTalentName ?? t.noValue}
+                imageUrl={heroDetails.alphaTalent?.imageUrl}
+                tooltipContent={heroDetails.alphaTalent?.description ?? null}
+                imageSize={42}
+              />
+            </div>
+            {heroDetails.costumeBonusJson ? (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)] md:col-span-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <DictionaryMiniIcon
+                    imageUrl="/dictionary-icons/costume.png"
+                    label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                    size={34}
+                    chromeless
+                    fallbackToLetter={false}
+                  />
+                  <span className="min-w-0 flex-1 text-base font-bold text-[var(--foreground)]">
+                    {locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                  </span>
+                  <HeroInfoPopover
+                    label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                    content={formatCostumeBonusContent(locale, heroDetails.costumeBonusJson)}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -510,9 +577,22 @@ export default function PublicHeroDetailsModal({
             <div className="text-base font-medium text-[var(--foreground)]">
               {heroDetails.specialSkill?.name ?? t.noValue}
             </div>
-            <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+            <div
+              className={`mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)] ${
+                hasLongSpecialSkill && !specialSkillExpanded ? 'line-clamp-8 overflow-hidden' : ''
+              }`}
+            >
               {heroDetails.specialSkill?.description ?? t.noValue}
             </div>
+            {hasLongSpecialSkill ? (
+              <button
+                type="button"
+                onClick={() => setSpecialSkillExpanded((prev) => !prev)}
+                className="mt-3 text-sm font-semibold text-[var(--accent-strong)] transition hover:text-[var(--accent)]"
+              >
+                {specialSkillExpanded ? t.showLess : t.showMore}
+              </button>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -528,6 +608,8 @@ export default function PublicHeroDetailsModal({
                         label={locale === 'RU' ? 'Навык' : 'Skill'}
                         value={skill.name}
                         imageUrl={skill.imageUrl}
+                        chromelessIcon
+                        iconSize={34}
                         valueClassName="font-semibold text-[var(--foreground)]"
                       />
                       <HeroInfoPopover label={skill.name} content={skill.description} />
