@@ -109,19 +109,33 @@ function LabeledReferenceRow({
   value,
   imageUrl,
   tooltipContent,
+  imageSize = 28,
+  chromelessImage = true,
+  showImage = true,
 }: {
   label: string;
   value: string;
   imageUrl?: string | null;
   tooltipContent?: string | null;
+  imageSize?: number;
+  chromelessImage?: boolean;
+  showImage?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-[var(--foreground-soft)]">{label}:</div>
-      <div className="flex min-w-0 items-start gap-2 text-[var(--foreground)]">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <DictionaryMiniIcon imageUrl={imageUrl} label={value} size={20} />
-          <span className="min-w-0 leading-5 [overflow-wrap:anywhere]">{value}</span>
+    <div className="space-y-3">
+      <div className="text-base font-bold text-[var(--foreground)]">{label}:</div>
+      <div className="flex min-w-0 items-center gap-3 text-[var(--foreground)]">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {showImage ? (
+            <DictionaryMiniIcon
+              imageUrl={imageUrl}
+              label={value}
+              size={imageSize}
+              chromeless={chromelessImage}
+              fallbackToLetter={false}
+            />
+          ) : null}
+          <span className="min-w-0 whitespace-nowrap text-[clamp(0.82rem,1vw,1rem)] leading-tight">{value}</span>
         </div>
         {tooltipContent ? <HeroInfoPopover label={label} content={tooltipContent} /> : null}
       </div>
@@ -263,6 +277,7 @@ export default function PublicHeroDetailsModal({
                     label={t.element}
                     value={String(renderValue(details.element?.name))}
                     imageUrl={details.element?.imageUrl}
+                    imageSize={34}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
@@ -270,6 +285,7 @@ export default function PublicHeroDetailsModal({
                     label={t.rarity}
                     value={details.rarity ? `${details.rarity.stars}*` : t.noValue}
                     imageUrl={details.rarity?.imageUrl}
+                    imageSize={34}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
@@ -277,6 +293,7 @@ export default function PublicHeroDetailsModal({
                     label={t.heroClass}
                     value={String(renderValue(details.heroClass?.name))}
                     imageUrl={details.heroClass?.imageUrl}
+                    imageSize={34}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
@@ -284,12 +301,14 @@ export default function PublicHeroDetailsModal({
                     label={t.family}
                     value={String(renderValue(details.family?.name))}
                     imageUrl={details.family?.imageUrl}
+                    imageSize={34}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
                   <LabeledReferenceRow
                     label={t.manaSpeed}
                     value={String(renderValue(details.manaSpeed?.name))}
+                    showImage={false}
                   />
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
@@ -297,15 +316,27 @@ export default function PublicHeroDetailsModal({
                     label={t.alphaTalent}
                     value={String(renderValue(details.alphaTalent?.name))}
                     imageUrl={details.alphaTalent?.imageUrl}
+                    imageSize={34}
                   />
                 </div>
                 {details.costumeBonusJson ? (
                   <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    <LabeledReferenceRow
-                      label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
-                      value={locale === 'RU' ? 'Показать детали' : 'Show details'}
-                      tooltipContent={formatCostumeBonusContent(locale, details.costumeBonusJson)}
-                    />
+                    <div className="flex min-w-0 items-center gap-3">
+                      <DictionaryMiniIcon
+                        imageUrl="/dictionary-icons/costume.png"
+                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                        size={34}
+                        chromeless
+                        fallbackToLetter={false}
+                      />
+                      <span className="min-w-0 flex-1 text-base font-bold text-[var(--foreground)]">
+                        {locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                      </span>
+                      <HeroInfoPopover
+                        label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
+                        content={formatCostumeBonusContent(locale, details.costumeBonusJson)}
+                      />
+                    </div>
                   </div>
                 ) : null}
               </div>

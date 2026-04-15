@@ -165,6 +165,32 @@ body {
   color: var(--danger-text) !important;
 }
 
+.bg-cyan-400\/8,
+.bg-cyan-400\/10,
+.bg-cyan-400\/12,
+.bg-cyan-400\/15,
+.bg-cyan-400\/20,
+.bg-cyan-500\/10,
+.bg-sky-400\/10,
+.bg-sky-500\/10,
+.bg-sky-500\/15,
+.bg-cyan-950\/40 {
+  background-color: color-mix(in srgb, var(--accent-text) 14%, transparent) !important;
+}
+
+.border-cyan-300\/20,
+.border-cyan-400\/16,
+.border-cyan-400\/18,
+.border-cyan-400\/20,
+.border-cyan-400\/25,
+.border-cyan-400\/30,
+.border-cyan-400\/40,
+.border-cyan-500\/30,
+.border-sky-400\/40,
+.border-sky-500\/30 {
+  border-color: color-mix(in srgb, var(--accent-text-strong) 32%, transparent) !important;
+}
+
 /* Global form controls */
 input,
 textarea,
