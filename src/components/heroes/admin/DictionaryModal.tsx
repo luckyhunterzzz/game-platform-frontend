@@ -43,12 +43,12 @@ export default function DictionaryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] overscroll-none bg-black/85 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-[60] overscroll-none bg-black/85 backdrop-blur-md md:p-4"
       onClick={onClose}
     >
       <div className="flex min-h-full items-center justify-center">
         <div
-          className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+          className="flex h-[100dvh] w-full flex-col overflow-hidden bg-[var(--surface)] shadow-2xl md:max-h-[calc(100dvh-2rem)] md:max-w-3xl md:rounded-3xl md:border md:border-[var(--border)]"
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
