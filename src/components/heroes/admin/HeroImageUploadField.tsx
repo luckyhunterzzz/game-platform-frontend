@@ -1,6 +1,6 @@
 'use client';
 
-import type { RefObject } from 'react';
+import { useState, type DragEvent, type RefObject } from 'react';
 
 type HeroImageUploadFieldProps = {
   locale: 'RU' | 'EN';
@@ -31,6 +31,7 @@ export default function HeroImageUploadField({
   onSelect,
   onClear,
 }: HeroImageUploadFieldProps) {
+  const [isDragOver, setIsDragOver] = useState(false);
   const t =
     locale === 'RU'
       ? {
@@ -50,6 +51,37 @@ export default function HeroImageUploadField({
           remove: 'Remove image',
         };
 
+  const dropHint = locale === 'RU' ? 'Перетащите файл сюда или выберите вручную.' : 'Drag and drop a file here or choose it manually.';
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (disabled || uploading) {
+      return;
+    }
+
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+
+    if (disabled || uploading) {
+      return;
+    }
+
+    void onSelect(event.dataTransfer.files?.[0] ?? null);
+  };
+
   return (
     <div className="space-y-3">
       <label className="block text-sm font-medium text-[var(--foreground-soft)]">{t.label}</label>
@@ -63,7 +95,16 @@ export default function HeroImageUploadField({
         className="hidden"
       />
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 transition ${
+          isDragOver
+            ? 'border-cyan-300/60 bg-cyan-400/10 shadow-[0_0_24px_rgba(34,211,238,0.18)]'
+            : 'border-[var(--border)] bg-[var(--surface-strong)]'
+        }`}
+      >
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -75,6 +116,7 @@ export default function HeroImageUploadField({
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--foreground-soft)]">
           {uploadedFileName ?? storedImageLabel ?? (locale === 'RU' ? 'Файл не выбран' : 'No file selected')}
         </span>
+        <div className="w-full text-xs text-[var(--foreground-muted)]">{dropHint}</div>
       </div>
 
       <p className="text-xs text-[var(--foreground-muted)]">{t.hint}</p>
