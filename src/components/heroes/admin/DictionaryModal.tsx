@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 
 type DictionaryModalProps = {
   open: boolean;
-  title: string;
+  title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   closeLabel?: string;
@@ -52,7 +52,13 @@ export default function DictionaryModal({
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">{title}</h3>
+            <div className="min-w-0 flex-1 pr-4">
+              {typeof title === 'string' ? (
+                <h3 className="text-lg font-semibold text-[var(--foreground)]">{title}</h3>
+              ) : (
+                title
+              )}
+            </div>
 
             <button
               type="button"

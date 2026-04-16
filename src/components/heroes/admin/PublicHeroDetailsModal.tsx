@@ -13,6 +13,7 @@ export type PublicHeroCardItem = {
   slug: string;
   name: string;
   imageUrl?: string | null;
+  previewUrl?: string | null;
   elementName: string;
   rarityName: string;
   rarityStars: number;
@@ -73,6 +74,7 @@ export type PublicHeroDetailsItem = {
     mana?: number | null;
   } | null;
   imageUrl?: string | null;
+  previewUrl?: string | null;
   releaseDate?: string | null;
 };
 
@@ -82,6 +84,7 @@ export type PublicHeroVariantSummaryItem = {
   name: string;
   costumeIndex?: number | null;
   imageUrl?: string | null;
+  previewUrl?: string | null;
   elementName?: string | null;
   rarityName?: string | null;
   rarityStars?: number | null;
@@ -122,6 +125,32 @@ function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallb
 
 function relationName(value: string | null | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value : fallback;
+}
+
+function getPreviewAccentClass(elementName: string | null | undefined) {
+  const normalized = (elementName ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('ice') || normalized.includes('лед') || normalized.includes('лёд')) {
+    return 'border-sky-300/60 bg-sky-400/12 shadow-[0_0_28px_rgba(56,189,248,0.32)]';
+  }
+
+  if (normalized.includes('fire') || normalized.includes('огонь')) {
+    return 'border-rose-300/60 bg-rose-400/12 shadow-[0_0_28px_rgba(251,113,133,0.3)]';
+  }
+
+  if (normalized.includes('nature') || normalized.includes('природа')) {
+    return 'border-emerald-300/60 bg-emerald-400/12 shadow-[0_0_28px_rgba(52,211,153,0.3)]';
+  }
+
+  if (normalized.includes('dark') || normalized.includes('тьма')) {
+    return 'border-violet-300/60 bg-violet-400/12 shadow-[0_0_28px_rgba(167,139,250,0.3)]';
+  }
+
+  if (normalized.includes('holy') || normalized.includes('свят')) {
+    return 'border-amber-300/70 bg-amber-300/14 shadow-[0_0_28px_rgba(251,191,36,0.28)]';
+  }
+
+  return 'border-[var(--border)] bg-[var(--surface-strong)]';
 }
 
 function formatCostumeVariantName(name: string | null | undefined, costumeIndex?: number | null) {
@@ -332,7 +361,9 @@ export default function PublicHeroDetailsModal({
   );
 
   const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
+  const resolvedPreviewUrl = heroDetails?.previewUrl ?? heroCard?.previewUrl ?? heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
   const resolvedImageUrl = heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
+  const imagePreviewSource = resolvedImageUrl ?? resolvedPreviewUrl;
   const currentHeroSlug = heroDetails?.slug ?? heroCard?.slug ?? null;
   const copyHeroLinkLabel =
     locale === 'RU' ? '\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u0441\u044b\u043b\u043a\u0443 \u043d\u0430 \u0433\u0435\u0440\u043e\u044f' : 'Copy hero link';
@@ -344,6 +375,8 @@ export default function PublicHeroDetailsModal({
   const resolvedCostumes = heroVariants?.costumes ?? [];
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
   const hasLongSpecialSkill = specialSkillDescription.length > 320;
+  const resolvedElementName = heroDetails?.element?.name ?? heroCard?.elementName ?? null;
+  const previewAccentClass = getPreviewAccentClass(resolvedElementName);
   const heroClassTooltip = [
     heroDetails?.heroClass?.baseName && heroDetails.heroClass.baseDescription
       ? `${heroDetails.heroClass.baseName}: ${heroDetails.heroClass.baseDescription}`
@@ -374,6 +407,48 @@ export default function PublicHeroDetailsModal({
       setCopiedHeroLink(false);
     }
   };
+
+  const modalTitle = (
+    <div className="flex min-w-0 items-center gap-3">
+      {resolvedPreviewUrl ? (
+        <div className={`overflow-hidden rounded-2xl border p-[2px] transition ${previewAccentClass}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resolvedPreviewUrl}
+            alt={heroDetails?.name ?? heroCard?.name ?? 'Hero preview'}
+            className="h-12 w-12 rounded-[14px] object-cover"
+          />
+        </div>
+      ) : null}
+      <div className="min-w-0 flex flex-1 items-center gap-2">
+        <div className="min-w-0 truncate text-[1.35rem] font-bold text-[var(--foreground)] md:text-[1.5rem]">
+          {heroDetails?.name ?? heroCard?.name ?? t.title}
+        </div>
+        {currentHeroSlug ? (
+          <div className="relative inline-flex shrink-0">
+            {copiedHeroLink ? (
+              <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 rounded-md border border-[var(--border)] bg-slate-700/95 px-2.5 py-1 text-xs font-medium text-slate-100 shadow-lg">
+                {copiedHeroLinkLabel}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleCopyHeroLink()}
+              title={heroLinkTooltip}
+              aria-label={heroLinkTooltip}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm leading-none transition ${
+                copiedHeroLink
+                  ? 'border-emerald-400/40 bg-emerald-400/10 text-[var(--success-text)]'
+                  : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:border-cyan-400/40 hover:text-cyan-300'
+              }`}
+            >
+              <CopyHeroLinkIcon copied={copiedHeroLink} />
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 
   const renderRelatedHeroChip = (
     slug: string,
@@ -413,7 +488,7 @@ export default function PublicHeroDetailsModal({
   };
 
   return (
-    <DictionaryModal open={open} title={t.title} closeLabel={t.close} onClose={onClose}>
+    <DictionaryModal open={open} title={modalTitle} closeLabel={t.close} onClose={onClose}>
       {loading ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-sm text-[var(--foreground-soft)]">
           {t.loading}
@@ -452,34 +527,6 @@ export default function PublicHeroDetailsModal({
             </div>
 
             <div className="min-w-0 flex-1 space-y-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-2xl font-semibold text-[var(--foreground)]">{heroDetails.name}</div>
-                  {currentHeroSlug ? (
-                    <div className="relative inline-flex">
-                      {copiedHeroLink ? (
-                        <div className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-[var(--border)] bg-slate-700/95 px-2.5 py-1 text-xs font-medium text-slate-100 shadow-lg">
-                          {copiedHeroLinkLabel}
-                        </div>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => void handleCopyHeroLink()}
-                        title={heroLinkTooltip}
-                        aria-label={heroLinkTooltip}
-                        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-sm leading-none transition ${
-                          copiedHeroLink
-                            ? 'border-emerald-400/40 bg-emerald-400/10 text-[var(--success-text)]'
-                            : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:border-cyan-400/40 hover:text-cyan-300'
-                        }`}
-                      >
-                        <CopyHeroLinkIcon copied={copiedHeroLink} />
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 gap-3">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">
                   <StackedReferenceRow
@@ -698,7 +745,7 @@ export default function PublicHeroDetailsModal({
         </div>
       )}
 
-      {imagePreviewOpen && resolvedImageUrl && (
+      {imagePreviewOpen && imagePreviewSource && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4"
           onClick={() => setImagePreviewOpen(false)}
@@ -713,7 +760,7 @@ export default function PublicHeroDetailsModal({
 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={resolvedImageUrl}
+            src={imagePreviewSource}
             alt={heroDetails?.name ?? heroCard?.name ?? 'Hero image'}
             className="max-h-[92vh] max-w-[92vw] object-contain"
             onClick={(event) => event.stopPropagation()}
