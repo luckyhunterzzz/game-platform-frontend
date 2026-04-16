@@ -43,6 +43,7 @@ import DictionaryInlineValue from '../DictionaryInlineValue';
 import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroImageUploadField from './HeroImageUploadField';
+import HeroPreviewUploadField from './HeroPreviewUploadField';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
@@ -174,6 +175,9 @@ type AdminHeroResponseDto = {
   imageBucketJson?: LocalizedText | null;
   imageObjectKeyJson?: LocalizedText | null;
   imageUrlJson?: LocalizedText | null;
+  previewBucket?: string | null;
+  previewObjectKey?: string | null;
+  previewUrl?: string | null;
   isCostume: boolean;
   baseHeroId?: number | null;
   costumeIndex?: number | null;
@@ -205,6 +209,9 @@ type HeroItem = {
   imageBucketJson: LocalizedText;
   imageObjectKeyJson: LocalizedText;
   imageUrlJson: LocalizedText;
+  previewBucket?: string | null;
+  previewObjectKey?: string | null;
+  previewUrl?: string | null;
   isCostume: boolean;
   baseHeroId?: number | null;
   costumeIndex?: number | null;
@@ -232,6 +239,8 @@ type HeroFormState = {
   passiveSkillIds: number[];
   imageBucketJson: LocalizedText;
   imageObjectKeyJson: LocalizedText;
+  previewBucket: string;
+  previewObjectKey: string;
   baseAttack: string;
   baseArmor: string;
   baseHp: string;
@@ -262,6 +271,8 @@ type HeroMutationRequest = {
   alphaTalentId?: number | null;
   imageBucketJson?: LocalizedText | null;
   imageObjectKeyJson?: LocalizedText | null;
+  previewBucket?: string | null;
+  previewObjectKey?: string | null;
   isCostume: boolean;
   baseHeroId?: number | null;
   costumeIndex?: number | null;
@@ -287,6 +298,8 @@ const EMPTY_FORM: HeroFormState = {
   passiveSkillIds: [],
   imageBucketJson: { ...EMPTY_LOCALIZED_TEXT },
   imageObjectKeyJson: { ...EMPTY_LOCALIZED_TEXT },
+  previewBucket: '',
+  previewObjectKey: '',
   baseAttack: '',
   baseArmor: '',
   baseHp: '',
@@ -375,6 +388,9 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     imageBucketJson: dto.imageBucketJson ?? { ...EMPTY_LOCALIZED_TEXT },
     imageObjectKeyJson: dto.imageObjectKeyJson ?? { ...EMPTY_LOCALIZED_TEXT },
     imageUrlJson: dto.imageUrlJson ?? { ...EMPTY_LOCALIZED_TEXT },
+    previewBucket: dto.previewBucket ?? null,
+    previewObjectKey: dto.previewObjectKey ?? null,
+    previewUrl: dto.previewUrl ?? null,
     isCostume: dto.isCostume,
     baseHeroId: dto.baseHeroId ?? null,
     costumeIndex: dto.costumeIndex ?? null,
@@ -404,6 +420,8 @@ function toForm(hero: HeroItem): HeroFormState {
     passiveSkillIds: [...hero.passiveSkillIds],
     imageBucketJson: { ...hero.imageBucketJson },
     imageObjectKeyJson: { ...hero.imageObjectKeyJson },
+    previewBucket: hero.previewBucket ?? '',
+    previewObjectKey: hero.previewObjectKey ?? '',
     baseAttack: hero.baseAttack == null ? '' : String(hero.baseAttack),
     baseArmor: hero.baseArmor == null ? '' : String(hero.baseArmor),
     baseHp: hero.baseHp == null ? '' : String(hero.baseHp),
@@ -497,6 +515,10 @@ function hasLocalizedImage(form: HeroFormState, locale: HeroLocale): boolean {
   return Boolean(bucket && objectKey);
 }
 
+function hasPreviewImage(form: HeroFormState): boolean {
+  return Boolean(form.previewBucket && form.previewObjectKey);
+}
+
 function formatAdminDate(value: string | null | undefined, locale: HeroLocale, fallback: string): string {
   if (!value) return fallback;
 
@@ -568,6 +590,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const createEnImageInputRef = useRef<HTMLInputElement | null>(null);
   const editRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const editEnImageInputRef = useRef<HTMLInputElement | null>(null);
+  const createPreviewImageInputRef = useRef<HTMLInputElement | null>(null);
+  const editPreviewImageInputRef = useRef<HTMLInputElement | null>(null);
   const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
   const publicHeroSlugRef = useRef<string | null>(null);
 
@@ -610,6 +634,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     RU: false,
     EN: false,
   });
+  const [createUploadingPreview, setCreateUploadingPreview] = useState(false);
+  const [editUploadingPreview, setEditUploadingPreview] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
@@ -623,6 +649,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     RU: null,
     EN: null,
   });
+  const [createPreviewUploadError, setCreatePreviewUploadError] = useState<string | null>(null);
+  const [editPreviewUploadError, setEditPreviewUploadError] = useState<string | null>(null);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
   const [isCreatePassiveSkillsOpen, setCreatePassiveSkillsOpen] = useState(false);
@@ -644,6 +672,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     RU: null,
     EN: null,
   });
+  const [createPreviewImageUrl, setCreatePreviewImageUrl] = useState<string | null>(null);
+  const [editPreviewImageUrl, setEditPreviewImageUrl] = useState<string | null>(null);
   const [createImageFileName, setCreateImageFileName] = useState<Record<HeroLocale, string | null>>({
     RU: null,
     EN: null,
@@ -652,6 +682,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     RU: null,
     EN: null,
   });
+  const [createPreviewFileName, setCreatePreviewFileName] = useState<string | null>(null);
+  const [editPreviewFileName, setEditPreviewFileName] = useState<string | null>(null);
 
   const t = useMemo(
     () =>
@@ -1333,6 +1365,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
   };
 
+  const resetPreviewImageInput = (mode: 'create' | 'edit') => {
+    const ref = mode === 'create' ? createPreviewImageInputRef : editPreviewImageInputRef;
+    if (ref.current) {
+      ref.current.value = '';
+    }
+  };
+
   const clearUploadedImageState = (mode: 'create' | 'edit', imageLocale: HeroLocale) => {
     if (mode === 'create') {
       setCreateImagePreviewUrl((prev) => ({ ...prev, [imageLocale]: null }));
@@ -1367,6 +1406,30 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
 
     resetImageInput(mode, imageLocale);
+  };
+
+  const clearUploadedPreviewState = (mode: 'create' | 'edit') => {
+    if (mode === 'create') {
+      setCreatePreviewImageUrl(null);
+      setCreatePreviewFileName(null);
+      setCreatePreviewUploadError(null);
+      setCreateForm((prev) => ({
+        ...prev,
+        previewBucket: '',
+        previewObjectKey: '',
+      }));
+    } else {
+      setEditPreviewImageUrl(null);
+      setEditPreviewFileName(null);
+      setEditPreviewUploadError(null);
+      setEditForm((prev) => ({
+        ...prev,
+        previewBucket: '',
+        previewObjectKey: '',
+      }));
+    }
+
+    resetPreviewImageInput(mode);
   };
 
   const handleHeroImageSelected = async (
@@ -1463,6 +1526,82 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
   };
 
+  const handlePreviewImageSelected = async (mode: 'create' | 'edit', file: File | null) => {
+    if (!file) {
+      clearUploadedPreviewState(mode);
+      return;
+    }
+
+    const invalidTypeMessage =
+      locale === 'RU'
+        ? 'Можно загружать только PNG, JPEG или WEBP.'
+        : 'Only PNG, JPEG or WEBP images are allowed.';
+
+    const uploadErrorMessage =
+      locale === 'RU' ? 'Не удалось загрузить превью героя.' : 'Failed to upload hero preview.';
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      clearUploadedPreviewState(mode);
+      if (mode === 'create') {
+        setCreatePreviewUploadError(invalidTypeMessage);
+      } else {
+        setEditPreviewUploadError(invalidTypeMessage);
+      }
+      return;
+    }
+
+    if (mode === 'create') {
+      setCreateUploadingPreview(true);
+      setCreatePreviewUploadError(null);
+    } else {
+      setEditUploadingPreview(true);
+      setEditPreviewUploadError(null);
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiPostFormData<ImageUploadResponse>(HERO_IMAGE_UPLOAD_API, formData);
+
+      if (mode === 'create') {
+        setCreatePreviewImageUrl(response.url);
+        setCreatePreviewFileName(file.name);
+        setCreateForm((prev) => ({
+          ...prev,
+          previewBucket: response.bucket,
+          previewObjectKey: response.objectKey,
+        }));
+      } else {
+        setEditPreviewImageUrl(response.url);
+        setEditPreviewFileName(file.name);
+        setEditForm((prev) => ({
+          ...prev,
+          previewBucket: response.bucket,
+          previewObjectKey: response.objectKey,
+        }));
+      }
+    } catch (error) {
+      clearUploadedPreviewState(mode);
+      const message =
+        error instanceof ApiError || error instanceof Error ? error.message : uploadErrorMessage;
+
+      if (mode === 'create') {
+        setCreatePreviewFileName(file.name);
+        setCreatePreviewUploadError(message);
+      } else {
+        setEditPreviewFileName(file.name);
+        setEditPreviewUploadError(message);
+      }
+    } finally {
+      if (mode === 'create') {
+        setCreateUploadingPreview(false);
+      } else {
+        setEditUploadingPreview(false);
+      }
+    }
+  };
+
   const resetCreateModalState = () => {
     setCreateForm(EMPTY_FORM);
     setCreateBaseHeroSearch('');
@@ -1474,8 +1613,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setCreateImageFileName({ RU: null, EN: null });
     setCreateImageUploadError({ RU: null, EN: null });
     setCreateUploadingImage({ RU: false, EN: false });
+    setCreatePreviewImageUrl(null);
+    setCreatePreviewFileName(null);
+    setCreatePreviewUploadError(null);
+    setCreateUploadingPreview(false);
     resetImageInput('create', 'RU');
     resetImageInput('create', 'EN');
+    resetPreviewImageInput('create');
   };
 
   const openCreateModal = () => {
@@ -1486,7 +1630,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const closeCreateModal = () => {
-    if (submitting || createUploadingImage.RU || createUploadingImage.EN) return;
+    if (submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview) return;
     resetCreateModalState();
     setCreatePassiveSkillsOpen(false);
     setCreatePassiveSkillQuery('');
@@ -1506,13 +1650,18 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       RU: extractStoredImageName(selectedItem.imageObjectKeyJson.ru),
       EN: extractStoredImageName(selectedItem.imageObjectKeyJson.en),
     });
+    setEditPreviewImageUrl(null);
+    setEditPreviewUploadError(null);
+    setEditUploadingPreview(false);
+    setEditPreviewFileName(extractStoredImageName(selectedItem.previewObjectKey));
     resetImageInput('edit', 'RU');
     resetImageInput('edit', 'EN');
+    resetPreviewImageInput('edit');
     setEditOpen(true);
   };
 
   const closeEditModal = () => {
-    if (submitting || editUploadingImage.RU || editUploadingImage.EN) return;
+    if (submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview) return;
     setEditPassiveSkillsOpen(false);
     setEditPassiveSkillQuery('');
     setEditOpen(false);
@@ -1520,8 +1669,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setEditImageFileName({ RU: null, EN: null });
     setEditImageUploadError({ RU: null, EN: null });
     setEditUploadingImage({ RU: false, EN: false });
+    setEditPreviewImageUrl(null);
+    setEditPreviewFileName(null);
+    setEditPreviewUploadError(null);
+    setEditUploadingPreview(false);
     resetImageInput('edit', 'RU');
     resetImageInput('edit', 'EN');
+    resetPreviewImageInput('edit');
   };
 
   const baseHeroes = useMemo(
@@ -1695,6 +1849,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     alphaTalentId: form.alphaTalentId ? Number(form.alphaTalentId) : null,
     imageBucketJson: form.imageBucketJson,
     imageObjectKeyJson: form.imageObjectKeyJson,
+    previewBucket: form.previewBucket.trim() || null,
+    previewObjectKey: form.previewObjectKey.trim() || null,
     isCostume: form.isCostume,
     baseHeroId: form.isCostume && form.baseHeroId ? Number(form.baseHeroId) : null,
     costumeIndex: form.isCostume && form.costumeIndex ? Number(form.costumeIndex) : null,
@@ -1732,8 +1888,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       return;
     }
 
-    if (createImageUploadError.RU || createImageUploadError.EN) {
-      setSubmitError(createImageUploadError.RU ?? createImageUploadError.EN);
+    if (createImageUploadError.RU || createImageUploadError.EN || createPreviewUploadError) {
+      setSubmitError(createImageUploadError.RU ?? createImageUploadError.EN ?? createPreviewUploadError);
       return;
     }
 
@@ -1768,8 +1924,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       return;
     }
 
-    if (editImageUploadError.RU || editImageUploadError.EN) {
-      setSubmitError(editImageUploadError.RU ?? editImageUploadError.EN);
+    if (editImageUploadError.RU || editImageUploadError.EN || editPreviewUploadError) {
+      setSubmitError(editImageUploadError.RU ?? editImageUploadError.EN ?? editPreviewUploadError);
       return;
     }
 
@@ -1787,8 +1943,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setEditImageFileName({ RU: null, EN: null });
       setEditImageUploadError({ RU: null, EN: null });
       setEditUploadingImage({ RU: false, EN: false });
+      setEditPreviewImageUrl(null);
+      setEditPreviewFileName(null);
+      setEditPreviewUploadError(null);
+      setEditUploadingPreview(false);
       resetImageInput('edit', 'RU');
       resetImageInput('edit', 'EN');
+      resetPreviewImageInput('edit');
     } catch (error) {
       setSubmitError(error instanceof ApiError || error instanceof Error ? error.message : 'Update failed');
     } finally {
@@ -1823,19 +1984,24 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const imageFileName = isEdit ? editImageFileName : createImageFileName;
     const imageUploadError = isEdit ? editImageUploadError : createImageUploadError;
     const uploadingImage = isEdit ? editUploadingImage : createUploadingImage;
-  const heroImageSectionTitle = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0438 \u0433\u0435\u0440\u043e\u044f' : 'Hero images';
-  const ruImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 RU' : 'RU image';
-  const enImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 EN' : 'EN image';
-  const passiveSkillsTitle = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Passive skills';
-  const noPassiveSkillsLabel = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No passive skills selected';
-  const addPassiveSkillLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a' : 'Add passive skill';
-  const availablePassiveSkillsLabel = locale === 'RU' ? '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Available passive skills';
-  const hidePassiveSkillsLabel = locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a' : 'Hide list';
-  const noAvailablePassiveSkillsLabel = locale === 'RU' ? '\u0412\u0441\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'All passive skills are already selected';
-  const noPassiveSkillSearchResultsLabel = locale === 'RU' ? '\u041f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0437\u0430\u043f\u0440\u043e\u0441\u0443 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e' : 'No skills found for your search';
-  const addPassiveSkillActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
-  const removePassiveSkillActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
-  const searchPassiveSkillsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043d\u0430\u0432\u044b\u043a\u0430' : 'Search skill';
+    const previewImageUrl = isEdit ? editPreviewImageUrl : createPreviewImageUrl;
+    const previewFileName = isEdit ? editPreviewFileName : createPreviewFileName;
+    const previewUploadError = isEdit ? editPreviewUploadError : createPreviewUploadError;
+    const uploadingPreview = isEdit ? editUploadingPreview : createUploadingPreview;
+    const heroImageSectionTitle = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0438 \u0433\u0435\u0440\u043e\u044f' : 'Hero images';
+    const previewImageSectionTitle = locale === 'RU' ? '\u041f\u0440\u0435\u0432\u044c\u044e \u0433\u0435\u0440\u043e\u044f' : 'Hero preview';
+    const ruImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 RU' : 'RU image';
+    const enImageLabel = locale === 'RU' ? '\u041a\u0430\u0440\u0442\u0438\u043d\u043a\u0430 EN' : 'EN image';
+    const passiveSkillsTitle = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Passive skills';
+    const noPassiveSkillsLabel = locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No passive skills selected';
+    const addPassiveSkillLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0439 \u043d\u0430\u0432\u044b\u043a' : 'Add passive skill';
+    const availablePassiveSkillsLabel = locale === 'RU' ? '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Available passive skills';
+    const hidePassiveSkillsLabel = locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a' : 'Hide list';
+    const noAvailablePassiveSkillsLabel = locale === 'RU' ? '\u0412\u0441\u0435 \u043f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'All passive skills are already selected';
+    const noPassiveSkillSearchResultsLabel = locale === 'RU' ? '\u041f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0437\u0430\u043f\u0440\u043e\u0441\u0443 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e' : 'No skills found for your search';
+    const addPassiveSkillActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
+    const removePassiveSkillActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
+    const searchPassiveSkillsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043d\u0430\u0432\u044b\u043a\u0430' : 'Search skill';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
@@ -2027,6 +2193,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             </div>
           ))}
         </div>
+      </div>
+      <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="text-sm font-semibold text-[var(--foreground)]">{previewImageSectionTitle}</div>
+        <HeroPreviewUploadField
+          locale={locale}
+          fileInputRef={isEdit ? editPreviewImageInputRef : createPreviewImageInputRef}
+          uploading={uploadingPreview}
+          uploadedImageUrl={previewImageUrl}
+          storedImageUrl={isEdit ? selectedItem?.previewUrl ?? null : null}
+          uploadedFileName={previewFileName}
+          imageUploadError={previewUploadError}
+          hasStoredImage={hasPreviewImage(form)}
+          storedImageLabel={extractStoredImageName(form.previewObjectKey)}
+          disabled={submitting}
+          onSelect={(file) => handlePreviewImageSelected(isEdit ? 'edit' : 'create', file)}
+          onClear={() => clearUploadedPreviewState(isEdit ? 'edit' : 'create')}
+        />
       </div>
       <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{passiveSkillsTitle}</div>
@@ -2462,7 +2645,24 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-sm text-[var(--foreground-soft)]">{t.selectHero}</div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="text-lg font-semibold text-[var(--foreground)]">{getLocalizedText(selectedItem.name, locale)}</div><div className="mt-1 text-sm text-[var(--foreground-soft)]">{selectedItem.slug}</div></div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="flex items-center gap-4">
+                  {selectedItem.previewUrl ? (
+                    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedItem.previewUrl}
+                        alt={getLocalizedText(selectedItem.name, locale)}
+                        className="h-20 w-20 object-cover"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-lg font-semibold text-[var(--foreground)]">{getLocalizedText(selectedItem.name, locale)}</div>
+                    <div className="mt-1 text-sm text-[var(--foreground-soft)]">{selectedItem.slug}</div>
+                  </div>
+                </div>
+              </div>
               {(getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'RU') || getLocalizedImageValue(selectedItem.imageObjectKeyJson, 'EN')) && (
                 <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
                   <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
@@ -2609,8 +2809,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         </section>
       </div>
 
-      <DictionaryModal open={isCreateOpen} title={t.createTitle} closeLabel={t.close} onClose={closeCreateModal}><div className="space-y-6">{renderForm(createForm, setCreateForm, false)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN} onClick={closeCreateModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN} onClick={handleCreate} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15">{submitting ? t.creating : t.create}</button></div></div></DictionaryModal>
-      <DictionaryModal open={isEditOpen} title={t.editTitle} closeLabel={t.close} onClose={closeEditModal}><div className="space-y-6">{renderForm(editForm, setEditForm, true)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN} onClick={closeEditModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN} onClick={handleUpdate} className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 dark:text-sky-300">{submitting ? t.saving : t.save}</button></div></div></DictionaryModal>
+      <DictionaryModal open={isCreateOpen} title={t.createTitle} closeLabel={t.close} onClose={closeCreateModal}><div className="space-y-6">{renderForm(createForm, setCreateForm, false)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview} onClick={closeCreateModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview} onClick={handleCreate} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15">{submitting ? t.creating : t.create}</button></div></div></DictionaryModal>
+      <DictionaryModal open={isEditOpen} title={t.editTitle} closeLabel={t.close} onClose={closeEditModal}><div className="space-y-6">{renderForm(editForm, setEditForm, true)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview} onClick={closeEditModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview} onClick={handleUpdate} className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 dark:text-sky-300">{submitting ? t.saving : t.save}</button></div></div></DictionaryModal>
     </>
   );
 }
