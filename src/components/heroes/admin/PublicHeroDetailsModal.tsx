@@ -7,6 +7,8 @@ import DictionaryInlineValue from '../DictionaryInlineValue';
 import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
+import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
+import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
 
 export type PublicHeroCardItem = {
   id: number;
@@ -102,6 +104,9 @@ type PublicHeroDetailsModalProps = {
   heroCard: PublicHeroCardItem | null;
   heroDetails: PublicHeroDetailsItem | null;
   heroVariants?: PublicHeroVariantsItem | null;
+  heroExpertOpinions?: HeroExpertOpinionPublicResponseDto[];
+  heroExpertOpinionsLoading?: boolean;
+  heroExpertOpinionsError?: string | null;
   loading: boolean;
   error: string | null;
   onClose: () => void;
@@ -277,6 +282,9 @@ export default function PublicHeroDetailsModal({
   heroCard,
   heroDetails,
   heroVariants = null,
+  heroExpertOpinions = [],
+  heroExpertOpinionsLoading = false,
+  heroExpertOpinionsError = null,
   loading,
   error,
   onClose,
@@ -668,6 +676,13 @@ export default function PublicHeroDetailsModal({
               </div>
             )}
           </div>
+
+          <HeroExpertOpinionsPublicBlock
+            locale={locale}
+            items={heroExpertOpinions}
+            loading={heroExpertOpinionsLoading}
+            error={heroExpertOpinionsError}
+          />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

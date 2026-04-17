@@ -268,7 +268,7 @@ export const Navbar = ({
             aria-expanded={isLanguageMenuOpen}
           >
             <Globe size={15} className="sm:h-[18px] sm:w-[18px]" />
-            <span>{currentLocaleLabel}</span>
+            <span className="hidden sm:inline">{currentLocaleLabel}</span>
           </button>
 
           {isLanguageMenuOpen && (
@@ -404,7 +404,7 @@ export const Navbar = ({
                       href="https://t.me/gameops_platform"
                       target="_blank"
                       rel="noreferrer"
-                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-100"
+                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-300"
                     >
                       {aboutProjectContent.contactHandle}
                     </a>
@@ -416,7 +416,7 @@ export const Navbar = ({
                       href="https://t.me/gameopsplatform"
                       target="_blank"
                       rel="noreferrer"
-                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-100"
+                      className="font-bold text-cyan-700 underline decoration-cyan-500/50 underline-offset-4 transition hover:text-cyan-600 dark:text-cyan-200 dark:decoration-cyan-300/50 dark:hover:text-cyan-300"
                     >
                       {aboutProjectContent.channelHandle}
                     </a>
