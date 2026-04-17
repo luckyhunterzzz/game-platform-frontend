@@ -7,6 +7,15 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
+import {
+  buildHeroExpertOpinionPayload,
+  mapAdminHeroExpertOpinionDto,
+  sortHeroExpertOpinions,
+  validateHeroExpertOpinionDraft,
+  type HeroExpertOpinionAdminResponseDto,
+  type HeroExpertOpinionDraft,
+  type HeroExpertOpinionPublicResponseDto,
+} from '@/lib/types/hero-expert-opinion';
 import type { ImageUploadResponse } from '@/lib/types/publication';
 import {
   EMPTY_LOCALIZED_TEXT,
@@ -44,6 +53,7 @@ import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroImageUploadField from './HeroImageUploadField';
 import HeroPreviewUploadField from './HeroPreviewUploadField';
+import HeroExpertOpinionsEditor from './HeroExpertOpinionsEditor';
 import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
 import LocalizedTextFields from './LocalizedTextFields';
 import LocalizedTextareaFields from './LocalizedTextareaFields';
@@ -63,6 +73,9 @@ const ADMIN_SLUG_AVAILABILITY_API = '/api/v1/admin/heroes/slug-availability';
 const ADMIN_NEXT_COSTUME_INDEX_API = '/api/v1/admin/heroes/next-costume-index';
 const PUBLIC_FILTERS_API = '/api/v1/public/heroes/filters';
 const PUBLIC_NAMES_API = '/api/v1/public/heroes/names';
+const buildAdminExpertOpinionsApi = (heroId: number) => `/api/v1/admin/heroes/${heroId}/expert-opinions`;
+const buildPublicExpertOpinionsApi = (slug: string, locale: 'RU' | 'EN') =>
+  `/api/v1/public/heroes/${slug}/expert-opinions?language=${locale}`;
 const ELEMENTS_API = '/api/v1/admin/heroes/elements';
 const RARITIES_API = '/api/v1/admin/heroes/rarities';
 const HERO_CLASSES_API = '/api/v1/admin/heroes/hero-classes';
@@ -608,6 +621,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
   const [selectedPublicHeroVariants, setSelectedPublicHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
+  const [selectedPublicHeroExpertOpinions, setSelectedPublicHeroExpertOpinions] = useState<HeroExpertOpinionPublicResponseDto[]>([]);
   const [items, setItems] = useState<HeroItem[]>([]);
   const [baseHeroOptions, setBaseHeroOptions] = useState<HeroLookupItem[]>([]);
   const [adminSearch, setAdminSearch] = useState('');
@@ -616,6 +630,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
   const [selectedAdminVariants, setSelectedAdminVariants] = useState<AdminHeroVariantsResponse | null>(null);
+  const [selectedAdminHeroExpertOpinions, setSelectedAdminHeroExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
   const [elements, setElements] = useState<ElementItem[]>([]);
   const [rarities, setRarities] = useState<RarityItem[]>([]);
   const [heroClasses, setHeroClasses] = useState<HeroClassItem[]>([]);
@@ -626,6 +641,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingPublicDetails, setLoadingPublicDetails] = useState(false);
+  const [loadingAdminHeroExpertOpinions, setLoadingAdminHeroExpertOpinions] = useState(false);
+  const [loadingPublicHeroExpertOpinions, setLoadingPublicHeroExpertOpinions] = useState(false);
   const [createUploadingImage, setCreateUploadingImage] = useState<Record<HeroLocale, boolean>>({
     RU: false,
     EN: false,
@@ -640,6 +657,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [publicDetailsError, setPublicDetailsError] = useState<string | null>(null);
+  const [adminHeroExpertOpinionsError, setAdminHeroExpertOpinionsError] = useState<string | null>(null);
+  const [publicHeroExpertOpinionsError, setPublicHeroExpertOpinionsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createImageUploadError, setCreateImageUploadError] = useState<Record<HeroLocale, string | null>>({
     RU: null,
@@ -660,6 +679,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [isPublicDetailsOpen, setPublicDetailsOpen] = useState(false);
   const [createForm, setCreateForm] = useState<HeroFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<HeroFormState>(EMPTY_FORM);
+  const [createExpertOpinions, setCreateExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
+  const [editExpertOpinions, setEditExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
+  const [initialEditExpertOpinions, setInitialEditExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
   const [createBaseHeroSearch, setCreateBaseHeroSearch] = useState('');
   const [createBaseHeroSelectOpen, setCreateBaseHeroSelectOpen] = useState(false);
   const [createSlugAvailable, setCreateSlugAvailable] = useState<boolean | null>(null);
@@ -1077,10 +1099,21 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const loadPublicVariants = useCallback(async (slug: string) => {
     setLoadingPublicDetails(true);
     setPublicDetailsError(null);
+    setLoadingPublicHeroExpertOpinions(true);
+    setPublicHeroExpertOpinionsError(null);
     try {
-      const response = await apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}`);
+      const [response, opinionsResponse] = await Promise.all([
+        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}`),
+        apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale)).catch((error) => {
+          setPublicHeroExpertOpinionsError(
+            error instanceof Error ? error.message : 'Failed to load expert opinions',
+          );
+          return [];
+        }),
+      ]);
       setSelectedPublicHeroDetails(response.currentHero);
       setSelectedPublicHeroVariants(response);
+      setSelectedPublicHeroExpertOpinions(sortHeroExpertOpinions(opinionsResponse));
       setSelectedPublicHero(
         findBaseHeroCardBySlug(response.currentHero.slug) ?? toSyntheticPublicHeroCard(response.currentHero, response),
       );
@@ -1089,8 +1122,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
       setSelectedPublicHeroVariants(null);
+      setSelectedPublicHeroExpertOpinions([]);
     } finally {
       setLoadingPublicDetails(false);
+      setLoadingPublicHeroExpertOpinions(false);
     }
   }, [apiJson, findBaseHeroCardBySlug, locale, toSyntheticPublicHeroCard]);
 
@@ -1120,7 +1155,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setSelectedPublicHero(null);
     setSelectedPublicHeroDetails(null);
     setSelectedPublicHeroVariants(null);
+    setSelectedPublicHeroExpertOpinions([]);
     setPublicDetailsError(null);
+    setPublicHeroExpertOpinionsError(null);
   }, []);
 
   const openPublicHeroBySlug = useCallback(async (slug: string, heroCard?: PublicHeroCardItem | null) => {
@@ -1168,15 +1205,6 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     void loadPublicFilterOptions().catch(() => setListError('Failed to load filters'));
   }, [adminMode, loadBaseHeroOptions, loadPublicFilterOptions]);
-
-  useEffect(() => {
-    if (adminMode && selectedId !== null) {
-      void loadDetails(selectedId);
-      void loadAdminVariants(selectedId);
-    } else if (adminMode) {
-      setSelectedAdminVariants(null);
-    }
-  }, [adminMode, selectedId, loadAdminVariants, loadDetails]);
 
   useEffect(() => {
     if (adminMode) {
@@ -1626,6 +1654,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     resetCreateModalState();
     setCreatePassiveSkillsOpen(false);
     setCreatePassiveSkillQuery('');
+    setCreateExpertOpinions([]);
     setCreateOpen(true);
   };
 
@@ -1634,12 +1663,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     resetCreateModalState();
     setCreatePassiveSkillsOpen(false);
     setCreatePassiveSkillQuery('');
+    setCreateExpertOpinions([]);
     setCreateOpen(false);
   };
 
   const openEditModal = () => {
     if (!selectedItem) return;
     setEditForm(toForm(selectedItem));
+    setEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
+    setInitialEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
     setSubmitError(null);
     setEditPassiveSkillsOpen(false);
     setEditPassiveSkillQuery('');
@@ -1673,6 +1705,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setEditPreviewFileName(null);
     setEditPreviewUploadError(null);
     setEditUploadingPreview(false);
+    setEditExpertOpinions([]);
+    setInitialEditExpertOpinions([]);
     resetImageInput('edit', 'RU');
     resetImageInput('edit', 'EN');
     resetPreviewImageInput('edit');
@@ -1869,6 +1903,107 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     passiveSkillIds: form.passiveSkillIds,
   });
 
+  const validateExpertOpinions = useCallback(
+    (opinions: HeroExpertOpinionDraft[]): string | null => {
+      for (const opinion of opinions) {
+        const validationError = validateHeroExpertOpinionDraft(opinion, locale);
+        if (validationError) {
+          return validationError;
+        }
+      }
+
+      return null;
+    },
+    [locale],
+  );
+
+  const loadAdminHeroExpertOpinions = useCallback(
+    async (heroId: number) => {
+      setLoadingAdminHeroExpertOpinions(true);
+      setAdminHeroExpertOpinionsError(null);
+
+      try {
+        const response = await apiJson<HeroExpertOpinionAdminResponseDto[]>(
+          buildAdminExpertOpinionsApi(heroId),
+        );
+        setSelectedAdminHeroExpertOpinions(
+          sortHeroExpertOpinions(response.map(mapAdminHeroExpertOpinionDto)),
+        );
+      } catch (error) {
+        setSelectedAdminHeroExpertOpinions([]);
+        setAdminHeroExpertOpinionsError(
+          error instanceof Error ? error.message : 'Failed to load expert opinions',
+        );
+      } finally {
+        setLoadingAdminHeroExpertOpinions(false);
+      }
+    },
+    [apiJson],
+  );
+
+  const syncHeroExpertOpinions = useCallback(
+    async (
+      heroId: number,
+      nextOpinions: HeroExpertOpinionDraft[],
+      previousOpinions: HeroExpertOpinionDraft[],
+    ) => {
+      const previousById = new Map<number, HeroExpertOpinionDraft>();
+      previousOpinions.forEach((item) => {
+        if (item.id != null) {
+          previousById.set(item.id, item);
+        }
+      });
+
+      const nextById = new Map<number, HeroExpertOpinionDraft>();
+      nextOpinions.forEach((item) => {
+        if (item.id != null) {
+          nextById.set(item.id, item);
+        }
+      });
+
+      for (const [previousId] of previousById) {
+        if (!nextById.has(previousId)) {
+          await apiDeleteVoid(`${buildAdminExpertOpinionsApi(heroId)}/${previousId}`);
+        }
+      }
+
+      const savedOpinions: HeroExpertOpinionDraft[] = [];
+      for (const item of nextOpinions) {
+        const payload = buildHeroExpertOpinionPayload(item);
+
+        if (item.id == null) {
+          const created = await apiPostJson<
+            ReturnType<typeof buildHeroExpertOpinionPayload>,
+            HeroExpertOpinionAdminResponseDto
+          >(buildAdminExpertOpinionsApi(heroId), payload);
+          savedOpinions.push(mapAdminHeroExpertOpinionDto(created));
+          continue;
+        }
+
+        const updated = await apiPutJson<
+          ReturnType<typeof buildHeroExpertOpinionPayload>,
+          HeroExpertOpinionAdminResponseDto
+        >(`${buildAdminExpertOpinionsApi(heroId)}/${item.id}`, payload);
+        savedOpinions.push(mapAdminHeroExpertOpinionDto(updated));
+      }
+
+      return sortHeroExpertOpinions(savedOpinions);
+    },
+    [apiDeleteVoid, apiPostJson, apiPutJson],
+  );
+
+  useEffect(() => {
+    if (adminMode && selectedId !== null) {
+      void loadDetails(selectedId);
+      void loadAdminVariants(selectedId);
+      void loadAdminHeroExpertOpinions(selectedId);
+    } else if (adminMode) {
+      setSelectedAdminVariants(null);
+      setSelectedAdminHeroExpertOpinions([]);
+      setAdminHeroExpertOpinionsError(null);
+    }
+  }, [adminMode, selectedId, loadAdminHeroExpertOpinions, loadAdminVariants, loadDetails]);
+
   const upsertHero = (dto: AdminHeroResponseDto) => {
     const hero = mapHero(dto);
     setItems((prev) => {
@@ -1895,6 +2030,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     const error = validateForm(createForm);
     if (error) return setSubmitError(error);
+    const expertOpinionsError = validateExpertOpinions(createExpertOpinions);
+    if (expertOpinionsError) return setSubmitError(expertOpinionsError);
     if (createSlugAvailable === false) {
       return setSubmitError(t.slugExists);
     }
@@ -1905,10 +2042,32 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setSubmitError(null);
     try {
       const created = await apiPostJson<HeroMutationRequest, AdminHeroResponseDto>(ADMIN_API, buildPayload(createForm));
+      let savedExpertOpinions: HeroExpertOpinionDraft[] = [];
+
+      try {
+        savedExpertOpinions = await syncHeroExpertOpinions(created.id, createExpertOpinions, []);
+      } catch (opinionError) {
+        upsertHero(created);
+        await loadAdminHeroExpertOpinions(created.id);
+        resetCreateModalState();
+        setCreatePassiveSkillsOpen(false);
+        setCreatePassiveSkillQuery('');
+        setCreateExpertOpinions([]);
+        setCreateOpen(false);
+        setSubmitError(
+          opinionError instanceof Error
+            ? `Hero created, but expert opinions sync failed: ${opinionError.message}`
+            : 'Hero created, but expert opinions sync failed',
+        );
+        return;
+      }
+
       upsertHero(created);
+      setSelectedAdminHeroExpertOpinions(savedExpertOpinions);
       resetCreateModalState();
       setCreatePassiveSkillsOpen(false);
       setCreatePassiveSkillQuery('');
+      setCreateExpertOpinions([]);
       setCreateOpen(false);
     } catch (error) {
       setSubmitError(error instanceof ApiError || error instanceof Error ? error.message : 'Create failed');
@@ -1931,11 +2090,35 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     const error = validateForm(editForm);
     if (error) return setSubmitError(error);
+    const expertOpinionsError = validateExpertOpinions(editExpertOpinions);
+    if (expertOpinionsError) return setSubmitError(expertOpinionsError);
     setSubmitting(true);
     setSubmitError(null);
     try {
       const updated = await apiPutJson<HeroMutationRequest, AdminHeroResponseDto>(`${ADMIN_API}/${selectedItem.id}`, buildPayload(editForm));
+      let savedExpertOpinions: HeroExpertOpinionDraft[] = [];
+
+      try {
+        savedExpertOpinions = await syncHeroExpertOpinions(
+          selectedItem.id,
+          editExpertOpinions,
+          initialEditExpertOpinions,
+        );
+      } catch (opinionError) {
+        upsertHero(updated);
+        await loadAdminHeroExpertOpinions(selectedItem.id);
+        setSubmitError(
+          opinionError instanceof Error
+            ? `Hero updated, but expert opinions sync failed: ${opinionError.message}`
+            : 'Hero updated, but expert opinions sync failed',
+        );
+        setEditOpen(false);
+        return;
+      }
+
       upsertHero(updated);
+      setSelectedAdminHeroExpertOpinions(savedExpertOpinions);
+      setInitialEditExpertOpinions(savedExpertOpinions);
       setEditPassiveSkillsOpen(false);
       setEditPassiveSkillQuery('');
       setEditOpen(false);
@@ -1947,6 +2130,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setEditPreviewFileName(null);
       setEditPreviewUploadError(null);
       setEditUploadingPreview(false);
+      setEditExpertOpinions([]);
+      setInitialEditExpertOpinions([]);
       resetImageInput('edit', 'RU');
       resetImageInput('edit', 'EN');
       resetPreviewImageInput('edit');
@@ -1967,6 +2152,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       const next = items.filter((item) => item.id !== selectedItem.id);
       setItems(next);
       setSelectedItem(null);
+      setSelectedAdminHeroExpertOpinions([]);
+      setAdminHeroExpertOpinionsError(null);
       setSelectedId(next[0]?.id ?? null);
     } catch (error) {
       setSubmitError(error instanceof ApiError || error instanceof Error ? error.message : 'Delete failed');
@@ -2330,6 +2517,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           </div>
         )}
       </div>
+      <HeroExpertOpinionsEditor
+        locale={locale}
+        value={isEdit ? editExpertOpinions : createExpertOpinions}
+        onChange={isEdit ? setEditExpertOpinions : setCreateExpertOpinions}
+        disabled={submitting}
+        createMode={!isEdit}
+      />
       <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="text" inputMode="text" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} onBlur={(e) => { const normalizedValue = normalizeReleaseDateInput(e.target.value); if (!e.target.value.trim()) { setForm((prev) => ({ ...prev, releaseDate: '' })); return; } if (normalizedValue) { setForm((prev) => ({ ...prev, releaseDate: normalizedValue })); } }} placeholder={t.releaseDatePlaceholder} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><span className="text-xs text-[var(--foreground-muted)]">{t.releaseDateHint}</span></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack : '', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor : '', costumeBonusHp: e.target.checked ? prev.costumeBonusHp : '', costumeBonusMana: e.target.checked ? prev.costumeBonusMana : '', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
@@ -2585,6 +2779,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           heroCard={selectedPublicHero}
           heroDetails={selectedPublicHeroDetails}
           heroVariants={selectedPublicHeroVariants}
+          heroExpertOpinions={selectedPublicHeroExpertOpinions}
+          heroExpertOpinionsLoading={loadingPublicHeroExpertOpinions}
+          heroExpertOpinionsError={publicHeroExpertOpinionsError}
           loading={loadingPublicDetails}
           error={publicDetailsError}
           onClose={handleClosePublicHero}
@@ -2782,6 +2979,65 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                         </span>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">
+                  {locale === 'RU' ? 'Мнения авторитетных игроков' : 'Expert opinions'}
+                </div>
+                {loadingAdminHeroExpertOpinions ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">
+                    {locale === 'RU' ? 'Загрузка мнений...' : 'Loading expert opinions...'}
+                  </div>
+                ) : adminHeroExpertOpinionsError ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                    {adminHeroExpertOpinionsError}
+                  </div>
+                ) : selectedAdminHeroExpertOpinions.length === 0 ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">
+                    {locale === 'RU' ? 'Мнения пока не добавлены' : 'No expert opinions yet'}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedAdminHeroExpertOpinions.map((opinion) => (
+                      <div
+                        key={opinion.localId}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--foreground)]">
+                              {opinion.authorName}
+                            </div>
+                            <div className="mt-1 text-xs text-[var(--foreground-muted)]">
+                              {[opinion.publishedAt || null, opinion.sourceTitle || null, opinion.sourceType || null]
+                                .filter(Boolean)
+                                .join(' • ')}
+                            </div>
+                          </div>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                              opinion.isPublished
+                                ? 'border border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+                                : 'border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)]'
+                            }`}
+                          >
+                            {opinion.isPublished
+                              ? locale === 'RU'
+                                ? 'Опубликовано'
+                                : 'Published'
+                              : locale === 'RU'
+                                ? 'Черновик'
+                                : 'Draft'}
+                          </span>
+                        </div>
+                        <div className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+                          {getLocalizedText(opinion.content, locale) ||
+                            (locale === 'RU' ? 'Текст не заполнен' : 'Content is empty')}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
