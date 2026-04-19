@@ -11,7 +11,6 @@ import {
   LogOut,
   Menu,
   Check,
-  Monitor,
   Info,
   X,
 } from 'lucide-react';
@@ -30,7 +29,7 @@ export const Navbar = ({
 }) => {
   const { authenticated, login, logout, displayName } = useAuth();
   const { locale, setLocale, messages } = useI18n();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
@@ -95,14 +94,9 @@ export const Navbar = ({
   const currentThemeLabel =
     theme === 'light'
       ? messages.navbar.themeLight
-      : theme === 'dark'
-        ? messages.navbar.themeDark
-        : messages.navbar.themeSystem;
+      : messages.navbar.themeDark;
 
-  const ThemeIcon =
-    theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
-
-  const ResolvedThemeIcon = resolvedTheme === 'dark' ? Moon : Sun;
+  const ThemeIcon = theme === 'light' ? Sun : Moon;
 
   const aboutProjectContent =
     locale === 'ru'
@@ -202,7 +196,6 @@ export const Navbar = ({
           >
             <ThemeIcon size={15} className="sm:h-[18px] sm:w-[18px]" />
             <span className="hidden sm:inline">{currentThemeLabel}</span>
-            <ResolvedThemeIcon size={12} className="opacity-60 sm:h-4 sm:w-4" />
           </button>
 
           {isThemeMenuOpen && (
@@ -239,21 +232,6 @@ export const Navbar = ({
                 {theme === 'dark' && <Check size={16} />}
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleThemeSelect('system')}
-                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition ${
-                  theme === 'system'
-                    ? 'bg-cyan-400/10 text-cyan-300'
-                    : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <Monitor size={16} />
-                  {messages.navbar.themeSystem}
-                </span>
-                {theme === 'system' && <Check size={16} />}
-              </button>
             </div>
           )}
         </div>

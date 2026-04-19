@@ -11,7 +11,6 @@ export type Messages = {
     logout: string;
     themeLight: string;
     themeDark: string;
-    themeSystem: string;
   };
   common: {
     languageEnglish: string;
