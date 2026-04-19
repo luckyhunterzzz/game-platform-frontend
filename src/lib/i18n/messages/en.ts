@@ -9,7 +9,6 @@ export const enMessages: Messages = {
     logout: 'Logout',
     themeLight: 'Light',
     themeDark: 'Dark',
-    themeSystem: 'System',
   },
   common: {
     languageEnglish: 'English',
