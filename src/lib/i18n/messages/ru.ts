@@ -9,7 +9,6 @@ export const ruMessages: Messages = {
     logout: '\u0412\u044b\u0439\u0442\u0438',
     themeLight: '\u0421\u0432\u0435\u0442\u043b\u0430\u044f',
     themeDark: '\u0422\u0435\u043c\u043d\u0430\u044f',
-    themeSystem: '\u0421\u0438\u0441\u0442\u0435\u043c\u043d\u0430\u044f',
   },
   common: {
     languageEnglish: '\u0410\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0439',

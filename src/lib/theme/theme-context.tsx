@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 
 const THEME_STORAGE_KEY = 'game-platform-theme';
@@ -23,22 +23,12 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function isThemeMode(value: string | null): value is ThemeMode {
-  return value === 'light' || value === 'dark' || value === 'system';
-}
-
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined') {
-    return 'dark';
-  }
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
+  return value === 'light' || value === 'dark';
 }
 
 function getInitialTheme(): ThemeMode {
   if (typeof window === 'undefined') {
-    return 'system';
+    return 'dark';
   }
 
   const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -46,7 +36,7 @@ function getInitialTheme(): ThemeMode {
     return savedTheme;
   }
 
-  return 'system';
+  return 'dark';
 }
 
 function applyThemeToDocument(theme: ResolvedTheme) {
@@ -57,31 +47,12 @@ function applyThemeToDocument(theme: ResolvedTheme) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => getInitialTheme());
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
-
-  const resolvedTheme = useMemo<ResolvedTheme>(() => {
-    return theme === 'system' ? systemTheme : theme;
-  }, [theme, systemTheme]);
+  const resolvedTheme = useMemo<ResolvedTheme>(() => theme, [theme]);
 
   useEffect(() => {
     applyThemeToDocument(resolvedTheme);
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [resolvedTheme, theme]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handleChange = () => {
-      setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
-    };
-
-    handleChange();
-    mediaQuery.addEventListener('change', handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-    };
-  }, []);
 
   const setTheme = (nextTheme: ThemeMode) => {
     setThemeState(nextTheme);
