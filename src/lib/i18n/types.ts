@@ -70,6 +70,17 @@ export type Messages = {
     cardIdentityTitle: string;
     cardContactsTitle: string;
     cardProgressTitle: string;
+    tabInfo: string;
+    tabHeroes: string;
+    heroesTitle: string;
+    heroesEmpty: string;
+    addHero: string;
+    selectHero: string;
+    searchHeroes: string;
+    loadMore: string;
+    loadingHeroes: string;
+    noHeroesFound: string;
+    removeHero: string;
   };
   heroDictionaries: {
     heroes: string;
