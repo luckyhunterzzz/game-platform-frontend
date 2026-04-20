@@ -9,6 +9,7 @@ export type Messages = {
     userId: string;
     login: string;
     logout: string;
+    profile: string;
     themeLight: string;
     themeDark: string;
   };
@@ -36,6 +37,39 @@ export type Messages = {
     accessDeniedDescription: string;
     workspacePlaceholderTitle: string;
     workspacePlaceholderDescription: string;
+  };
+  profile: {
+    pageTitle: string;
+    pageSubtitle: string;
+    statusComplete: string;
+    statusIncomplete: string;
+    statusLabel: string;
+    signInTitle: string;
+    signInDescription: string;
+    loadError: string;
+    saveError: string;
+    saveSuccess: string;
+    loading: string;
+    emailLabel: string;
+    firstNameLabel: string;
+    lastNameLabel: string;
+    gameNicknameLabel: string;
+    telegramLabel: string;
+    vkLabel: string;
+    discordLabel: string;
+    optionalLabel: string;
+    requiredForComplete: string;
+    completionHint: string;
+    contactsHint: string;
+    saveButton: string;
+    savingButton: string;
+    completionReadyTitle: string;
+    completionReadyDescription: string;
+    completionMissingTitle: string;
+    completionMissingDescription: string;
+    cardIdentityTitle: string;
+    cardContactsTitle: string;
+    cardProgressTitle: string;
   };
   heroDictionaries: {
     heroes: string;

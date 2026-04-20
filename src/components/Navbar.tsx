@@ -288,6 +288,15 @@ export const Navbar = ({
               </div>
             )}
 
+            <Link
+              href="/profile"
+              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:px-3 sm:py-2"
+              title={messages.navbar.profile}
+            >
+              <User size={15} className="sm:h-[18px] sm:w-[18px]" />
+              <span className="hidden md:inline">{messages.navbar.profile}</span>
+            </Link>
+
             <button
               onClick={logout}
               className="rounded-lg bg-[var(--surface)] p-1.5 text-red-400 transition-colors hover:bg-red-500/10 sm:p-2"
