@@ -23,3 +23,10 @@ export type PlayerProfileUpdateRequest = {
   discordUsername: string;
   currentGameNickname: string;
 };
+
+export type PlayerProfileHeroResponse = {
+  id: string;
+  playerProfileId: string;
+  heroId: number;
+  createdAt: string;
+};
