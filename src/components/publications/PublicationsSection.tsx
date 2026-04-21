@@ -297,7 +297,7 @@ export default function PublicationsSection({
         )}
 
         {!isAdmin && publicView === 'main' && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             {publicTypeTabs.map((type) => {
               const active = activePublicType === type;
 
@@ -311,8 +311,8 @@ export default function PublicationsSection({
                   }}
                   className={
                     active
-                      ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-cyan-300'
-                      : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                      ? 'min-h-11 rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-center text-xs font-semibold leading-tight text-cyan-300 sm:px-4 sm:text-sm sm:tracking-wide'
+                      : 'min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-center text-xs font-medium leading-tight text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-4 sm:text-sm'
                   }
                 >
                   {messages.publicationType[type]}

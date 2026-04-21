@@ -30,6 +30,8 @@ type ProfileFormState = {
 type ProfileTab = 'info' | 'heroes';
 
 type HeroLocale = 'RU' | 'EN';
+type HeroRosterSortField = 'createdAt' | 'name' | 'rarity';
+type HeroRosterSortOrder = 'asc' | 'desc';
 
 type PublicHeroCatalogItem = {
   id: number;
@@ -58,6 +60,8 @@ type RosterHeroCard = {
   heroId: number;
   slug: string;
   name: string;
+  rarityStars: number;
+  createdAt: string;
   previewUrl: string | null;
   elementName: string | null;
   isCostume: boolean;
@@ -112,15 +116,15 @@ function HeroPreviewTile({
           <img
             src={previewUrl}
             alt={name}
-            className="h-20 w-20 rounded-[14px] object-cover sm:h-24 sm:w-24"
+            className="h-12 w-12 rounded-[12px] object-cover sm:h-24 sm:w-24"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-[14px] bg-[var(--surface-strong)] text-xs text-[var(--foreground-soft)] sm:h-24 sm:w-24">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 sm:text-xs">
             ?
           </div>
         )}
       </div>
-      <span className="line-clamp-2 min-h-[2.5rem] text-xs font-medium text-[var(--foreground)] sm:text-sm">
+      <span className="line-clamp-2 min-h-[1.75rem] text-[10px] font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
         {name}
       </span>
     </>
@@ -129,7 +133,7 @@ function HeroPreviewTile({
   return (
     <div className="group relative">
       {isCostume ? (
-        <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-full border border-cyan-400/40 bg-slate-950/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg">
+        <div className="pointer-events-none absolute left-1 top-1 z-10 rounded-full border border-cyan-400/40 bg-slate-950/85 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px]">
           {`C${costumeIndex ?? '?'}`}
         </div>
       ) : null}
@@ -138,12 +142,12 @@ function HeroPreviewTile({
         <button
           type="button"
           onClick={onClick}
-          className="flex w-full flex-col items-center gap-2 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center shadow-sm transition hover:bg-[var(--surface-hover)]"
+          className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-center shadow-sm transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:rounded-3xl sm:p-3"
         >
           {content}
         </button>
       ) : (
-        <div className="flex w-full flex-col items-center gap-2 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center shadow-sm">
+        <div className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-center shadow-sm sm:gap-2 sm:rounded-3xl sm:p-3">
           {content}
         </div>
       )}
@@ -154,9 +158,9 @@ function HeroPreviewTile({
           onClick={onRemove}
           title={removeLabel}
           aria-label={removeLabel}
-          className="absolute right-2 top-2 rounded-full border border-red-500/30 bg-[var(--surface-strong)] p-2 text-red-400 opacity-100 shadow-lg transition hover:bg-red-500/10 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute right-1.5 top-1.5 rounded-full border border-red-500/30 bg-[var(--surface-strong)] p-1.5 text-red-400 opacity-100 shadow-lg transition hover:bg-red-500/10 sm:right-2 sm:top-2 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         </button>
       ) : null}
     </div>
@@ -174,12 +178,12 @@ function AddHeroTile({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-3 text-center shadow-sm transition hover:bg-[var(--surface-hover)]"
+      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-2 text-center shadow-sm transition hover:bg-[var(--surface-hover)] sm:gap-3 sm:rounded-3xl sm:p-3"
     >
-      <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] shadow-[inset_0_8px_20px_rgba(255,255,255,0.05),0_12px_26px_rgba(0,0,0,0.18)] sm:h-24 sm:w-24">
-        <Plus className="h-8 w-8 opacity-75" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] shadow-[inset_0_8px_20px_rgba(255,255,255,0.05),0_12px_26px_rgba(0,0,0,0.18)] sm:h-24 sm:w-24 sm:rounded-2xl">
+        <Plus className="h-5 w-5 opacity-75 sm:h-8 sm:w-8" />
       </div>
-      <span className="text-xs font-semibold text-[var(--foreground)] sm:text-sm">
+      <span className="text-[10px] font-semibold leading-tight text-[var(--foreground)] sm:text-sm">
         {label}
       </span>
     </button>
@@ -204,6 +208,8 @@ export default function ProfilePageClient() {
 
   const [profileHeroes, setProfileHeroes] = useState<PlayerProfileHeroResponse[]>([]);
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
+  const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('createdAt');
+  const [heroSortOrder, setHeroSortOrder] = useState<HeroRosterSortOrder>('desc');
   const [heroModalOpen, setHeroModalOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorQuery, setSelectorQuery] = useState('');
@@ -497,6 +503,10 @@ export default function ProfilePageClient() {
   }, [apiJson, authenticated, heroLocale, rosterHeroMap, uniqueHeroIds]);
 
   useEffect(() => {
+    setRosterHeroMap(new Map());
+  }, [heroLocale]);
+
+  useEffect(() => {
     if (!selectedHeroSlug) {
       setSelectedHeroCard(null);
       setSelectedHeroDetails(null);
@@ -577,6 +587,8 @@ export default function ProfilePageClient() {
         heroId: item.heroId,
         slug: hero?.slug ?? String(item.heroId),
         name: hero?.name ?? `Hero #${item.heroId}`,
+        rarityStars: hero?.rarityStars ?? 0,
+        createdAt: item.createdAt,
         previewUrl: hero?.previewUrl ?? hero?.imageUrl ?? null,
         elementName: hero?.elementName ?? null,
         isCostume: hero?.isCostume === true,
@@ -584,6 +596,33 @@ export default function ProfilePageClient() {
       };
     });
   }, [profileHeroes, rosterHeroMap]);
+
+  const sortedRosterCards = useMemo<RosterHeroCard[]>(() => {
+    const sorted = [...rosterCards];
+
+    sorted.sort((left, right) => {
+      let result = 0;
+
+      if (heroSortField === 'name') {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      } else if (heroSortField === 'rarity') {
+        result = left.rarityStars - right.rarityStars;
+        if (result === 0) {
+          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+            sensitivity: 'base',
+          });
+        }
+      } else {
+        result = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+      }
+
+      return heroSortOrder === 'asc' ? result : -result;
+    });
+
+    return sorted;
+  }, [heroLocale, heroSortField, heroSortOrder, rosterCards]);
 
   const handleChange = (field: keyof ProfileFormState, value: string) => {
     setForm((current) => ({
@@ -927,9 +966,38 @@ export default function ProfilePageClient() {
       ) : (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
-            <h2 className="text-xl font-semibold text-[var(--foreground)]">
-              {messages.profile.heroesTitle}
-            </h2>
+            <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">
+                {messages.profile.heroesTitle}
+              </h2>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                  <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
+                  <select
+                    value={heroSortField}
+                    onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                  >
+                    <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
+                    <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
+                    <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                  <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                  <select
+                    value={heroSortOrder}
+                    onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                  >
+                    <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                    <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
           </div>
 
           {loadingProfileHeroes ? (
@@ -941,13 +1009,13 @@ export default function ProfilePageClient() {
             </div>
           ) : (
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+              <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5 xl:grid-cols-6">
                 <AddHeroTile
                   label={messages.profile.addHero}
                   onClick={openHeroModal}
                 />
 
-                {rosterCards.map((hero) => (
+                {sortedRosterCards.map((hero) => (
                   <HeroPreviewTile
                     key={hero.profileHeroId}
                     name={hero.name}
@@ -970,7 +1038,7 @@ export default function ProfilePageClient() {
                 ))}
               </div>
 
-              {rosterCards.length === 0 ? (
+              {sortedRosterCards.length === 0 ? (
                 <p className="mt-5 text-sm text-[var(--foreground-soft)]">
                   {messages.profile.heroesEmpty}
                 </p>

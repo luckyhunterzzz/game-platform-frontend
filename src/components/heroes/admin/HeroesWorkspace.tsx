@@ -2,6 +2,7 @@
 
 import { format as formatDateValue, isValid as isValidDateValue, parse as parseDateValue, type Locale } from 'date-fns';
 import { enGB, enUS, ru } from 'date-fns/locale';
+import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -2599,7 +2600,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
               <div ref={publicFiltersPanelRef} className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-[var(--foreground)]">{t.filters}</div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-wrap">
                     <button
                       type="button"
                       onClick={() => {
@@ -2608,19 +2609,24 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                           setOpenPublicFilterKey(null);
                         }
                       }}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                      className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:flex-none sm:px-4 sm:text-sm"
                     >
+                      <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                      <span className="truncate">
                       {publicFiltersExpanded
                         ? `${locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b' : 'Hide filters'} \u25b4`
                         : `${locale === 'RU' ? '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b' : 'Show filters'} \u25be`}
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={resetPublicFilters}
                       disabled={!hasActivePublicFilters}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                      title={t.resetFilters}
+                      aria-label={t.resetFilters}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {t.resetFilters}
+                      <RotateCcw className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -2650,7 +2656,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                           onClick={() =>
                             setOpenPublicFilterKey((prev) => (prev === group.key ? null : group.key))
                           }
-                          className={`min-w-[160px] rounded-xl border px-3 py-2 text-left text-xs transition ${
+                          className={`min-w-[136px] rounded-xl border px-2.5 py-2 text-left text-[11px] transition sm:min-w-[160px] sm:px-3 sm:text-xs ${
                             selectedCount > 0
                               ? 'border-[var(--accent-text-strong)]/35 bg-[color-mix(in_srgb,var(--accent-text)_14%,transparent)] text-[var(--foreground)]'
                               : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
