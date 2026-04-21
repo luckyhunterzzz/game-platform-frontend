@@ -26,6 +26,9 @@ export default function SearchField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 pr-12 text-sm text-[var(--foreground)] outline-none"
         />
         {value ? (

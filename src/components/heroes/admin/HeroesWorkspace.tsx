@@ -345,6 +345,11 @@ const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
   alphaTalentIds: '',
 };
 
+function getDefaultCreateRarityId(items: RarityItem[]): string {
+  const fiveStarRarity = items.find((item) => item.stars === 5);
+  return fiveStarRarity ? String(fiveStarRarity.id) : '';
+}
+
 function sortFilterOptions<T extends HeroFilterOption | HeroRarityFilterOption>(
   options: T[],
   locale: 'RU' | 'EN',
@@ -706,6 +711,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   });
   const [createPreviewFileName, setCreatePreviewFileName] = useState<string | null>(null);
   const [editPreviewFileName, setEditPreviewFileName] = useState<string | null>(null);
+  const defaultCreateRarityId = useMemo(() => getDefaultCreateRarityId(rarities), [rarities]);
 
   const t = useMemo(
     () =>
@@ -1327,6 +1333,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       window.clearTimeout(timeoutId);
     };
   }, [apiJson, createForm.slug, isCreateOpen]);
+
+  useEffect(() => {
+    if (!isCreateOpen || !defaultCreateRarityId) {
+      return;
+    }
+
+    setCreateForm((prev) => {
+      if (prev.rarityId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        rarityId: defaultCreateRarityId,
+      };
+    });
+  }, [defaultCreateRarityId, isCreateOpen]);
 
   useEffect(() => {
     setCreateForm((prev) => {
@@ -2263,6 +2286,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         <input
           type="text"
           value={form.slug}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           onChange={(e) =>
             setForm((prev) => ({
               ...prev,

@@ -42,6 +42,9 @@ export default function LocalizedTextFields({
           type="text"
           value={value.ru}
           disabled={disabled}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           onChange={(e) =>
             onChange({
               ...value,
@@ -66,6 +69,9 @@ export default function LocalizedTextFields({
           type="text"
           value={value.en}
           disabled={disabled}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           onChange={(e) =>
             onChange({
               ...value,
