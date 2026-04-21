@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
+import PublicHeroDetailsModal, {
+  type PublicHeroCardItem,
+  type PublicHeroDetailsItem,
+  type PublicHeroVariantsItem,
+} from '@/components/heroes/admin/PublicHeroDetailsModal';
 import { useApi, ApiError } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -30,6 +35,9 @@ type PublicHeroCatalogItem = {
   id: number;
   slug: string;
   name: string;
+  baseHeroId?: number | null;
+  isCostume?: boolean | null;
+  costumeIndex?: number | null;
   previewUrl?: string | null;
   imageUrl?: string | null;
   elementName: string;
@@ -45,23 +53,6 @@ type PublicHeroPageResponse = {
   hasNext: boolean;
 };
 
-type HeroLookupItem = {
-  id: number;
-  slug: string;
-  name: string;
-};
-
-type HeroDetailsForRoster = {
-  id: number;
-  slug: string;
-  name: string;
-  previewUrl?: string | null;
-  imageUrl?: string | null;
-  element?: {
-    name: string;
-  } | null;
-};
-
 type RosterHeroCard = {
   profileHeroId: string;
   heroId: number;
@@ -69,6 +60,8 @@ type RosterHeroCard = {
   name: string;
   previewUrl: string | null;
   elementName: string | null;
+  isCostume: boolean;
+  costumeIndex: number | null;
 };
 
 const emptyForm: ProfileFormState = {
@@ -95,6 +88,8 @@ function HeroPreviewTile({
   name,
   previewUrl,
   elementName,
+  isCostume,
+  costumeIndex,
   onClick,
   onRemove,
   removeLabel,
@@ -102,6 +97,8 @@ function HeroPreviewTile({
   name: string;
   previewUrl: string | null;
   elementName: string | null;
+  isCostume?: boolean;
+  costumeIndex?: number | null;
   onClick?: () => void;
   onRemove?: () => void;
   removeLabel?: string;
@@ -131,6 +128,12 @@ function HeroPreviewTile({
 
   return (
     <div className="group relative">
+      {isCostume ? (
+        <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-full border border-cyan-400/40 bg-slate-950/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg">
+          {`C${costumeIndex ?? '?'}`}
+        </div>
+      ) : null}
+
       {onClick ? (
         <button
           type="button"
@@ -210,8 +213,13 @@ export default function ProfilePageClient() {
   const [selectorError, setSelectorError] = useState<string | null>(null);
   const [addingHeroId, setAddingHeroId] = useState<number | null>(null);
   const [removingProfileHeroId, setRemovingProfileHeroId] = useState<string | null>(null);
-  const [heroLookupMap, setHeroLookupMap] = useState<Map<number, HeroLookupItem>>(new Map());
-  const [heroDetailsMap, setHeroDetailsMap] = useState<Map<number, HeroDetailsForRoster>>(new Map());
+  const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
+  const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
+  const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
+  const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
+  const [selectedHeroVariants, setSelectedHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
+  const [selectedHeroLoading, setSelectedHeroLoading] = useState(false);
+  const [selectedHeroError, setSelectedHeroError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) {
@@ -385,103 +393,147 @@ export default function ProfilePageClient() {
 
     let cancelled = false;
 
-    const loadHeroLookupsAndDetails = async () => {
+    const loadRosterHeroes = async () => {
       try {
-        const lookups = await apiJson<HeroLookupItem[]>(
-          `/api/v1/public/heroes/names?language=${heroLocale}`,
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        const lookupMap = new Map<number, HeroLookupItem>();
-        for (const lookup of lookups) {
-          lookupMap.set(lookup.id, lookup);
-        }
-        setHeroLookupMap(lookupMap);
-
-        const missingIds = uniqueHeroIds.filter(
-          (heroId) => lookupMap.has(heroId) && !heroDetailsMap.has(heroId),
-        );
-
+        const missingIds = uniqueHeroIds.filter((heroId) => !rosterHeroMap.has(heroId));
         if (missingIds.length === 0) {
           return;
         }
 
-        const detailEntries = await Promise.all(
-          missingIds.map(async (heroId) => {
-            const lookup = lookupMap.get(heroId);
-            if (!lookup) {
-              return null;
+        const unresolvedIds = new Set(missingIds);
+        let page = 0;
+        let hasNext = true;
+        const foundItems = new Map<number, PublicHeroCatalogItem>();
+
+        while (hasNext && unresolvedIds.size > 0) {
+          const params = new URLSearchParams({
+            page: String(page),
+            size: '100',
+            language: heroLocale,
+          });
+
+          const response = await apiJson<PublicHeroPageResponse>(`/api/v1/public/heroes?${params.toString()}`);
+
+          for (const item of response.items) {
+            if (unresolvedIds.has(item.id)) {
+              foundItems.set(item.id, item);
+              unresolvedIds.delete(item.id);
             }
-
-            try {
-              const details = await apiJson<HeroDetailsForRoster>(
-                `/api/v1/public/heroes/${lookup.slug}?language=${heroLocale}`,
-              );
-
-              return [heroId, details] as const;
-            } catch {
-              return [
-                heroId,
-                {
-                  id: lookup.id,
-                  slug: lookup.slug,
-                  name: lookup.name,
-                  previewUrl: null,
-                  imageUrl: null,
-                  element: null,
-                },
-              ] as const;
-            }
-          }),
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        setHeroDetailsMap((current) => {
-          const next = new Map(current);
-
-          for (const entry of detailEntries) {
-            if (!entry) {
-              continue;
-            }
-
-            next.set(entry[0], entry[1]);
           }
 
-          return next;
-        });
+          hasNext = response.hasNext;
+          page += 1;
+        }
+
+        if (!cancelled && foundItems.size > 0) {
+          setRosterHeroMap((current) => {
+            const next = new Map(current);
+            for (const [heroId, item] of foundItems.entries()) {
+              next.set(heroId, item);
+            }
+            return next;
+          });
+        }
       } catch {
-        // no-op, roster can still stay empty visually until data is available
+        // no-op, roster can still show fallback labels until data becomes available
       }
     };
 
-    void loadHeroLookupsAndDetails();
+    void loadRosterHeroes();
 
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated, heroDetailsMap, heroLocale, uniqueHeroIds]);
+  }, [apiJson, authenticated, heroLocale, rosterHeroMap, uniqueHeroIds]);
+
+  useEffect(() => {
+    if (!selectedHeroSlug) {
+      setSelectedHeroCard(null);
+      setSelectedHeroDetails(null);
+      setSelectedHeroVariants(null);
+      setSelectedHeroError(null);
+      setSelectedHeroLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSelectedHero = async () => {
+      setSelectedHeroLoading(true);
+      setSelectedHeroError(null);
+      setSelectedHeroCard(null);
+      setSelectedHeroDetails(null);
+      setSelectedHeroVariants(null);
+
+      try {
+        const response = await apiJson<PublicHeroVariantsItem>(
+          `/api/v1/public/heroes/${selectedHeroSlug}/variants?language=${heroLocale}`,
+        );
+
+        if (!cancelled) {
+          const currentHero = response.currentHero;
+          const rosterHero = rosterHeroMap.get(currentHero.id);
+
+          setSelectedHeroDetails(currentHero);
+          setSelectedHeroVariants(response);
+          setSelectedHeroCard({
+            id: currentHero.id,
+            slug: currentHero.slug,
+            name: currentHero.name,
+            imageUrl: currentHero.imageUrl ?? rosterHero?.imageUrl ?? null,
+            previewUrl: currentHero.previewUrl ?? rosterHero?.previewUrl ?? currentHero.imageUrl ?? rosterHero?.imageUrl ?? null,
+            elementName: currentHero.element?.name ?? rosterHero?.elementName ?? '',
+            rarityName: '',
+            rarityStars: currentHero.rarity?.stars ?? rosterHero?.rarityStars ?? 0,
+            heroClassName: currentHero.heroClass?.name ?? '',
+            manaSpeedName: currentHero.manaSpeed?.name ?? '',
+            familyName: currentHero.family?.name ?? null,
+            alphaTalentName: currentHero.alphaTalent?.name ?? null,
+            baseAttack: currentHero.baseAttack ?? null,
+            baseArmor: currentHero.baseArmor ?? null,
+            baseHp: currentHero.baseHp ?? null,
+          });
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError) {
+          setSelectedHeroError(error.message);
+        } else {
+          setSelectedHeroError(messages.profile.loadError);
+        }
+      } finally {
+        if (!cancelled) {
+          setSelectedHeroLoading(false);
+        }
+      }
+    };
+
+    void loadSelectedHero();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, heroLocale, messages.profile.loadError, rosterHeroMap, selectedHeroSlug]);
 
   const rosterCards = useMemo<RosterHeroCard[]>(() => {
     return profileHeroes.map((item) => {
-      const details = heroDetailsMap.get(item.heroId);
-      const lookup = heroLookupMap.get(item.heroId);
+      const hero = rosterHeroMap.get(item.heroId);
 
       return {
         profileHeroId: item.id,
         heroId: item.heroId,
-        slug: details?.slug ?? lookup?.slug ?? String(item.heroId),
-        name: details?.name ?? lookup?.name ?? `Hero #${item.heroId}`,
-        previewUrl: details?.previewUrl ?? details?.imageUrl ?? null,
-        elementName: details?.element?.name ?? null,
+        slug: hero?.slug ?? String(item.heroId),
+        name: hero?.name ?? `Hero #${item.heroId}`,
+        previewUrl: hero?.previewUrl ?? hero?.imageUrl ?? null,
+        elementName: hero?.elementName ?? null,
+        isCostume: hero?.isCostume === true,
+        costumeIndex: hero?.costumeIndex ?? null,
       };
     });
-  }, [heroDetailsMap, heroLookupMap, profileHeroes]);
+  }, [profileHeroes, rosterHeroMap]);
 
   const handleChange = (field: keyof ProfileFormState, value: string) => {
     setForm((current) => ({
@@ -545,6 +597,15 @@ export default function ProfilePageClient() {
         { heroId },
       );
 
+      const selectedHero = selectorResult?.items.find((item) => item.id === heroId) ?? null;
+      if (selectedHero) {
+        setRosterHeroMap((current) => {
+          const next = new Map(current);
+          next.set(heroId, selectedHero);
+          return next;
+        });
+      }
+
       setProfileHeroes((current) => [...current, response]);
       setHeroModalOpen(false);
     } catch (error) {
@@ -556,6 +617,14 @@ export default function ProfilePageClient() {
     } finally {
       setAddingHeroId(null);
     }
+  };
+
+  const handleOpenRosterHero = (slug: string) => {
+    setSelectedHeroSlug(slug);
+  };
+
+  const handleCloseSelectedHero = () => {
+    setSelectedHeroSlug(null);
   };
 
   const handleRemoveHero = async (profileHeroId: string) => {
@@ -815,6 +884,13 @@ export default function ProfilePageClient() {
                     name={hero.name}
                     previewUrl={hero.previewUrl}
                     elementName={hero.elementName}
+                    isCostume={hero.isCostume}
+                    costumeIndex={hero.costumeIndex}
+                    onClick={
+                      hero.slug === String(hero.heroId)
+                        ? undefined
+                        : () => handleOpenRosterHero(hero.slug)
+                    }
                     onRemove={
                       removingProfileHeroId === hero.profileHeroId
                         ? undefined
@@ -911,8 +987,13 @@ export default function ProfilePageClient() {
                           <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-[var(--foreground)]">
                             {hero.name}
                           </div>
-                          <div className="mt-1 text-xs text-[var(--foreground-soft)]">
-                            {hero.rarityStars}*
+                          <div className="mt-1 flex items-center gap-2 text-xs text-[var(--foreground-soft)]">
+                            <span>{hero.rarityStars}*</span>
+                            {hero.isCostume ? (
+                              <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
+                                {`C${hero.costumeIndex ?? '?'}`}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </button>
@@ -940,6 +1021,21 @@ export default function ProfilePageClient() {
           </div>
         </div>
       ) : null}
+
+      <PublicHeroDetailsModal
+        open={selectedHeroSlug !== null}
+        locale={heroLocale}
+        heroCard={selectedHeroCard}
+        loading={selectedHeroLoading}
+        error={selectedHeroError}
+        heroDetails={selectedHeroDetails}
+        heroVariants={selectedHeroVariants}
+        heroExpertOpinions={[]}
+        heroExpertOpinionsLoading={false}
+        heroExpertOpinionsError={null}
+        onClose={handleCloseSelectedHero}
+        onOpenRelatedHero={(slug) => setSelectedHeroSlug(slug)}
+      />
     </section>
   );
 }
