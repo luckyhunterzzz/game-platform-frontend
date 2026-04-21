@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
@@ -208,8 +208,10 @@ export default function ProfilePageClient() {
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorQuery, setSelectorQuery] = useState('');
   const [selectorPage, setSelectorPage] = useState(0);
+  const [selectorPageSize, setSelectorPageSize] = useState(18);
   const [selectorResult, setSelectorResult] = useState<PublicHeroPageResponse | null>(null);
   const [loadingSelector, setLoadingSelector] = useState(false);
+  const [loadingMoreSelector, setLoadingMoreSelector] = useState(false);
   const [selectorError, setSelectorError] = useState<string | null>(null);
   const [addingHeroId, setAddingHeroId] = useState<number | null>(null);
   const [removingProfileHeroId, setRemovingProfileHeroId] = useState<string | null>(null);
@@ -220,6 +222,9 @@ export default function ProfilePageClient() {
   const [selectedHeroVariants, setSelectedHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
   const [selectedHeroLoading, setSelectedHeroLoading] = useState(false);
   const [selectedHeroError, setSelectedHeroError] = useState<string | null>(null);
+  const selectorInputRef = useRef<HTMLInputElement | null>(null);
+  const selectorScrollRef = useRef<HTMLDivElement | null>(null);
+  const selectorScrollRestoreRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (authLoading) {
@@ -327,16 +332,45 @@ export default function ProfilePageClient() {
       return;
     }
 
+    const width = window.innerWidth;
+    const columns =
+      width >= 1280 ? 6
+      : width >= 1024 ? 4
+      : width >= 640 ? 3
+      : 2;
+    const availableHeight = Math.max(window.innerHeight - 320, 280);
+    const rows = Math.max(2, Math.floor(availableHeight / 180));
+    setSelectorPageSize(Math.min(36, Math.max(columns * rows, 12)));
+
+    const focusTimer = window.setTimeout(() => {
+      selectorInputRef.current?.focus();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
+  }, [heroModalOpen]);
+
+  useEffect(() => {
+    if (!heroModalOpen) {
+      return;
+    }
+
     let cancelled = false;
 
     const loadSelector = async () => {
-      setLoadingSelector(true);
+      const isAppending = selectorPage > 0;
+      if (isAppending) {
+        setLoadingMoreSelector(true);
+      } else {
+        setLoadingSelector(true);
+      }
       setSelectorError(null);
 
       try {
         const params = new URLSearchParams({
           page: String(selectorPage),
-          size: '18',
+          size: String(selectorPageSize),
           language: heroLocale,
         });
 
@@ -370,7 +404,11 @@ export default function ProfilePageClient() {
         }
       } finally {
         if (!cancelled) {
-          setLoadingSelector(false);
+          if (isAppending) {
+            setLoadingMoreSelector(false);
+          } else {
+            setLoadingSelector(false);
+          }
         }
       }
     };
@@ -380,7 +418,19 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, heroLocale, heroModalOpen, messages.profile.noHeroesFound, selectorPage, selectorQuery]);
+  }, [apiJson, heroLocale, heroModalOpen, messages.profile.noHeroesFound, selectorPage, selectorPageSize, selectorQuery]);
+
+  useEffect(() => {
+    if (selectorScrollRestoreRef.current === null) {
+      return;
+    }
+
+    selectorScrollRef.current?.scrollTo({
+      top: selectorScrollRestoreRef.current,
+      behavior: 'auto',
+    });
+    selectorScrollRestoreRef.current = null;
+  }, [selectorResult, loadingSelector]);
 
   const uniqueHeroIds = useMemo(() => {
     return Array.from(new Set(profileHeroes.map((item) => item.heroId)));
@@ -586,6 +636,18 @@ export default function ProfilePageClient() {
     setSelectorQuery('');
     setSelectorPage(0);
     setSelectorError(null);
+    setSelectorResult(null);
+    selectorScrollRestoreRef.current = 0;
+  };
+
+  const handleLoadMoreHeroes = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (loadingMoreSelector || loadingSelector || !selectorResult?.hasNext) {
+      return;
+    }
+
+    selectorScrollRestoreRef.current = selectorScrollRef.current?.scrollTop ?? 0;
+    event.currentTarget.blur();
+    setSelectorPage((current) => current + 1);
   };
 
   const handleAddHero = async (heroId: number) => {
@@ -746,7 +808,7 @@ export default function ProfilePageClient() {
       ) : null}
 
       {activeTab === 'info' ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6">
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2">
@@ -756,6 +818,7 @@ export default function ProfilePageClient() {
                 <input
                   value={profile?.email ?? ''}
                   disabled
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)] outline-none"
                 />
               </label>
@@ -768,6 +831,7 @@ export default function ProfilePageClient() {
                   value={form.currentGameNickname}
                   onChange={(event) => handleChange('currentGameNickname', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -780,6 +844,7 @@ export default function ProfilePageClient() {
                   value={form.firstName}
                   onChange={(event) => handleChange('firstName', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -792,6 +857,7 @@ export default function ProfilePageClient() {
                   value={form.lastName}
                   onChange={(event) => handleChange('lastName', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -808,6 +874,7 @@ export default function ProfilePageClient() {
                   value={form.telegramUsername}
                   onChange={(event) => handleChange('telegramUsername', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -820,6 +887,7 @@ export default function ProfilePageClient() {
                   value={form.vkUsername}
                   onChange={(event) => handleChange('vkUsername', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -832,6 +900,7 @@ export default function ProfilePageClient() {
                   value={form.discordUsername}
                   onChange={(event) => handleChange('discordUsername', event.target.value)}
                   maxLength={100}
+                  autoComplete="off"
                   className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </label>
@@ -913,12 +982,12 @@ export default function ProfilePageClient() {
 
       {heroModalOpen ? (
         <div
-          className="fixed inset-0 z-[80] overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[80] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setHeroModalOpen(false)}
         >
-          <div className="flex min-h-full items-center justify-center py-4">
+          <div className="flex h-full items-start justify-center py-4">
             <div
-              className="w-full max-w-5xl rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-5 flex items-center justify-between gap-4">
@@ -937,86 +1006,93 @@ export default function ProfilePageClient() {
 
               <div className="mb-5">
                 <input
+                  ref={selectorInputRef}
                   value={selectorSearch}
                   onChange={(event) => setSelectorSearch(event.target.value)}
                   placeholder={messages.profile.searchHeroes}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                 />
               </div>
 
-              {selectorError ? (
-                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                  {selectorError}
-                </div>
-              ) : null}
-
-              {loadingSelector ? (
-                <div className="flex min-h-[18rem] items-center justify-center">
-                  <div className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
-                    <LoaderCircle className="h-5 w-5 animate-spin text-cyan-400" />
-                    <span>{messages.profile.loadingHeroes}</span>
+              <div ref={selectorScrollRef} className="min-h-[20rem] flex-1 overflow-y-auto pr-1">
+                {selectorError ? (
+                  <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                    {selectorError}
                   </div>
-                </div>
-              ) : selectorResult && selectorResult.items.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                    {selectorResult.items.map((hero) => (
-                      <button
-                        key={`${hero.id}-${hero.slug}`}
-                        type="button"
-                        onClick={() => void handleAddHero(hero.id)}
-                        disabled={addingHeroId === hero.id}
-                        className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
-                          {hero.previewUrl || hero.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={hero.previewUrl ?? hero.imageUrl ?? ''}
-                              alt={hero.name}
-                              className="h-20 w-20 rounded-[14px] object-cover sm:h-24 sm:w-24"
-                            />
-                          ) : (
-                            <div className="flex h-20 w-20 items-center justify-center rounded-[14px] bg-[var(--surface-strong)] text-xs text-[var(--foreground-soft)] sm:h-24 sm:w-24">
-                              ?
-                            </div>
-                          )}
-                        </div>
+                ) : null}
 
-                        <div className="mt-3">
-                          <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-[var(--foreground)]">
-                            {hero.name}
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-xs text-[var(--foreground-soft)]">
-                            <span>{hero.rarityStars}*</span>
-                            {hero.isCostume ? (
-                              <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
-                                {`C${hero.costumeIndex ?? '?'}`}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {selectorResult.hasNext ? (
-                    <div className="mt-6 flex justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setSelectorPage((current) => current + 1)}
-                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                      >
-                        {messages.profile.loadMore}
-                      </button>
+                {loadingSelector && (!selectorResult || selectorResult.items.length === 0) ? (
+                  <div className="flex min-h-[18rem] items-center justify-center">
+                    <div className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                      <LoaderCircle className="h-5 w-5 animate-spin text-cyan-400" />
+                      <span>{messages.profile.loadingHeroes}</span>
                     </div>
-                  ) : null}
-                </>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
-                  {messages.profile.noHeroesFound}
-                </div>
-              )}
+                  </div>
+                ) : selectorResult && selectorResult.items.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                      {selectorResult.items.map((hero) => (
+                        <button
+                          key={`${hero.id}-${hero.slug}`}
+                          type="button"
+                          onClick={() => void handleAddHero(hero.id)}
+                          disabled={addingHeroId === hero.id}
+                          className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                            {hero.previewUrl || hero.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={hero.previewUrl ?? hero.imageUrl ?? ''}
+                                alt={hero.name}
+                                className="h-20 w-20 rounded-[14px] object-cover sm:h-24 sm:w-24"
+                              />
+                            ) : (
+                              <div className="flex h-20 w-20 items-center justify-center rounded-[14px] bg-[var(--surface-strong)] text-xs text-[var(--foreground-soft)] sm:h-24 sm:w-24">
+                                ?
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-[var(--foreground)]">
+                              {hero.name}
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 text-xs text-[var(--foreground-soft)]">
+                              <span>{hero.rarityStars}*</span>
+                              {hero.isCostume ? (
+                                <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
+                                  {`C${hero.costumeIndex ?? '?'}`}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectorResult.hasNext ? (
+                      <div className="mt-6 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={handleLoadMoreHeroes}
+                          disabled={loadingMoreSelector}
+                          className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                        >
+                          {loadingMoreSelector ? messages.profile.loadingHeroes : messages.profile.loadMore}
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.noHeroesFound}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
