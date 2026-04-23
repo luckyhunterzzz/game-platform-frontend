@@ -72,15 +72,28 @@ export type Messages = {
     cardProgressTitle: string;
     tabInfo: string;
     tabHeroes: string;
+    tabWar: string;
     heroesTitle: string;
     heroesEmpty: string;
     addHero: string;
     selectHero: string;
+    selectRosterHero: string;
     searchHeroes: string;
     loadMore: string;
     loadingHeroes: string;
     noHeroesFound: string;
     removeHero: string;
+    warTitle: string;
+    warUsed: string;
+    warUsedCount: string;
+    warTeam: string;
+    warEmpty: string;
+    warClearAll: string;
+    warClearTeam: string;
+    warSaving: string;
+    warSaveError: string;
+    warAvailableHeroes: string;
+    warNoAvailableHeroes: string;
   };
   heroDictionaries: {
     heroes: string;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -16,6 +16,9 @@ import type {
   PlayerProfileHeroResponse,
   PlayerProfileResponse,
   PlayerProfileUpdateRequest,
+  PlayerWarAttackTeamResponse,
+  PlayerWarAttackTeamsResponse,
+  PlayerWarAttackTeamsUpdateRequest,
 } from '@/lib/types/player-profile';
 
 type ProfileFormState = {
@@ -27,7 +30,7 @@ type ProfileFormState = {
   currentGameNickname: string;
 };
 
-type ProfileTab = 'info' | 'heroes';
+type ProfileTab = 'info' | 'heroes' | 'war';
 
 type HeroLocale = 'RU' | 'EN';
 type HeroRosterSortField = 'createdAt' | 'name' | 'rarity';
@@ -67,6 +70,54 @@ type RosterHeroCard = {
   isCostume: boolean;
   costumeIndex: number | null;
 };
+
+type WarSlotPickerState = {
+  teamIndex: number;
+  slot: number;
+} | null;
+
+function buildEmptyWarTeams(): PlayerWarAttackTeamResponse[] {
+  return Array.from({ length: 6 }, (_, teamIndex) => ({
+    id: `local-team-${teamIndex + 1}`,
+    teamIndex: teamIndex + 1,
+    slots: Array.from({ length: 5 }, (_, slotIndex) => ({
+      slot: slotIndex + 1,
+      playerProfileHeroId: null,
+    })),
+  }));
+}
+
+function normalizeWarTeams(teams: PlayerWarAttackTeamResponse[]): PlayerWarAttackTeamResponse[] {
+  const teamMap = new Map(teams.map((team) => [team.teamIndex, team]));
+
+  return Array.from({ length: 6 }, (_, teamIndex) => {
+    const currentTeam = teamMap.get(teamIndex + 1);
+    const slotMap = new Map(currentTeam?.slots.map((slot) => [slot.slot, slot]));
+
+    return {
+      id: currentTeam?.id ?? `local-team-${teamIndex + 1}`,
+      teamIndex: teamIndex + 1,
+      slots: Array.from({ length: 5 }, (_, slotIndex) => ({
+        slot: slotIndex + 1,
+        playerProfileHeroId: slotMap.get(slotIndex + 1)?.playerProfileHeroId ?? null,
+      })),
+    };
+  });
+}
+
+function buildWarTeamsPayload(
+  teams: PlayerWarAttackTeamResponse[],
+): PlayerWarAttackTeamsUpdateRequest {
+  return {
+    teams: teams.map((team) => ({
+      teamIndex: team.teamIndex,
+      slots: team.slots.map((slot) => ({
+        slot: slot.slot,
+        playerProfileHeroId: slot.playerProfileHeroId,
+      })),
+    })),
+  };
+}
 
 const emptyForm: ProfileFormState = {
   firstName: '',
@@ -190,6 +241,96 @@ function AddHeroTile({
   );
 }
 
+function WarHeroSlot({
+  hero,
+  label,
+  removeLabel,
+  compact,
+  onClick,
+  onRemove,
+}: {
+  hero: RosterHeroCard | null;
+  label: string;
+  removeLabel: string;
+  compact: boolean;
+  onClick: () => void;
+  onRemove?: () => void;
+}) {
+  if (!hero) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex aspect-[0.72] w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] text-center shadow-sm transition hover:bg-[var(--surface-hover)] ${
+          compact ? 'p-1.5 sm:p-2' : 'p-2 sm:p-3'
+        }`}
+      >
+        <div
+          className={`flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] ${
+            compact ? 'h-9 w-9 sm:h-12 sm:w-12' : 'h-12 w-12 sm:h-16 sm:w-16'
+          }`}
+        >
+          <Plus className={compact ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5 sm:h-6 sm:w-6'} />
+        </div>
+        <span className={compact ? 'text-[9px] font-semibold leading-tight sm:text-[10px]' : 'text-[10px] font-semibold leading-tight sm:text-xs'}>
+          {label}
+        </span>
+      </button>
+    );
+  }
+
+  const accentClass = getHeroPreviewAccentClass(hero.elementName);
+
+  return (
+    <div className="group relative">
+      {hero.isCostume ? (
+        <div className="pointer-events-none absolute left-1 top-1 z-10 rounded-full border border-cyan-400/35 bg-slate-950/85 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg">
+          {`C${hero.costumeIndex ?? '?'}`}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex aspect-[0.72] w-full flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-center shadow-sm transition hover:bg-[var(--surface-hover)] ${
+          compact ? 'gap-1 p-1.5 sm:p-2' : 'gap-1.5 p-2 sm:p-3'
+        }`}
+      >
+        <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
+          {hero.previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={hero.previewUrl}
+              alt={hero.name}
+              className={compact ? 'h-12 w-12 rounded-[12px] object-cover sm:h-16 sm:w-16' : 'h-14 w-14 rounded-[12px] object-cover sm:h-20 sm:w-20'}
+            />
+          ) : (
+            <div className={compact ? 'flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16' : 'flex h-14 w-14 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20'}>
+              ?
+            </div>
+          )}
+        </div>
+
+        <span className={compact ? 'line-clamp-2 min-h-[1.4rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.75rem] sm:text-[10px]' : 'line-clamp-2 min-h-[1.5rem] text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[2rem] sm:text-xs'}>
+          {hero.name}
+        </span>
+      </button>
+
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          title={removeLabel}
+          aria-label={removeLabel}
+          className="absolute right-1 top-1 rounded-full border border-red-500/30 bg-[var(--surface-strong)] p-1 text-red-400 opacity-100 shadow-lg transition hover:bg-red-500/10 sm:opacity-0 sm:group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ProfilePageClient() {
   const { authenticated, loading: authLoading, login } = useAuth();
   const { apiJson, apiPutJson, apiPostJson, apiDeleteVoid } = useApi();
@@ -222,6 +363,12 @@ export default function ProfilePageClient() {
   const [addingHeroId, setAddingHeroId] = useState<number | null>(null);
   const [removingProfileHeroId, setRemovingProfileHeroId] = useState<string | null>(null);
   const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
+  const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>(buildEmptyWarTeams);
+  const [loadingWarTeams, setLoadingWarTeams] = useState(false);
+  const [savingWarTeams, setSavingWarTeams] = useState(false);
+  const [warSaveError, setWarSaveError] = useState<string | null>(null);
+  const [warSlotPicker, setWarSlotPicker] = useState<WarSlotPickerState>(null);
+  const [warCompactMode, setWarCompactMode] = useState(false);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
   const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -231,6 +378,8 @@ export default function ProfilePageClient() {
   const selectorInputRef = useRef<HTMLInputElement | null>(null);
   const selectorScrollRef = useRef<HTMLDivElement | null>(null);
   const selectorScrollRestoreRef = useRef<number | null>(null);
+  const warSaveQueuedRef = useRef<PlayerWarAttackTeamsUpdateRequest | null>(null);
+  const warSaveInFlightRef = useRef(false);
 
   useEffect(() => {
     if (authLoading) {
@@ -319,6 +468,50 @@ export default function ProfilePageClient() {
   }, [apiJson, authenticated]);
 
   useEffect(() => {
+    if (!authenticated) {
+      setWarTeams(buildEmptyWarTeams());
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadWarTeams = async () => {
+      setLoadingWarTeams(true);
+      setWarSaveError(null);
+
+      try {
+        const response = await apiJson<PlayerWarAttackTeamsResponse>('/api/v1/profile/me/war-attack-teams');
+
+        if (!cancelled) {
+          setWarTeams(normalizeWarTeams(response.teams));
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setWarTeams(buildEmptyWarTeams());
+
+        if (error instanceof ApiError) {
+          setWarSaveError(error.message || messages.profile.warSaveError);
+        } else {
+          setWarSaveError(messages.profile.warSaveError);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingWarTeams(false);
+        }
+      }
+    };
+
+    void loadWarTeams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, authenticated, messages.profile.warSaveError]);
+
+  useEffect(() => {
     if (!heroModalOpen) {
       return;
     }
@@ -356,6 +549,19 @@ export default function ProfilePageClient() {
       window.clearTimeout(focusTimer);
     };
   }, [heroModalOpen]);
+
+  useEffect(() => {
+    const syncWarCompactMode = () => {
+      setWarCompactMode(window.innerWidth < 520);
+    };
+
+    syncWarCompactMode();
+    window.addEventListener('resize', syncWarCompactMode);
+
+    return () => {
+      window.removeEventListener('resize', syncWarCompactMode);
+    };
+  }, []);
 
   useEffect(() => {
     if (!heroModalOpen) {
@@ -624,6 +830,102 @@ export default function ProfilePageClient() {
     return sorted;
   }, [heroLocale, heroSortField, heroSortOrder, rosterCards]);
 
+  const rosterHeroCardMap = useMemo(() => {
+    return new Map(sortedRosterCards.map((hero) => [hero.profileHeroId, hero]));
+  }, [sortedRosterCards]);
+
+  const usedWarHeroIds = useMemo(() => {
+    return new Set(
+      warTeams.flatMap((team) =>
+        team.slots
+          .map((slot) => slot.playerProfileHeroId)
+          .filter((playerProfileHeroId): playerProfileHeroId is string => playerProfileHeroId !== null),
+      ),
+    );
+  }, [warTeams]);
+
+  const usedWarHeroCount = usedWarHeroIds.size;
+
+  const availableWarRosterCards = useMemo(() => {
+    if (!warSlotPicker) {
+      return [];
+    }
+
+    const selectedSlotHeroId =
+      warTeams
+        .find((team) => team.teamIndex === warSlotPicker.teamIndex)
+        ?.slots.find((slot) => slot.slot === warSlotPicker.slot)?.playerProfileHeroId ?? null;
+
+    return sortedRosterCards.filter(
+      (hero) => hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId),
+    );
+  }, [sortedRosterCards, usedWarHeroIds, warSlotPicker, warTeams]);
+
+  const queueWarTeamsSave = useCallback(async (nextTeams: PlayerWarAttackTeamResponse[]) => {
+    const payload = buildWarTeamsPayload(nextTeams);
+    warSaveQueuedRef.current = payload;
+
+    if (warSaveInFlightRef.current) {
+      return;
+    }
+
+    warSaveInFlightRef.current = true;
+    setSavingWarTeams(true);
+
+    try {
+      while (warSaveQueuedRef.current) {
+        const nextPayload = warSaveQueuedRef.current;
+        warSaveQueuedRef.current = null;
+
+        const response = await apiPutJson<PlayerWarAttackTeamsUpdateRequest, PlayerWarAttackTeamsResponse>(
+          '/api/v1/profile/me/war-attack-teams',
+          nextPayload,
+        );
+
+        setWarTeams(normalizeWarTeams(response.teams));
+        setWarSaveError(null);
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarSaveError(error.message || messages.profile.warSaveError);
+      } else {
+        setWarSaveError(messages.profile.warSaveError);
+      }
+    } finally {
+      warSaveInFlightRef.current = false;
+      setSavingWarTeams(false);
+    }
+  }, [apiPutJson, messages.profile.warSaveError]);
+
+  useEffect(() => {
+    if (loadingProfileHeroes || loadingWarTeams) {
+      return;
+    }
+
+    const validProfileHeroIds = new Set(profileHeroes.map((hero) => hero.id));
+    let changed = false;
+
+    const sanitizedTeams = warTeams.map((team) => ({
+      ...team,
+      slots: team.slots.map((slot) => {
+        if (slot.playerProfileHeroId && !validProfileHeroIds.has(slot.playerProfileHeroId)) {
+          changed = true;
+          return {
+            ...slot,
+            playerProfileHeroId: null,
+          };
+        }
+
+        return slot;
+      }),
+    }));
+
+    if (changed) {
+      setWarTeams(sanitizedTeams);
+      void queueWarTeamsSave(sanitizedTeams);
+    }
+  }, [loadingProfileHeroes, loadingWarTeams, profileHeroes, queueWarTeamsSave, warTeams]);
+
   const handleChange = (field: keyof ProfileFormState, value: string) => {
     setForm((current) => ({
       ...current,
@@ -689,6 +991,85 @@ export default function ProfilePageClient() {
     setSelectorPage((current) => current + 1);
   };
 
+  const openWarSlotPicker = (teamIndex: number, slot: number) => {
+    setWarSlotPicker({
+      teamIndex,
+      slot,
+    });
+    setSaveError(null);
+    setWarSaveError(null);
+  };
+
+  const handleAssignWarHero = async (profileHeroId: string) => {
+    if (!warSlotPicker) {
+      return;
+    }
+
+    const nextTeams = warTeams.map((team) => {
+      if (team.teamIndex !== warSlotPicker.teamIndex) {
+        return team;
+      }
+
+      return {
+        ...team,
+        slots: team.slots.map((slot) =>
+          slot.slot === warSlotPicker.slot
+            ? { ...slot, playerProfileHeroId: profileHeroId }
+            : slot,
+        ),
+      };
+    });
+
+    setWarTeams(nextTeams);
+    setWarSlotPicker(null);
+    await queueWarTeamsSave(nextTeams);
+  };
+
+  const handleClearWarSlot = async (teamIndex: number, slotIndex: number) => {
+    const nextTeams = warTeams.map((team) => {
+      if (team.teamIndex !== teamIndex) {
+        return team;
+      }
+
+      return {
+        ...team,
+        slots: team.slots.map((slot) =>
+          slot.slot === slotIndex
+            ? { ...slot, playerProfileHeroId: null }
+            : slot,
+        ),
+      };
+    });
+
+    setWarTeams(nextTeams);
+    await queueWarTeamsSave(nextTeams);
+  };
+
+  const handleClearWarTeam = async (teamIndex: number) => {
+    const nextTeams = warTeams.map((team) => {
+      if (team.teamIndex !== teamIndex) {
+        return team;
+      }
+
+      return {
+        ...team,
+        slots: team.slots.map((slot) => ({
+          ...slot,
+          playerProfileHeroId: null,
+        })),
+      };
+    });
+
+    setWarTeams(nextTeams);
+    await queueWarTeamsSave(nextTeams);
+  };
+
+  const handleClearAllWarTeams = async () => {
+    const nextTeams = normalizeWarTeams(buildEmptyWarTeams());
+    setWarTeams(nextTeams);
+    await queueWarTeamsSave(nextTeams);
+  };
+
   const handleAddHero = async (heroId: number) => {
     setAddingHeroId(heroId);
 
@@ -734,6 +1115,16 @@ export default function ProfilePageClient() {
     try {
       await apiDeleteVoid(`/api/v1/profile/me/heroes/${profileHeroId}`);
       setProfileHeroes((current) => current.filter((item) => item.id !== profileHeroId));
+      const nextTeams = warTeams.map((team) => ({
+        ...team,
+        slots: team.slots.map((slot) =>
+          slot.playerProfileHeroId === profileHeroId
+            ? { ...slot, playerProfileHeroId: null }
+            : slot,
+        ),
+      }));
+      setWarTeams(nextTeams);
+      await queueWarTeamsSave(nextTeams);
     } catch (error) {
       if (error instanceof ApiError) {
         setSaveError(error.message || messages.profile.saveError);
@@ -825,6 +1216,17 @@ export default function ProfilePageClient() {
           }`}
         >
           {messages.profile.tabHeroes}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('war')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === 'war'
+              ? 'bg-cyan-400/10 text-cyan-300'
+              : 'text-[var(--foreground-soft)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          {messages.profile.tabWar}
         </button>
       </div>
 
@@ -963,7 +1365,7 @@ export default function ProfilePageClient() {
             </button>
           </div>
         </form>
-      ) : (
+      ) : activeTab === 'heroes' ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
             <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1043,6 +1445,113 @@ export default function ProfilePageClient() {
                   {messages.profile.heroesEmpty}
                 </p>
               ) : null}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold text-[var(--foreground)]">
+                {messages.profile.warTitle}
+              </h2>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm text-[var(--foreground-soft)] sm:gap-3">
+                  <span className="font-medium text-[var(--foreground)]">{messages.profile.warUsed}:</span>
+                  <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
+                    {messages.profile.warUsedCount.replace('{used}', String(usedWarHeroCount))}
+                  </span>
+                  {savingWarTeams ? (
+                    <span className="inline-flex min-w-0 items-center gap-2 text-[11px] text-[var(--foreground-muted)] sm:text-xs">
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+                      {messages.profile.warSaving}
+                    </span>
+                  ) : null}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleClearAllWarTeams()}
+                  disabled={savingWarTeams || usedWarHeroCount === 0}
+                  title={messages.profile.warClearAll}
+                  aria-label={messages.profile.warClearAll}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Eraser className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {warSaveError ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {warSaveError}
+            </div>
+          ) : null}
+
+          {loadingWarTeams || loadingProfileHeroes ? (
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm backdrop-blur-sm">
+              <div className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                <LoaderCircle className="h-5 w-5 animate-spin text-cyan-400" />
+                <span>{messages.profile.loadingHeroes}</span>
+              </div>
+            </div>
+          ) : sortedRosterCards.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--foreground-soft)] shadow-sm backdrop-blur-sm">
+              {messages.profile.warEmpty}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {warTeams.map((team) => (
+                <div
+                  key={team.teamIndex}
+                  className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm sm:p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
+                      {`${messages.profile.warTeam} ${team.teamIndex}`}
+                    </h3>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleClearWarTeam(team.teamIndex)}
+                      title={messages.profile.warClearTeam}
+                      aria-label={messages.profile.warClearTeam}
+                      disabled={savingWarTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Eraser className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
+                    {team.slots.map((slot) => {
+                      const hero = slot.playerProfileHeroId ? rosterHeroCardMap.get(slot.playerProfileHeroId) ?? null : null;
+
+                      return (
+                        <WarHeroSlot
+                          key={`${team.teamIndex}-${slot.slot}`}
+                          hero={hero}
+                          compact={warCompactMode}
+                          label={messages.profile.addHero}
+                          removeLabel={messages.profile.removeHero}
+                          onClick={
+                            hero && hero.slug !== String(hero.heroId)
+                              ? () => handleOpenRosterHero(hero.slug)
+                              : () => openWarSlotPicker(team.teamIndex, slot.slot)
+                          }
+                          onRemove={
+                            hero
+                              ? () => void handleClearWarSlot(team.teamIndex, slot.slot)
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1158,6 +1667,88 @@ export default function ProfilePageClient() {
                 ) : (
                   <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
                     {messages.profile.noHeroesFound}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warSlotPicker ? (
+        <div
+          className="fixed inset-0 z-[90] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarSlotPicker(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                    {messages.profile.selectRosterHero}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warAvailableHeroes}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWarSlotPicker(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
+                {availableWarRosterCards.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+                    {availableWarRosterCards.map((hero) => (
+                      <button
+                        key={hero.profileHeroId}
+                        type="button"
+                        onClick={() => void handleAssignWarHero(hero.profileHeroId)}
+                        disabled={savingWarTeams}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                          {hero.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={hero.previewUrl}
+                              alt={hero.name}
+                              className="h-16 w-16 rounded-[12px] object-cover sm:h-20 sm:w-20"
+                            />
+                          ) : (
+                            <div className="flex h-16 w-16 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20">
+                              ?
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-2 space-y-1">
+                          <div className="line-clamp-2 min-h-[2rem] text-[11px] font-semibold text-[var(--foreground)] sm:text-xs">
+                            {hero.name}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-soft)] sm:text-xs">
+                            <span>{hero.rarityStars}*</span>
+                            {hero.isCostume ? (
+                              <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
+                                {`C${hero.costumeIndex ?? '?'}`}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warNoAvailableHeroes}
                   </div>
                 )}
               </div>
