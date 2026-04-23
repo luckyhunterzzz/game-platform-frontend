@@ -30,3 +30,32 @@ export type PlayerProfileHeroResponse = {
   heroId: number;
   createdAt: string;
 };
+
+export type PlayerWarAttackSlotResponse = {
+  slot: number;
+  playerProfileHeroId: string | null;
+};
+
+export type PlayerWarAttackTeamResponse = {
+  id: string;
+  teamIndex: number;
+  slots: PlayerWarAttackSlotResponse[];
+};
+
+export type PlayerWarAttackTeamsResponse = {
+  teams: PlayerWarAttackTeamResponse[];
+};
+
+export type PlayerWarAttackSlotUpdateRequest = {
+  slot: number;
+  playerProfileHeroId: string | null;
+};
+
+export type PlayerWarAttackTeamUpdateRequest = {
+  teamIndex: number;
+  slots: PlayerWarAttackSlotUpdateRequest[];
+};
+
+export type PlayerWarAttackTeamsUpdateRequest = {
+  teams: PlayerWarAttackTeamUpdateRequest[];
+};
