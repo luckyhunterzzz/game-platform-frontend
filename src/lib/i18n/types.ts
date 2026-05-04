@@ -27,6 +27,7 @@ export type Messages = {
     navEvents: string;
     navGuides: string;
     navAlliances: string;
+    navJointPurchases: string;
   };
   heroes: {
     pageTitle: string;
@@ -94,6 +95,36 @@ export type Messages = {
     warSaveError: string;
     warAvailableHeroes: string;
     warNoAvailableHeroes: string;
+  };
+  jointPurchases: {
+    pageTitle: string;
+    pageSubtitle: string;
+    organizerBadge: string;
+    createOffer: string;
+    createOfferHint: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    organizerEmptyDescription: string;
+    createModalTitle: string;
+    close: string;
+    screenshotLabel: string;
+    screenshotHint: string;
+    screenshotEmpty: string;
+    titleLabel: string;
+    titlePlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    allianceNameLabel: string;
+    allianceNamePlaceholder: string;
+    requiredParticipantsLabel: string;
+    reserveParticipantsLabel: string;
+    plannedStartLabel: string;
+    plannedEndLabel: string;
+    autoApproveLabel: string;
+    autoApproveHint: string;
+    cancel: string;
+    create: string;
+    draftHint: string;
   };
   heroDictionaries: {
     heroes: string;

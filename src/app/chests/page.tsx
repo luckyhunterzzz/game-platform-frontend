@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
+import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { chestColumns, chestRows } from '@/lib/static/guides/chest-table';
 
@@ -36,6 +37,7 @@ const hardLine = (value: string, hardLabel: string) => `${value} (${hardLabel})`
 
 export default function ChestsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
 
   const t = useMemo(() => {
@@ -437,6 +439,17 @@ export default function ChestsPage() {
                   {t.backAlliances}
                 </Link>
               </li>
+              {authenticated ? (
+                <li>
+                  <Link
+                    href="/joint-purchases"
+                    onClick={() => setSidebarOpen(false)}
+                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                  >
+                    {messages.home.navJointPurchases}
+                  </Link>
+                </li>
+              ) : null}
             </ul>
           </div>
 

@@ -5,10 +5,12 @@ import { useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
 import ProfilePageClient from '@/components/profile/ProfilePageClient';
+import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 export default function ProfilePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const { authenticated } = useAuth();
   const { messages } = useI18n();
 
   const navigateHome = () => {
@@ -56,6 +58,17 @@ export default function ProfilePage() {
                   {messages.navbar.profile}
                 </Link>
               </li>
+              {authenticated ? (
+                <li>
+                  <Link
+                    href="/joint-purchases"
+                    onClick={() => setSidebarOpen(false)}
+                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                  >
+                    {messages.home.navJointPurchases}
+                  </Link>
+                </li>
+              ) : null}
             </ul>
           </div>
 
