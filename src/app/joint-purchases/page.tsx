@@ -1,21 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
+
+import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { Navbar } from '@/components/Navbar';
-import HeroesPageClient from '@/components/heroes/HeroesPageClient';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
-export default function HeroesPage() {
+export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const { authenticated } = useAuth();
   const { messages } = useI18n();
+  const { authenticated, loading, login } = useAuth();
 
   const navigateHome = () => {
     setSidebarOpen(false);
     window.location.assign('/');
   };
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
@@ -48,17 +54,17 @@ export default function HeroesPage() {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
-              {authenticated ? (
-                <li>
+              <li>
+                {authenticated ? (
                   <Link
                     href="/joint-purchases"
                     onClick={() => setSidebarOpen(false)}
-                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                    className="block text-[var(--foreground)] transition hover:text-cyan-300"
                   >
                     {messages.home.navJointPurchases}
                   </Link>
-                </li>
-              ) : null}
+                ) : null}
+              </li>
             </ul>
           </div>
 
@@ -69,9 +75,39 @@ export default function HeroesPage() {
         </div>
       )}
 
-      <Suspense fallback={null}>
-        <HeroesPageClient />
-      </Suspense>
+      <main className="flex flex-1 flex-col items-center px-4 py-10">
+        {authenticated ? (
+          <JointPurchasesPageClient />
+        ) : (
+          <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center">
+            <div className="w-full rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.18)]">
+              <h1 className="text-3xl font-black text-[var(--foreground)]">
+                {messages.profile.signInTitle}
+              </h1>
+              <p className="mt-4 text-sm leading-7 text-[var(--foreground-soft)]">
+                {messages.profile.signInDescription}
+              </p>
+
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={login}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  {messages.navbar.login}
+                </button>
+                <button
+                  type="button"
+                  onClick={navigateHome}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  {messages.home.menuPageOne}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
