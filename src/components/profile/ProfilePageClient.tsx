@@ -139,6 +139,24 @@ function toFormState(profile: PlayerProfileResponse): ProfileFormState {
   };
 }
 
+function countFilledContacts(form: ProfileFormState): number {
+  let filledContacts = 0;
+
+  if (form.telegramUsername.trim()) {
+    filledContacts += 1;
+  }
+
+  if (form.vkUsername.trim()) {
+    filledContacts += 1;
+  }
+
+  if (form.discordUsername.trim()) {
+    filledContacts += 1;
+  }
+
+  return filledContacts;
+}
+
 function HeroPreviewTile({
   name,
   previewUrl,
@@ -937,6 +955,24 @@ export default function ProfilePageClient() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!form.currentGameNickname.trim()) {
+      setSaveError(
+        locale === 'ru'
+          ? 'Игровой ник обязателен.'
+          : 'Game nickname is required.',
+      );
+      return;
+    }
+
+    if (countFilledContacts(form) < 2) {
+      setSaveError(
+        locale === 'ru'
+          ? 'Нужно заполнить минимум 2 из 3 контактов: Telegram, VK, Discord.'
+          : 'Fill at least 2 of 3 contact channels: Telegram, VK, Discord.',
+      );
+      return;
+    }
 
     const payload: PlayerProfileUpdateRequest = {
       firstName: form.firstName,
