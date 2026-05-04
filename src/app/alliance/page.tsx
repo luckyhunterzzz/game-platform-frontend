@@ -3,19 +3,24 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import Link from 'next/link';
+import type { ComponentType } from 'react';
+import { UsersRound } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import PublicationsSection from '@/components/publications/PublicationsSection';
+import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 type QuickLinkItem = {
   label: string;
   href: string;
-  imageSrc: string;
+  imageSrc?: string;
+  icon?: ComponentType<{ className?: string }>;
   imageClassName?: string;
 };
 
 export default function AlliancePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
 
   const quickLinks: QuickLinkItem[] = [
@@ -32,6 +37,9 @@ export default function AlliancePage() {
       imageSrc: '/brand-dragon.png',
       imageClassName: 'h-11 w-11',
     },
+    ...(authenticated
+      ? [{ label: messages.home.navJointPurchases, href: '/joint-purchases', icon: UsersRound }]
+      : []),
   ];
 
   return (
@@ -62,6 +70,17 @@ export default function AlliancePage() {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
+              {authenticated ? (
+                <li>
+                  <Link
+                    href="/joint-purchases"
+                    onClick={() => setSidebarOpen(false)}
+                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                  >
+                    {messages.home.navJointPurchases}
+                  </Link>
+                </li>
+              ) : null}
             </ul>
           </div>
 
@@ -81,13 +100,17 @@ export default function AlliancePage() {
               className="group flex w-20 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)] sm:w-32 sm:p-4"
             >
               <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition-transform group-hover:scale-105 sm:mb-3 sm:h-16 sm:w-16">
-                <Image
-                  src={item.imageSrc}
-                  alt={item.label}
-                  width={64}
-                  height={64}
-                  className={item.imageClassName ?? 'h-9 w-9 object-contain sm:h-12 sm:w-12'}
-                />
+                {item.icon ? (
+                  <item.icon className="h-6 w-6 text-cyan-300 sm:h-8 sm:w-8" />
+                ) : (
+                  <Image
+                    src={item.imageSrc ?? '/brand-dragon.png'}
+                    alt={item.label}
+                    width={64}
+                    height={64}
+                    className={item.imageClassName ?? 'h-9 w-9 object-contain sm:h-12 sm:w-12'}
+                  />
+                )}
               </div>
 
               <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
