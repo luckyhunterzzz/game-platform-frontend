@@ -39,6 +39,7 @@ type CreateOfferFormState = {
   title: string;
   description: string;
   allianceName: string;
+  contactGroup: string;
   requiredParticipants: number;
   reserveParticipants: number;
   plannedStartAt: string;
@@ -62,6 +63,7 @@ const initialCreateForm: CreateOfferFormState = {
   title: '',
   description: '',
   allianceName: '',
+  contactGroup: '',
   requiredParticipants: 29,
   reserveParticipants: 3,
   plannedStartAt: '',
@@ -467,6 +469,11 @@ export default function JointPurchasesPageClient() {
 
   const allianceNameHiddenLabel =
     locale === 'ru' ? 'Скрыто до готовности закупки' : 'Hidden until purchase is ready';
+  const contactGroupLabel = locale === 'ru' ? 'Группа для связи' : 'Contact group';
+  const contactGroupHiddenLabel =
+    locale === 'ru'
+      ? 'Доступно после подтверждения в основной состав'
+      : 'Visible after approval to the main roster';
   const offersActiveDescription =
     locale === 'ru'
       ? 'Ниже уже есть активные офферы. Можно сразу переходить к нужному сценарию.'
@@ -807,6 +814,7 @@ export default function JointPurchasesPageClient() {
         title: normalizeText(createOfferForm.title),
         description: normalizeText(createOfferForm.description),
         allianceName: normalizeText(createOfferForm.allianceName),
+        contactGroup: normalizeText(createOfferForm.contactGroup),
         screenshotBucket: createOfferScreenshot?.bucket ?? null,
         screenshotObjectKey: createOfferScreenshot?.objectKey ?? null,
         requiredParticipants: createOfferForm.requiredParticipants,
@@ -920,6 +928,17 @@ export default function JointPurchasesPageClient() {
     }
 
     return allianceNameHiddenLabel;
+  };
+
+  const getContactGroupLabel = (offer: JointPurchaseOffer, organizerView: boolean) => {
+    const isOwnOffer = Boolean(userId && offer.organizerUserId === userId);
+    const isMainParticipant = offer.currentUserAssignedParticipationType === 'MAIN';
+
+    if (organizerView || isOwnOffer || isMainParticipant) {
+      return offer.contactGroup;
+    }
+
+    return contactGroupHiddenLabel;
   };
 
   const getParticipationTypeLabel = (participationType?: ParticipationType | null) => {
@@ -1277,6 +1296,12 @@ export default function JointPurchasesPageClient() {
             <div className="text-xs uppercase tracking-[0.18em]">{copyText.allianceNameLabel}</div>
             <div className="mt-1 text-base font-semibold text-[var(--foreground)]">
               {getAllianceNameLabel(offer, organizerView)}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+            <div className="text-xs uppercase tracking-[0.18em]">{contactGroupLabel}</div>
+            <div className="mt-1 text-base font-semibold text-[var(--foreground)]">
+              {getContactGroupLabel(offer, organizerView)}
             </div>
           </div>
         </div>
@@ -1849,6 +1874,15 @@ export default function JointPurchasesPageClient() {
                     <input
                       value={createOfferForm.allianceName}
                       onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, allianceName: event.target.value }))}
+                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-[var(--foreground)]">{contactGroupLabel}</span>
+                    <input
+                      value={createOfferForm.contactGroup}
+                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, contactGroup: event.target.value }))}
                       className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                     />
                   </label>

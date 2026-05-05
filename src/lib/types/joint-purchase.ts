@@ -24,6 +24,7 @@ export type JointPurchaseOffer = {
   title: string;
   description: string | null;
   allianceName: string;
+  contactGroup: string;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   screenshotUrl: string | null;
@@ -92,6 +93,7 @@ export type CreateJointPurchaseOfferRequest = {
   title: string;
   description: string;
   allianceName: string;
+  contactGroup: string;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   requiredParticipants: number;
