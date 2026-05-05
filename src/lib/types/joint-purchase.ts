@@ -25,6 +25,11 @@ export type JointPurchaseOffer = {
   description: string | null;
   allianceName: string;
   contactGroup: string;
+  showOrganizerContacts: boolean;
+  organizerGameNickname: string | null;
+  organizerTelegramUsername: string | null;
+  organizerVkUsername: string | null;
+  organizerDiscordUsername: string | null;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   screenshotUrl: string | null;
@@ -94,6 +99,11 @@ export type CreateJointPurchaseOfferRequest = {
   description: string;
   allianceName: string;
   contactGroup: string;
+  showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   requiredParticipants: number;

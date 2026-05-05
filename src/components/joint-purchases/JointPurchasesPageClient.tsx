@@ -40,6 +40,11 @@ type CreateOfferFormState = {
   description: string;
   allianceName: string;
   contactGroup: string;
+  showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
   requiredParticipants: number;
   reserveParticipants: number;
   plannedStartAt: string;
@@ -66,6 +71,11 @@ const initialCreateForm: CreateOfferFormState = {
   description: '',
   allianceName: '',
   contactGroup: '',
+  showOrganizerContacts: false,
+  showOrganizerGameNickname: false,
+  showOrganizerTelegram: false,
+  showOrganizerVk: false,
+  showOrganizerDiscord: false,
   requiredParticipants: 29,
   reserveParticipants: 3,
   plannedStartAt: '',
@@ -307,7 +317,7 @@ export default function JointPurchasesPageClient() {
   const [applyModalError, setApplyModalError] = useState<string | null>(null);
   const [bulkEmailModalError, setBulkEmailModalError] = useState<string | null>(null);
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, FeedbackDraft>>({});
-  const [organizerProfileStatus, setOrganizerProfileStatus] = useState<PlayerProfileResponse['status'] | null>(null);
+  const [organizerProfile, setOrganizerProfile] = useState<PlayerProfileResponse | null>(null);
   const [bulkEmailForm, setBulkEmailForm] = useState<BulkEmailFormState>(initialBulkEmailForm);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
 
@@ -524,6 +534,15 @@ export default function JointPurchasesPageClient() {
     locale === 'ru'
       ? 'Доступно после подтверждения в основной состав'
       : 'Visible after approval to the main roster';
+  const organizerContactsToggleLabel =
+    locale === 'ru' ? 'Показывать контакты организатора' : 'Show organizer contacts';
+  const organizerContactsSectionLabel =
+    locale === 'ru' ? 'Контакты организатора' : 'Organizer contacts';
+  const organizerNicknameLabel =
+    locale === 'ru' ? 'Игровой никнейм' : 'Game nickname';
+  const telegramLabel = 'Telegram';
+  const vkLabel = 'VK';
+  const discordLabel = 'Discord';
   const offersActiveDescription =
     locale === 'ru'
       ? 'Ниже уже есть активные офферы. Можно сразу переходить к нужному сценарию.'
@@ -549,7 +568,7 @@ export default function JointPurchasesPageClient() {
   );
   const organizerHasOffers = activeOrganizerOffers.length > 0;
   const shouldShowOrganizerCreate = isOrganizer && activeOrganizerOffers.length === 0;
-  const organizerCanCreateOffer = !isContractorOnlyOrganizer || organizerProfileStatus === 'COMPLETE';
+  const organizerCanCreateOffer = !isContractorOnlyOrganizer || organizerProfile?.status === 'COMPLETE';
 
   const selectedOrganizerOffer = useMemo(
     () => activeOrganizerOffers.find((offer) => offer.id === selectedOrganizerOfferId) ?? null,
@@ -704,13 +723,13 @@ export default function JointPurchasesPageClient() {
   };
 
   const loadOrganizerProfileStatus = async () => {
-    if (!isContractorOnlyOrganizer) {
-      setOrganizerProfileStatus(null);
+    if (!isOrganizer) {
+      setOrganizerProfile(null);
       return;
     }
 
     const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me');
-    setOrganizerProfileStatus(response.status);
+    setOrganizerProfile(response);
   };
 
   const loadOrganizerOffers = async (preserveSelection = true) => {
@@ -856,6 +875,21 @@ export default function JointPurchasesPageClient() {
   };
 
   const handleCreateOffer = async () => {
+    if (
+      createOfferForm.showOrganizerContacts &&
+      !createOfferForm.showOrganizerGameNickname &&
+      !createOfferForm.showOrganizerTelegram &&
+      !createOfferForm.showOrganizerVk &&
+      !createOfferForm.showOrganizerDiscord
+    ) {
+      setCreateModalError(
+        locale === 'ru'
+          ? 'Выбери хотя бы один контакт организатора для показа в оффере.'
+          : 'Select at least one organizer contact to show in the offer.',
+      );
+      return;
+    }
+
     setSubmittingCreate(true);
     setPageError(null);
     setPageSuccess(null);
@@ -867,6 +901,11 @@ export default function JointPurchasesPageClient() {
         description: normalizeText(createOfferForm.description),
         allianceName: normalizeText(createOfferForm.allianceName),
         contactGroup: normalizeText(createOfferForm.contactGroup),
+        showOrganizerContacts: createOfferForm.showOrganizerContacts,
+        showOrganizerGameNickname: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerGameNickname,
+        showOrganizerTelegram: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerTelegram,
+        showOrganizerVk: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerVk,
+        showOrganizerDiscord: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerDiscord,
         screenshotBucket: createOfferScreenshot?.bucket ?? null,
         screenshotObjectKey: createOfferScreenshot?.objectKey ?? null,
         requiredParticipants: createOfferForm.requiredParticipants,
@@ -1051,6 +1090,40 @@ export default function JointPurchasesPageClient() {
         {assignedLabel ? (
           <div className="mt-1 text-[var(--foreground-soft)]">{assignedLabel}</div>
         ) : null}
+      </div>
+    );
+  };
+
+  const renderOrganizerContacts = (offer: JointPurchaseOffer) => {
+    const items = [
+      offer.organizerGameNickname
+        ? { label: organizerNicknameLabel, value: offer.organizerGameNickname }
+        : null,
+      offer.organizerTelegramUsername
+        ? { label: telegramLabel, value: `@${normalizeText(offer.organizerTelegramUsername).replace(/^@/, '')}` }
+        : null,
+      offer.organizerVkUsername
+        ? { label: vkLabel, value: offer.organizerVkUsername }
+        : null,
+      offer.organizerDiscordUsername
+        ? { label: discordLabel, value: offer.organizerDiscordUsername }
+        : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>;
+
+    if (!offer.showOrganizerContacts || items.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+        <div className="text-xs uppercase tracking-[0.18em]">{organizerContactsSectionLabel}</div>
+        <div className="mt-2 grid gap-2">
+          {items.map((item) => (
+            <div key={item.label}>
+              <span className="text-[var(--foreground)]">{item.label}:</span> {item.value}
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -1395,6 +1468,7 @@ export default function JointPurchasesPageClient() {
         </div>
 
         {renderCurrentUserStatus(offer, organizerView)}
+        {renderOrganizerContacts(offer)}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {organizerView ? (
@@ -1969,6 +2043,95 @@ export default function JointPurchasesPageClient() {
                       className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                     />
                   </label>
+
+                  <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={createOfferForm.showOrganizerContacts}
+                        onChange={(event) =>
+                          setCreateOfferForm((prev) => ({
+                            ...prev,
+                            showOrganizerContacts: event.target.checked,
+                          }))
+                        }
+                        className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface-strong)]"
+                      />
+                      <span className="text-sm text-[var(--foreground)]">{organizerContactsToggleLabel}</span>
+                    </label>
+
+                    {createOfferForm.showOrganizerContacts ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {organizerProfile?.currentGameNickname ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerGameNickname}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerGameNickname: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{organizerNicknameLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.telegramUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerTelegram}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerTelegram: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{telegramLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.vkUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerVk}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerVk: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{vkLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.discordUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerDiscord}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerDiscord: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{discordLabel}</span>
+                          </label>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.requiredParticipantsLabel}</span>
