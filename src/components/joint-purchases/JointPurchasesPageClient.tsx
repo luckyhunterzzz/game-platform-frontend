@@ -170,6 +170,28 @@ function buildTelegramHref(value?: string | null): string | null {
   return `https://t.me/${handle}`;
 }
 
+function getCooldownRemainingMs(nextAllowedAt?: string | null): number {
+  if (!nextAllowedAt) {
+    return 0;
+  }
+
+  const nextAllowedTimestamp = new Date(nextAllowedAt).getTime();
+
+  if (Number.isNaN(nextAllowedTimestamp)) {
+    return 0;
+  }
+
+  return Math.max(0, nextAllowedTimestamp - Date.now());
+}
+
+function formatCooldownRemaining(ms: number, locale: 'ru' | 'en'): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return locale === 'ru' ? `${minutes} мин ${seconds} сек` : `${minutes} min ${seconds} sec`;
+}
+
 function buildEmptyFeedbackDraft(): FeedbackDraft {
   return {
     result: 'SUCCESS',
@@ -320,6 +342,7 @@ export default function JointPurchasesPageClient() {
   const [organizerProfile, setOrganizerProfile] = useState<PlayerProfileResponse | null>(null);
   const [bulkEmailForm, setBulkEmailForm] = useState<BulkEmailFormState>(initialBulkEmailForm);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
   const isOrganizer = useMemo(
     () => roles.some((role) => ORGANIZER_ROLES.has(role)),
@@ -327,6 +350,14 @@ export default function JointPurchasesPageClient() {
   );
   const isAdminOrganizer = roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin');
   const isContractorOnlyOrganizer = roles.includes('ROLE_contractor') && !isAdminOrganizer;
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCooldownNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (!imagePreview) {
@@ -574,6 +605,15 @@ export default function JointPurchasesPageClient() {
     () => activeOrganizerOffers.find((offer) => offer.id === selectedOrganizerOfferId) ?? null,
     [activeOrganizerOffers, selectedOrganizerOfferId],
   );
+  const selectedOrganizerOfferCooldownMs = selectedOrganizerOffer
+    ? Math.max(
+        0,
+        (selectedOrganizerOffer.nextParticipantsEmailAllowedAt
+          ? new Date(selectedOrganizerOffer.nextParticipantsEmailAllowedAt).getTime()
+          : 0) - cooldownNow,
+      )
+    : 0;
+  const selectedOrganizerOfferEmailCooldownActive = selectedOrganizerOfferCooldownMs > 0;
 
   const approvedMainApplications = useMemo(
     () =>
@@ -679,6 +719,22 @@ export default function JointPurchasesPageClient() {
       return locale === 'ru'
         ? 'Резерв уже заполнен.'
         : 'Reserve is already full.';
+    }
+
+    if (normalizedMessage.includes('participants email cooldown is active')) {
+      const secondsMatch = normalizedMessage.match(/retry after (\d+) seconds/);
+      const seconds = secondsMatch ? Number(secondsMatch[1]) : 0;
+
+      if (seconds > 0) {
+        const formatted = formatCooldownRemaining(seconds * 1000, locale);
+        return locale === 'ru'
+          ? `Повторная отправка будет доступна через ${formatted}.`
+          : `Email sending will be available again in ${formatted}.`;
+      }
+
+      return locale === 'ru'
+        ? 'Повторная отправка писем пока недоступна.'
+        : 'Email sending is temporarily unavailable.';
     }
 
     if (normalizedMessage.includes('application can be cancelled only before the purchase is ready')) {
@@ -1271,6 +1327,7 @@ export default function JointPurchasesPageClient() {
 
       setBulkEmailModalOpen(false);
       resetBulkEmailState();
+      await loadOrganizerOffers();
       setPageSuccess(
         locale === 'ru'
           ? `Письма поставлены в отправку: ${response.recipientsCount}`
@@ -1658,11 +1715,19 @@ export default function JointPurchasesPageClient() {
                           <button
                             type="button"
                             onClick={() => openBulkEmailModal(selectedOrganizerOffer)}
-                            className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                            disabled={selectedOrganizerOfferEmailCooldownActive}
+                            className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {locale === 'ru' ? 'Написать участникам' : 'Email participants'}
                           </button>
                         </div>
+                        {selectedOrganizerOfferEmailCooldownActive ? (
+                          <div className="mt-2 text-xs text-amber-300">
+                            {locale === 'ru'
+                              ? `Повторная отправка через ${formatCooldownRemaining(selectedOrganizerOfferCooldownMs, locale)}`
+                              : `Next email available in ${formatCooldownRemaining(selectedOrganizerOfferCooldownMs, locale)}`}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div>
@@ -2457,7 +2522,7 @@ export default function JointPurchasesPageClient() {
                 <button
                   type="button"
                   onClick={() => void handleSendBulkEmail()}
-                  disabled={sendingBulkEmail}
+                  disabled={sendingBulkEmail || selectedOrganizerOfferEmailCooldownActive}
                   className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {sendingBulkEmail

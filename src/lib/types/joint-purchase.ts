@@ -30,6 +30,8 @@ export type JointPurchaseOffer = {
   organizerTelegramUsername: string | null;
   organizerVkUsername: string | null;
   organizerDiscordUsername: string | null;
+  participantsEmailSendCount: number | null;
+  nextParticipantsEmailAllowedAt: string | null;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   screenshotUrl: string | null;
