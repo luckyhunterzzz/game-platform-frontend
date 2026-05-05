@@ -110,6 +110,32 @@ function normalizeText(value?: string | null): string {
   return value?.trim() ?? '';
 }
 
+function buildContactGroupHref(value?: string | null): string | null {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return normalized;
+  }
+
+  if (normalized.startsWith('@')) {
+    return `https://t.me/${normalized.slice(1)}`;
+  }
+
+  if (normalized.startsWith('t.me/') || normalized.startsWith('telegram.me/')) {
+    return `https://${normalized}`;
+  }
+
+  if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(normalized)) {
+    return `https://${normalized}`;
+  }
+
+  return null;
+}
+
 function buildEmptyFeedbackDraft(): FeedbackDraft {
   return {
     result: 'SUCCESS',
@@ -941,6 +967,26 @@ export default function JointPurchasesPageClient() {
     return contactGroupHiddenLabel;
   };
 
+  const renderContactGroupValue = (offer: JointPurchaseOffer, organizerView: boolean) => {
+    const label = getContactGroupLabel(offer, organizerView);
+    const href = buildContactGroupHref(label);
+
+    if (!href || label === contactGroupHiddenLabel) {
+      return label;
+    }
+
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
+      >
+        {label}
+      </a>
+    );
+  };
+
   const getParticipationTypeLabel = (participationType?: ParticipationType | null) => {
     if (!participationType) {
       return null;
@@ -1301,7 +1347,7 @@ export default function JointPurchasesPageClient() {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
             <div className="text-xs uppercase tracking-[0.18em]">{contactGroupLabel}</div>
             <div className="mt-1 text-base font-semibold text-[var(--foreground)]">
-              {getContactGroupLabel(offer, organizerView)}
+              {renderContactGroupValue(offer, organizerView)}
             </div>
           </div>
         </div>
