@@ -26,6 +26,10 @@ export type JointPurchaseOffer = {
   allianceName: string;
   contactGroup: string;
   showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
   organizerGameNickname: string | null;
   organizerTelegramUsername: string | null;
   organizerVkUsername: string | null;

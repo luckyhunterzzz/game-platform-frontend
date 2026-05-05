@@ -104,6 +104,20 @@ function fromLocalDateTimeValue(value: string): string {
   return new Date(value).toISOString();
 }
 
+function toLocalDateTimeValue(value?: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
 function formatDateTime(value?: string | null, locale: 'ru' | 'en' = 'ru'): string {
   if (!value) {
     return '--';
@@ -326,6 +340,7 @@ export default function JointPurchasesPageClient() {
   const [showProcessedApplications, setShowProcessedApplications] = useState(false);
   const [showCompletedClientOffers, setShowCompletedClientOffers] = useState(false);
   const [expandedInactiveOfferIds, setExpandedInactiveOfferIds] = useState<Record<string, boolean>>({});
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   const [createOfferForm, setCreateOfferForm] = useState<CreateOfferFormState>(initialCreateForm);
   const [createOfferFileName, setCreateOfferFileName] = useState<string | null>(null);
   const [createOfferScreenshot, setCreateOfferScreenshot] = useState<ImageUploadResponse | null>(null);
@@ -401,9 +416,10 @@ export default function JointPurchasesPageClient() {
     ? {
         overviewTitle: 'Совместные закупки',
         overviewSubtitle:
-          'Здесь можно создавать офферы, подавать заявки, разбирать участников вручную и доводить закупку до completed.',
+          'Здесь вы можете скоординироваться вместе и выгодно приобрести акционные предложения.',
         organizerBadge: 'Доступ организатора',
         createOffer: 'Создать оффер',
+        editOffer: 'Редактировать оффер',
         createOfferHint: 'Открой новую закупку и сразу собери первый рабочий сценарий.',
         emptyTitle: 'Пока нет совместных закупок',
         emptyDescription: 'Как только появятся первые офферы, они будут показаны здесь.',
@@ -417,6 +433,7 @@ export default function JointPurchasesPageClient() {
         applicationsTitle: 'Заявки',
         feedbackTitle: 'Feedback по MAIN',
         createModalTitle: 'Создать оффер закупки',
+        editModalTitle: 'Редактировать оффер закупки',
         applyModalTitle: 'Подать заявку',
         detailsModalTitle: 'Детали заявки',
         screenshotLabel: 'Скриншот',
@@ -432,6 +449,7 @@ export default function JointPurchasesPageClient() {
         plannedEndLabel: 'Плановое завершение',
         autoApproveLabel: 'Разрешить auto-approve',
         create: 'Создать',
+        saveChanges: 'Сохранить изменения',
         submitApplication: 'Отправить заявку',
         cancel: 'Отмена',
         close: 'Закрыть',
@@ -459,6 +477,7 @@ export default function JointPurchasesPageClient() {
         ownerBadge: 'Твой оффер',
         loadError: 'Не удалось загрузить данные раздела.',
         createSuccess: 'Оффер создан.',
+        updateSuccess: 'Оффер обновлён.',
         applySuccess: 'Заявка отправлена.',
         feedbackSuccess: 'Feedback сохранён.',
         statusSuccess: 'Статус оффера обновлён.',
@@ -482,9 +501,10 @@ export default function JointPurchasesPageClient() {
     : {
         overviewTitle: 'Joint purchases',
         overviewSubtitle:
-          'Create offers, submit applications, review participants manually, and close the purchase flow to completed.',
+          'Here you can coordinate together and purchase promotional offers more advantageously.',
         organizerBadge: 'Organizer access',
         createOffer: 'Create offer',
+        editOffer: 'Edit offer',
         createOfferHint: 'Open a new purchase and build the first real flow.',
         emptyTitle: 'No joint purchases yet',
         emptyDescription: 'The first offers will appear here.',
@@ -498,6 +518,7 @@ export default function JointPurchasesPageClient() {
         applicationsTitle: 'Applications',
         feedbackTitle: 'MAIN feedback',
         createModalTitle: 'Create purchase offer',
+        editModalTitle: 'Edit purchase offer',
         applyModalTitle: 'Submit application',
         detailsModalTitle: 'Application details',
         screenshotLabel: 'Screenshot',
@@ -513,6 +534,7 @@ export default function JointPurchasesPageClient() {
         plannedEndLabel: 'Planned end',
         autoApproveLabel: 'Allow auto-approve',
         create: 'Create',
+        saveChanges: 'Save changes',
         submitApplication: 'Submit application',
         cancel: 'Cancel',
         close: 'Close',
@@ -540,6 +562,7 @@ export default function JointPurchasesPageClient() {
         ownerBadge: 'Your offer',
         loadError: 'Failed to load section data.',
         createSuccess: 'Offer created.',
+        updateSuccess: 'Offer updated.',
         applySuccess: 'Application submitted.',
         feedbackSuccess: 'Feedback saved.',
         statusSuccess: 'Offer status updated.',
@@ -644,6 +667,7 @@ export default function JointPurchasesPageClient() {
   }, [offerApplications, showProcessedApplications]);
 
   const resetCreateState = () => {
+    setEditingOfferId(null);
     setCreateOfferForm(initialCreateForm);
     setCreateOfferFileName(null);
     setCreateOfferScreenshot(null);
@@ -663,6 +687,38 @@ export default function JointPurchasesPageClient() {
     setBulkEmailForm(initialBulkEmailForm);
     setBulkEmailModalError(null);
     setSendingBulkEmail(false);
+  };
+
+  const startEditingOffer = (offer: JointPurchaseOffer) => {
+    setEditingOfferId(offer.id);
+    setCreateOfferForm({
+      title: offer.title,
+      description: offer.description ?? '',
+      allianceName: offer.allianceName ?? '',
+      contactGroup: offer.contactGroup ?? '',
+      showOrganizerContacts: Boolean(offer.showOrganizerContacts),
+      showOrganizerGameNickname: Boolean(offer.showOrganizerGameNickname),
+      showOrganizerTelegram: Boolean(offer.showOrganizerTelegram),
+      showOrganizerVk: Boolean(offer.showOrganizerVk),
+      showOrganizerDiscord: Boolean(offer.showOrganizerDiscord),
+      requiredParticipants: offer.requiredParticipants,
+      reserveParticipants: offer.reserveParticipants,
+      plannedStartAt: toLocalDateTimeValue(offer.plannedStartAt),
+      plannedEndAt: toLocalDateTimeValue(offer.plannedEndAt),
+      autoApproveEnabled: Boolean(offer.autoApproveEnabled),
+    });
+    setCreateOfferFileName(offer.screenshotObjectKey ? offer.screenshotObjectKey.split('/').pop() ?? null : null);
+    setCreateOfferScreenshot(
+      offer.screenshotBucket && offer.screenshotObjectKey
+        ? {
+            bucket: offer.screenshotBucket,
+            objectKey: offer.screenshotObjectKey,
+            url: offer.screenshotUrl ?? null,
+          }
+        : null,
+    );
+    setCreateModalError(null);
+    setCreateModalOpen(true);
   };
 
   const openBulkEmailModal = (offer: JointPurchaseOffer) => {
@@ -719,6 +775,12 @@ export default function JointPurchasesPageClient() {
       return locale === 'ru'
         ? 'Заявка на этот оффер уже подана.'
         : 'You have already submitted an application for this offer.';
+    }
+
+    if (normalizedMessage.includes('user already has active main participation')) {
+      return locale === 'ru'
+        ? 'Нельзя подать новую заявку, пока ты уже находишься в основном составе другой активной закупки.'
+        : 'You cannot submit a new application while you are already in the main roster of another active purchase.';
     }
 
     if (normalizedMessage.includes('main group is already full')) {
@@ -942,7 +1004,7 @@ export default function JointPurchasesPageClient() {
     }
   };
 
-  const handleCreateOffer = async () => {
+  const handleSubmitOffer = async () => {
     if (
       createOfferForm.showOrganizerContacts &&
       !createOfferForm.showOrganizerGameNickname &&
@@ -983,16 +1045,28 @@ export default function JointPurchasesPageClient() {
         plannedEndAt: fromLocalDateTimeValue(createOfferForm.plannedEndAt),
       };
 
-      const created = await apiPostJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
-        '/api/v1/organizer/joint-purchases',
-        payload,
-      );
+      if (editingOfferId) {
+        const updated = await apiPutJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
+          `/api/v1/organizer/joint-purchases/${editingOfferId}`,
+          payload,
+        );
+        setCreateModalOpen(false);
+        resetCreateState();
+        setPageSuccess(copyText.updateSuccess);
+        await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
+        setSelectedOrganizerOfferId(updated.id);
+      } else {
+        const created = await apiPostJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
+          '/api/v1/organizer/joint-purchases',
+          payload,
+        );
 
-      setCreateModalOpen(false);
-      resetCreateState();
-      setPageSuccess(copyText.createSuccess);
-      await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
-      setSelectedOrganizerOfferId(created.id);
+        setCreateModalOpen(false);
+        resetCreateState();
+        setPageSuccess(copyText.createSuccess);
+        await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
+        setSelectedOrganizerOfferId(created.id);
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         setCreateModalError(localizeJointPurchaseError(error.message));
@@ -1470,6 +1544,17 @@ export default function JointPurchasesPageClient() {
 
     return (
       <div className="mt-4 flex flex-wrap gap-2">
+        {offer.status === 'OPEN_FOR_APPLICATIONS' ? (
+          <button
+            type="button"
+            onClick={() => startEditingOffer(offer)}
+            disabled={actionOfferId === offer.id}
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {copyText.editOffer}
+          </button>
+        ) : null}
+
         {availableStatuses.map((status) => (
           <button
             key={status}
@@ -2165,7 +2250,10 @@ export default function JointPurchasesPageClient() {
       {createModalOpen ? (
         <div
           className="fixed inset-0 z-[80] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
-          onClick={() => setCreateModalOpen(false)}
+          onClick={() => {
+            setCreateModalOpen(false);
+            resetCreateState();
+          }}
         >
           <div className="flex h-full items-start justify-center py-4">
             <div
@@ -2174,12 +2262,15 @@ export default function JointPurchasesPageClient() {
             >
               <div className="mb-5 flex items-center justify-between gap-4">
                 <h3 className="text-xl font-semibold text-[var(--foreground)]">
-                  {copyText.createModalTitle}
+                  {editingOfferId ? copyText.editModalTitle : copyText.createModalTitle}
                 </h3>
 
                 <button
                   type="button"
-                  onClick={() => setCreateModalOpen(false)}
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    resetCreateState();
+                  }}
                   className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >
                   <X className="h-4 w-4" />
@@ -2417,18 +2508,21 @@ export default function JointPurchasesPageClient() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setCreateModalOpen(false)}
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    resetCreateState();
+                  }}
                   className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
                 >
                   {copyText.cancel}
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleCreateOffer()}
+                  onClick={() => void handleSubmitOffer()}
                   disabled={submittingCreate || createOfferUploadLoading}
                   className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submittingCreate ? '...' : copyText.create}
+                  {submittingCreate ? '...' : (editingOfferId ? copyText.saveChanges : copyText.create)}
                 </button>
               </div>
             </div>
