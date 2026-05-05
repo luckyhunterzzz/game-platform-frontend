@@ -118,6 +118,11 @@ function toLocalDateTimeValue(value?: string | null): string {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 }
 
+function toLocalDateTimeInputValue(date: Date): string {
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
 function formatDateTime(value?: string | null, locale: 'ru' | 'en' = 'ru'): string {
   if (!value) {
     return '--';
@@ -342,6 +347,8 @@ export default function JointPurchasesPageClient() {
   const [expandedInactiveOfferIds, setExpandedInactiveOfferIds] = useState<Record<string, boolean>>({});
   const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   const [createOfferForm, setCreateOfferForm] = useState<CreateOfferFormState>(initialCreateForm);
+  const [plannedStartDraft, setPlannedStartDraft] = useState(initialCreateForm.plannedStartAt);
+  const [plannedEndDraft, setPlannedEndDraft] = useState(initialCreateForm.plannedEndAt);
   const [createOfferFileName, setCreateOfferFileName] = useState<string | null>(null);
   const [createOfferScreenshot, setCreateOfferScreenshot] = useState<ImageUploadResponse | null>(null);
   const [createOfferUploadLoading, setCreateOfferUploadLoading] = useState(false);
@@ -635,6 +642,18 @@ export default function JointPurchasesPageClient() {
       && Boolean(offer.currentUserApplicationStatus)
       && offer.organizerUserId !== userId,
   );
+  const nowInputValue = toLocalDateTimeInputValue(new Date());
+  const plannedStartMaxValue = toLocalDateTimeInputValue(new Date(Date.now() + 48 * 60 * 60 * 1000));
+  const effectiveStartInputValue = plannedStartDraft || createOfferForm.plannedStartAt || nowInputValue;
+  const plannedEndMaxValue = (() => {
+    const startDate = new Date(effectiveStartInputValue);
+    if (Number.isNaN(startDate.getTime())) {
+      return toLocalDateTimeInputValue(new Date(Date.now() + 48 * 60 * 60 * 1000));
+    }
+    return toLocalDateTimeInputValue(new Date(startDate.getTime() + 48 * 60 * 60 * 1000));
+  })();
+  const hasPendingStartApply = plannedStartDraft !== createOfferForm.plannedStartAt;
+  const hasPendingEndApply = plannedEndDraft !== createOfferForm.plannedEndAt;
 
   const selectedOrganizerOffer = useMemo(
     () => activeOrganizerOffers.find((offer) => offer.id === selectedOrganizerOfferId) ?? null,
@@ -669,6 +688,8 @@ export default function JointPurchasesPageClient() {
   const resetCreateState = () => {
     setEditingOfferId(null);
     setCreateOfferForm(initialCreateForm);
+    setPlannedStartDraft(initialCreateForm.plannedStartAt);
+    setPlannedEndDraft(initialCreateForm.plannedEndAt);
     setCreateOfferFileName(null);
     setCreateOfferScreenshot(null);
     setCreateModalError(null);
@@ -707,6 +728,8 @@ export default function JointPurchasesPageClient() {
       plannedEndAt: toLocalDateTimeValue(offer.plannedEndAt),
       autoApproveEnabled: Boolean(offer.autoApproveEnabled),
     });
+    setPlannedStartDraft(toLocalDateTimeValue(offer.plannedStartAt));
+    setPlannedEndDraft(toLocalDateTimeValue(offer.plannedEndAt));
     setCreateOfferFileName(offer.screenshotObjectKey ? offer.screenshotObjectKey.split('/').pop() ?? null : null);
     setCreateOfferScreenshot(
       offer.screenshotBucket && offer.screenshotObjectKey
@@ -827,6 +850,24 @@ export default function JointPurchasesPageClient() {
       return locale === 'ru'
         ? 'Плановое завершение должно быть позже времени старта.'
         : 'Planned end must be later than planned start.';
+    }
+
+    if (normalizedMessage.includes('plannedstartat must be in the future')) {
+      return locale === 'ru'
+        ? 'Дата начала должна быть позже текущего времени.'
+        : 'Start date must be later than the current time.';
+    }
+
+    if (normalizedMessage.includes('plannedstartat cannot be later than 48 hours from now')) {
+      return locale === 'ru'
+        ? 'Дата начала не может быть позже чем через 48 часов от текущего времени.'
+        : 'Start date cannot be later than 48 hours from now.';
+    }
+
+    if (normalizedMessage.includes('plannedendat cannot be later than 48 hours after plannedstartat')) {
+      return locale === 'ru'
+        ? 'Дата завершения не может быть позже чем через 48 часов после даты начала.'
+        : 'End date cannot be later than 48 hours after the start date.';
     }
 
     if (normalizedMessage.includes('invalid offer status transition')) {
@@ -1005,6 +1046,15 @@ export default function JointPurchasesPageClient() {
   };
 
   const handleSubmitOffer = async () => {
+    if (hasPendingStartApply || hasPendingEndApply) {
+      setCreateModalError(
+        locale === 'ru'
+          ? 'Подтверди выбранные даты кнопкой OK перед сохранением оффера.'
+          : 'Confirm the selected dates with OK before saving the offer.',
+      );
+      return;
+    }
+
     if (
       createOfferForm.showOrganizerContacts &&
       !createOfferForm.showOrganizerGameNickname &&
@@ -2468,22 +2518,60 @@ export default function JointPurchasesPageClient() {
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.plannedStartLabel}</span>
-                    <input
-                      type="datetime-local"
-                      value={createOfferForm.plannedStartAt}
-                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, plannedStartAt: event.target.value }))}
-                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        min={nowInputValue}
+                        max={plannedStartMaxValue}
+                        value={plannedStartDraft}
+                        onChange={(event) => setPlannedStartDraft(event.target.value)}
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreateOfferForm((prev) => ({ ...prev, plannedStartAt: plannedStartDraft }));
+                          if (!createOfferForm.plannedEndAt || plannedEndDraft < plannedStartDraft) {
+                            setPlannedEndDraft(plannedStartDraft);
+                            setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: plannedStartDraft }));
+                          }
+                        }}
+                        className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                      >
+                        OK
+                      </button>
+                    </div>
+                    <div className="text-xs text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? `Применено: ${createOfferForm.plannedStartAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedStartAt), locale) : '--'}`
+                        : `Applied: ${createOfferForm.plannedStartAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedStartAt), locale) : '--'}`}
+                    </div>
                   </label>
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.plannedEndLabel}</span>
-                    <input
-                      type="datetime-local"
-                      value={createOfferForm.plannedEndAt}
-                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: event.target.value }))}
-                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        min={effectiveStartInputValue}
+                        max={plannedEndMaxValue}
+                        value={plannedEndDraft}
+                        onChange={(event) => setPlannedEndDraft(event.target.value)}
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: plannedEndDraft }))}
+                        className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                      >
+                        OK
+                      </button>
+                    </div>
+                    <div className="text-xs text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? `Применено: ${createOfferForm.plannedEndAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedEndAt), locale) : '--'}`
+                        : `Applied: ${createOfferForm.plannedEndAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedEndAt), locale) : '--'}`}
+                    </div>
                   </label>
                 </div>
 
