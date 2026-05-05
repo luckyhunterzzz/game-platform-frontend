@@ -136,6 +136,26 @@ function buildContactGroupHref(value?: string | null): string | null {
   return null;
 }
 
+function buildTelegramHref(value?: string | null): string | null {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return normalized;
+  }
+
+  const handle = normalized.startsWith('@') ? normalized.slice(1) : normalized;
+
+  if (!/^[a-zA-Z0-9_]+$/.test(handle)) {
+    return null;
+  }
+
+  return `https://t.me/${handle}`;
+}
+
 function buildEmptyFeedbackDraft(): FeedbackDraft {
   return {
     result: 'SUCCESS',
@@ -2281,20 +2301,34 @@ export default function JointPurchasesPageClient() {
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                       <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{copyText.profileBlockTitle}</div>
                       <div className="space-y-2 text-sm text-[var(--foreground-soft)]">
-                        <div><span className="text-[var(--foreground)]">ID:</span> {applicationDetails.playerProfile?.userId ?? applicationDetails.applicantUserId}</div>
-                        <div><span className="text-[var(--foreground)]">Email:</span> {applicationDetails.playerProfile?.email ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">First name:</span> {applicationDetails.playerProfile?.firstName ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Last name:</span> {applicationDetails.playerProfile?.lastName ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Nickname:</span> {applicationDetails.playerProfile?.currentGameNickname ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Profile status:</span> {applicationDetails.playerProfile?.status ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Почта:' : 'Email:'}</span> {applicationDetails.playerProfile?.email ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Имя:' : 'First name:'}</span> {applicationDetails.playerProfile?.firstName ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Фамилия:' : 'Last name:'}</span> {applicationDetails.playerProfile?.lastName ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Игровой никнейм:' : 'Game nickname:'}</span> {applicationDetails.playerProfile?.currentGameNickname ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Статус профиля:' : 'Profile status:'}</span> {applicationDetails.playerProfile?.status ?? '--'}</div>
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                       <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{copyText.contactsTitle}</div>
                       <div className="space-y-2 text-sm text-[var(--foreground-soft)]">
-                        <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {applicationDetails.playerProfile?.email ?? '--'}</div>
-                        <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> TG: {applicationDetails.playerProfile?.telegramUsername ?? '--'}</div>
+                        <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {locale === 'ru' ? 'Почта:' : 'Email:'} {applicationDetails.playerProfile?.email ?? '--'}</div>
+                        <div className="flex items-center gap-2">
+                          <MessageCircle className="h-4 w-4" />
+                          {locale === 'ru' ? 'Telegram:' : 'Telegram:'}{' '}
+                          {buildTelegramHref(applicationDetails.playerProfile?.telegramUsername) ? (
+                            <a
+                              href={buildTelegramHref(applicationDetails.playerProfile?.telegramUsername) ?? undefined}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
+                            >
+                              @{normalizeText(applicationDetails.playerProfile?.telegramUsername).replace(/^@/, '')}
+                            </a>
+                          ) : (
+                            applicationDetails.playerProfile?.telegramUsername ?? '--'
+                          )}
+                        </div>
                         <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> VK: {applicationDetails.playerProfile?.vkUsername ?? '--'}</div>
                         <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> Discord: {applicationDetails.playerProfile?.discordUsername ?? '--'}</div>
                       </div>
