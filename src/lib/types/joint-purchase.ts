@@ -128,6 +128,8 @@ export type UpsertParticipantFeedbackRequest = {
 export type SendOfferParticipantsEmailRequest = {
   subject: string;
   message: string;
+  sendToMain: boolean;
+  sendToReserve: boolean;
 };
 
 export type OfferParticipantsEmailResponse = {

@@ -55,6 +55,8 @@ type FeedbackDraft = {
 type BulkEmailFormState = {
   subject: string;
   message: string;
+  sendToMain: boolean;
+  sendToReserve: boolean;
 };
 
 const ORGANIZER_ROLES = new Set(['ROLE_contractor', 'ROLE_admin', 'ROLE_superadmin']);
@@ -74,6 +76,8 @@ const initialCreateForm: CreateOfferFormState = {
 const initialBulkEmailForm: BulkEmailFormState = {
   subject: '',
   message: '',
+  sendToMain: true,
+  sendToReserve: false,
 };
 
 const ALLIANCE_NAME_VISIBLE_STATUSES = new Set<JointPurchaseOfferStatus>([
@@ -533,7 +537,7 @@ export default function JointPurchasesPageClient() {
       ? 'Не удалось проверить профиль. Попробуй ещё раз.'
       : 'Failed to check profile. Try again.';
   const mainLabel = locale === 'ru' ? 'Основной набор' : 'Main roster';
-  const reserveLabel = locale === 'ru' ? 'Резерв' : 'Reserve';
+  const reserveLabel = locale === 'ru' ? 'Резервный состав' : 'Reserve roster';
   const cancelApplicationLabel = locale === 'ru' ? 'Отозвать заявку' : 'Withdraw application';
   const feedbackTitleLabel =
     locale === 'ru' ? 'Фидбэк по основному набору' : 'Main roster feedback';
@@ -594,6 +598,8 @@ export default function JointPurchasesPageClient() {
     setBulkEmailForm({
       subject: buildDefaultBulkEmailSubject(offer, locale),
       message: buildDefaultBulkEmailMessage(offer, locale),
+      sendToMain: true,
+      sendToReserve: false,
     });
     setBulkEmailModalError(null);
     setBulkEmailModalOpen(true);
@@ -1160,6 +1166,15 @@ export default function JointPurchasesPageClient() {
       return;
     }
 
+    if (!bulkEmailForm.sendToMain && !bulkEmailForm.sendToReserve) {
+      setBulkEmailModalError(
+        locale === 'ru'
+          ? 'Выбери хотя бы один состав для рассылки.'
+          : 'Select at least one roster for the email.',
+      );
+      return;
+    }
+
     setSendingBulkEmail(true);
     setPageError(null);
     setPageSuccess(null);
@@ -1169,6 +1184,8 @@ export default function JointPurchasesPageClient() {
       const payload: SendOfferParticipantsEmailRequest = {
         subject: normalizeText(bulkEmailForm.subject),
         message: normalizeText(bulkEmailForm.message),
+        sendToMain: bulkEmailForm.sendToMain,
+        sendToReserve: bulkEmailForm.sendToReserve,
       };
 
       const response = await apiPostJson<
@@ -1522,7 +1539,7 @@ export default function JointPurchasesPageClient() {
                   <h2 className="text-2xl font-semibold text-[var(--foreground)]">
                     {copyText.organizerOffersTitle}
                   </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                  <p className="hidden">
                     {copyText.organizerOffersHint}
                   </p>
 
@@ -1811,7 +1828,7 @@ export default function JointPurchasesPageClient() {
                   <h2 className="text-2xl font-semibold text-[var(--foreground)]">
                     {locale === 'ru' ? 'Завершённые и отменённые' : 'Completed and cancelled'}
                   </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                  <p className="hidden">
                     {locale === 'ru'
                       ? 'История прошлых закупок. Их можно развернуть и посмотреть.'
                       : 'History of past purchases. Expand any item to review it.'}
@@ -2163,6 +2180,11 @@ export default function JointPurchasesPageClient() {
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
                     {locale === 'ru'
+                      ? 'Выбери, кому отправлять письмо. По умолчанию выбран только основной состав.'
+                      : 'Choose which participants should receive the email. By default, only the main roster is selected.'}
+                  </p>
+                  <p className="hidden">
+                    {locale === 'ru'
                       ? 'Письмо уйдет всем активным участникам этого оффера. Текст можно отредактировать перед отправкой.'
                       : 'The message will be sent to all active participants of this offer. You can edit the text before sending.'}
                   </p>
@@ -2186,9 +2208,40 @@ export default function JointPurchasesPageClient() {
                   </div>
                   <div className="mt-2 text-sm text-[var(--foreground-soft)]">
                     {locale === 'ru'
+                      ? 'Получатели: подтвержденные активные участники выбранных составов'
+                      : 'Recipients: confirmed active participants from the selected rosters'}
+                  </div>
+                  <div className="hidden">
+                    {locale === 'ru'
                       ? 'Получатели: активные MAIN и RESERVE участники'
                       : 'Recipients: active MAIN and RESERVE participants'}
                   </div>
+                </div>
+
+                <div className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-2">
+                  <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={bulkEmailForm.sendToMain}
+                      onChange={(event) =>
+                        setBulkEmailForm((prev) => ({ ...prev, sendToMain: event.target.checked }))
+                      }
+                      className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                    />
+                    <span className="text-sm text-[var(--foreground)]">{mainLabel}</span>
+                  </label>
+
+                  <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={bulkEmailForm.sendToReserve}
+                      onChange={(event) =>
+                        setBulkEmailForm((prev) => ({ ...prev, sendToReserve: event.target.checked }))
+                      }
+                      className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                    />
+                    <span className="text-sm text-[var(--foreground)]">{reserveLabel}</span>
+                  </label>
                 </div>
 
                 <label className="space-y-2">
