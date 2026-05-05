@@ -1940,12 +1940,13 @@ export default function JointPurchasesPageClient() {
                   </label>
                 </div>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+                <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 opacity-60">
                   <input
                     type="checkbox"
                     checked={createOfferForm.autoApproveEnabled}
+                    disabled
                     onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, autoApproveEnabled: event.target.checked }))}
-                    className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface-strong)]"
+                    className="mt-1 h-4 w-4 cursor-not-allowed rounded border-[var(--border)] bg-[var(--surface-strong)]"
                   />
                   <span className="text-sm text-[var(--foreground)]">{copyText.autoApproveLabel}</span>
                 </label>

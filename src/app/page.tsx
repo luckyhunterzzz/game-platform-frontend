@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
-import { UsersRound } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import PublicationsSection from '@/components/publications/PublicationsSection';
@@ -15,7 +14,6 @@ type QuickLinkItem = {
   label: string;
   href?: string;
   imageSrc?: string;
-  icon?: React.ComponentType<{ className?: string }>;
 };
 
 export default function HomePage() {
@@ -31,7 +29,7 @@ export default function HomePage() {
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
       ...(authenticated
-        ? [{ label: messages.home.navJointPurchases, href: '/joint-purchases', icon: UsersRound }]
+        ? [{ label: messages.home.navJointPurchases, href: '/joint-purchases', imageSrc: '/home-quick-links/joint-purchases.webp' }]
         : []),
     ],
     [
@@ -115,17 +113,13 @@ export default function HomePage() {
             const content = (
               <>
                 <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition-transform group-hover:scale-105 sm:mb-3 sm:h-16 sm:w-16">
-                  {item.icon ? (
-                    <item.icon className="h-6 w-6 text-cyan-300 sm:h-8 sm:w-8" />
-                  ) : (
-                    <Image
-                      src={item.imageSrc ?? '/brand-dragon.png'}
-                      alt={item.label}
-                      width={64}
-                      height={64}
-                      className="h-9 w-9 object-contain sm:h-12 sm:w-12"
-                    />
-                  )}
+                  <Image
+                    src={item.imageSrc ?? '/brand-dragon.png'}
+                    alt={item.label}
+                    width={64}
+                    height={64}
+                    className="h-9 w-9 object-contain sm:h-12 sm:w-12"
+                  />
                 </div>
 
                 <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
