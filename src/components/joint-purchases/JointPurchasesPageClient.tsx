@@ -324,6 +324,7 @@ export default function JointPurchasesPageClient() {
   const [bulkEmailModalOpen, setBulkEmailModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ url: string; title: string } | null>(null);
   const [showProcessedApplications, setShowProcessedApplications] = useState(false);
+  const [showCompletedClientOffers, setShowCompletedClientOffers] = useState(false);
   const [expandedInactiveOfferIds, setExpandedInactiveOfferIds] = useState<Record<string, boolean>>({});
   const [createOfferForm, setCreateOfferForm] = useState<CreateOfferFormState>(initialCreateForm);
   const [createOfferFileName, setCreateOfferFileName] = useState<string | null>(null);
@@ -407,8 +408,8 @@ export default function JointPurchasesPageClient() {
         emptyTitle: 'Пока нет совместных закупок',
         emptyDescription: 'Как только появятся первые офферы, они будут показаны здесь.',
         organizerEmptyDescription: 'Можно уже создать первый оффер и проверить flow прямо с этого экрана.',
-        openOffersTitle: 'Открытые офферы',
-        openOffersHint: 'Все пользователи видят предложения, а участвовать могут только авторизованные с заполненным профилем.',
+        openOffersTitle: 'Доступные офферы и мои участия',
+        openOffersHint: 'Здесь видны открытые предложения и закупки, в которых ты уже подтверждён как участник.',
         organizerOffersTitle: 'Мои офферы',
         organizerOffersHint: 'Создание, статусы, заявки, перевод между MAIN и RESERVE и feedback.',
         organizerBoardTitle: 'Панель оффера',
@@ -444,6 +445,7 @@ export default function JointPurchasesPageClient() {
         reject: 'Отклонить',
         moveToMain: 'Перевести в основной набор',
         moveToReserve: 'Перевести в резерв',
+        removeFromPurchase: 'Убрать из закупки',
         saveFeedback: 'Сохранить feedback',
         resultSuccess: 'SUCCESS',
         resultUnsuccess: 'UNSUCCESS',
@@ -487,8 +489,8 @@ export default function JointPurchasesPageClient() {
         emptyTitle: 'No joint purchases yet',
         emptyDescription: 'The first offers will appear here.',
         organizerEmptyDescription: 'You can already create the first offer and test the flow from this screen.',
-        openOffersTitle: 'Open offers',
-        openOffersHint: 'Everyone can see offers. Participation is still checked by backend rules.',
+        openOffersTitle: 'Available offers and my participations',
+        openOffersHint: 'This list shows open offers and purchases where you are already confirmed as a participant.',
         organizerOffersTitle: 'My offers',
         organizerOffersHint: 'Creation, statuses, applications, MAIN/RESERVE moves, and feedback.',
         organizerBoardTitle: 'Offer board',
@@ -524,6 +526,7 @@ export default function JointPurchasesPageClient() {
         reject: 'Reject',
         moveToMain: 'Move to main roster',
         moveToReserve: 'Move to reserve',
+        removeFromPurchase: 'Remove from purchase',
         saveFeedback: 'Save feedback',
         resultSuccess: 'SUCCESS',
         resultUnsuccess: 'UNSUCCESS',
@@ -600,6 +603,15 @@ export default function JointPurchasesPageClient() {
   const organizerHasOffers = activeOrganizerOffers.length > 0;
   const shouldShowOrganizerCreate = isOrganizer && activeOrganizerOffers.length === 0;
   const organizerCanCreateOffer = !isContractorOnlyOrganizer || organizerProfile?.status === 'COMPLETE';
+  const activeVisibleOffers = openOffers.filter(
+    (offer) => offer.status !== 'COMPLETED' && offer.status !== 'CANCELLED',
+  );
+  const inactiveParticipantOffers = openOffers.filter(
+    (offer) =>
+      (offer.status === 'COMPLETED' || offer.status === 'CANCELLED')
+      && Boolean(offer.currentUserApplicationStatus)
+      && offer.organizerUserId !== userId,
+  );
 
   const selectedOrganizerOffer = useMemo(
     () => activeOrganizerOffers.find((offer) => offer.id === selectedOrganizerOfferId) ?? null,
@@ -1201,6 +1213,22 @@ export default function JointPurchasesPageClient() {
     );
   };
 
+  const canApplyToOffer = (offer: JointPurchaseOffer, isOwnOffer: boolean, currentUserHasApplication: boolean) => {
+    if (!authenticated || isOwnOffer || currentUserHasApplication) {
+      return false;
+    }
+
+    if (offer.status === 'OPEN_FOR_APPLICATIONS') {
+      return true;
+    }
+
+    if (offer.status === 'MAIN_GROUP_FILLED') {
+      return offer.currentReserveParticipants < offer.reserveParticipants;
+    }
+
+    return false;
+  };
+
   const handleLoadApplicationDetails = async (offerId: string, applicationId: string) => {
     setDetailsModalOpen(true);
     setLoadingDetails(true);
@@ -1281,6 +1309,30 @@ export default function JointPurchasesPageClient() {
         `/api/v1/organizer/joint-purchases/${offerId}/applications/${applicationId}/participation`,
         payload,
       );
+      setPageSuccess(copyText.actionSuccess);
+      await refreshAfterApplicationAction(offerId);
+    } catch (error) {
+      handleApiError(error, copyText.loadError);
+    } finally {
+      setActionApplicationId(null);
+    }
+  };
+
+  const handleOrganizerCancelApprovedApplication = async (
+    offerId: string,
+    applicationId: string,
+  ) => {
+    setActionApplicationId(applicationId);
+    setPageError(null);
+
+    try {
+      await apiDelete<ParticipationApplication>(
+        `/api/v1/organizer/joint-purchases/${offerId}/applications/${applicationId}`,
+      );
+      setApplicationDetails((current) => (
+        current?.id === applicationId ? null : current
+      ));
+      setDetailsModalOpen(false);
       setPageSuccess(copyText.actionSuccess);
       await refreshAfterApplicationAction(offerId);
     } catch (error) {
@@ -1447,7 +1499,7 @@ export default function JointPurchasesPageClient() {
   const renderOfferCard = (offer: JointPurchaseOffer, organizerView: boolean) => {
     const isOwnOffer = Boolean(userId && offer.organizerUserId === userId);
     const currentUserHasApplication = Boolean(offer.currentUserApplicationStatus);
-    const canApply = authenticated && !isOwnOffer && !currentUserHasApplication;
+    const canApply = canApplyToOffer(offer, isOwnOffer, currentUserHasApplication);
     const canCancelApplication = canCancelCurrentUserApplication(offer);
 
     return (
@@ -1568,6 +1620,42 @@ export default function JointPurchasesPageClient() {
     );
   };
 
+  const renderArchivedParticipantOfferCard = (offer: JointPurchaseOffer) => {
+    const assignedLabel = getParticipationTypeLabel(offer.currentUserAssignedParticipationType);
+
+    return (
+      <div
+        key={offer.id}
+        className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-base font-semibold text-[var(--foreground)]">{offer.title}</div>
+            <div className="mt-2 text-sm text-[var(--foreground-soft)]">
+              {copyText.plannedStartLabel}: {formatDateTime(offer.plannedStartAt, locale)}
+            </div>
+            <div className="text-sm text-[var(--foreground-soft)]">
+              {copyText.plannedEndLabel}: {formatDateTime(offer.plannedEndAt, locale)}
+            </div>
+          </div>
+          <OfferStatusBadge status={offer.status} labels={copyText.statusLabels} />
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-cyan-400/15 bg-cyan-400/8 px-4 py-3 text-sm">
+          <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">
+            {copyText.statusTitle}
+          </div>
+          <div className="mt-1 font-semibold text-[var(--foreground)]">
+            {getApplicationStatusLabel(offer.currentUserApplicationStatus)}
+          </div>
+          {assignedLabel ? (
+            <div className="mt-1 text-[var(--foreground-soft)]">{assignedLabel}</div>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
@@ -1652,12 +1740,12 @@ export default function JointPurchasesPageClient() {
                   </div>
 
                   <div className="mt-6 space-y-4">
-                    {openOffers.length === 0 ? (
+                    {activeVisibleOffers.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
                         {copyText.noOpenOffers}
                       </div>
                     ) : (
-                      openOffers.map((offer) => renderOfferCard(offer, false))
+                      activeVisibleOffers.map((offer) => renderOfferCard(offer, false))
                     )}
                   </div>
                 </SectionCard>
@@ -1812,26 +1900,50 @@ export default function JointPurchasesPageClient() {
                                     </>
                                   ) : null}
 
-                                  {application.status === 'APPROVED_MAIN' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'RESERVE')}
-                                      disabled={actionApplicationId === application.id}
-                                      className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {copyText.moveToReserve}
-                                    </button>
+                                  {(selectedOrganizerOffer.status === 'OPEN_FOR_APPLICATIONS'
+                                    || selectedOrganizerOffer.status === 'MAIN_GROUP_FILLED')
+                                    && application.status === 'APPROVED_MAIN' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'RESERVE')}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.moveToReserve}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleOrganizerCancelApprovedApplication(selectedOrganizerOffer.id, application.id)}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.removeFromPurchase}
+                                      </button>
+                                    </>
                                   ) : null}
 
-                                  {application.status === 'APPROVED_RESERVE' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'MAIN')}
-                                      disabled={actionApplicationId === application.id}
-                                      className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {copyText.moveToMain}
-                                    </button>
+                                  {(selectedOrganizerOffer.status === 'OPEN_FOR_APPLICATIONS'
+                                    || selectedOrganizerOffer.status === 'MAIN_GROUP_FILLED')
+                                    && application.status === 'APPROVED_RESERVE' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'MAIN')}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.moveToMain}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleOrganizerCancelApprovedApplication(selectedOrganizerOffer.id, application.id)}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.removeFromPurchase}
+                                      </button>
+                                    </>
                                   ) : null}
                                 </div>
                               </div>
@@ -1959,6 +2071,39 @@ export default function JointPurchasesPageClient() {
                 ) : null}
               </section>
             </section>
+            ) : null}
+
+            {inactiveParticipantOffers.length > 0 ? (
+              <SectionCard>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--foreground)]">
+                      {locale === 'ru' ? 'Завершённые закупки' : 'Completed purchases'}
+                    </h2>
+                    <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? 'Здесь остаются закупки, в которых ты уже участвовал. Можно быстро проверить итоговый статус и свой набор.'
+                        : 'This section keeps purchases where you already participated, with the final offer status and your roster.'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedClientOffers((current) => !current)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    {showCompletedClientOffers
+                      ? (locale === 'ru' ? 'Скрыть завершённые закупки' : 'Hide completed purchases')
+                      : (locale === 'ru' ? 'Посмотреть завершённые закупки' : 'View completed purchases')}
+                  </button>
+                </div>
+
+                {showCompletedClientOffers ? (
+                  <div className="mt-6 space-y-4">
+                    {inactiveParticipantOffers.map((offer) => renderArchivedParticipantOfferCard(offer))}
+                  </div>
+                ) : null}
+              </SectionCard>
             ) : null}
 
             {isOrganizer && inactiveOrganizerOffers.length > 0 ? (
