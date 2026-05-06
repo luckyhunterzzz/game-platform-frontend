@@ -15,6 +15,30 @@ const STORE_URL = 'https://www.empiresandpuzzles.com/ru#gempacks';
 const COLLAPSE_STORAGE_KEY = 'joint-purchase-help-banner-collapsed-until';
 const COLLAPSE_DURATION_MS = 24 * 60 * 60 * 1000;
 
+function getInitialCollapsedState(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const collapsedUntilRaw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+  if (!collapsedUntilRaw) {
+    return false;
+  }
+
+  const collapsedUntil = Number(collapsedUntilRaw);
+  if (!Number.isFinite(collapsedUntil)) {
+    window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+    return false;
+  }
+
+  if (collapsedUntil > Date.now()) {
+    return true;
+  }
+
+  window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+  return false;
+}
+
 type PurchaseHelpImage = {
   src: string;
   alt: string;
@@ -107,7 +131,7 @@ export default function PurchaseHelpBanner() {
   const { authenticated, roles } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isHiddenForScreenshots, setIsHiddenForScreenshots] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsedState);
 
   const isAdmin = roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin');
   const canHideCompletely = isAdmin;
@@ -124,30 +148,6 @@ export default function PurchaseHelpBanner() {
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const collapsedUntilRaw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
-    if (!collapsedUntilRaw) {
-      return;
-    }
-
-    const collapsedUntil = Number(collapsedUntilRaw);
-    if (!Number.isFinite(collapsedUntil)) {
-      window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
-      return;
-    }
-
-    if (collapsedUntil > Date.now()) {
-      setIsCollapsed(true);
-      return;
-    }
-
-    window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
-  }, []);
 
   if (locale !== 'ru' || isHiddenForScreenshots) {
     return null;
