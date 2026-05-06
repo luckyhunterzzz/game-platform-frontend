@@ -105,8 +105,10 @@ export default function PurchaseHelpBanner() {
   const { authenticated, roles } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isHiddenForScreenshots, setIsHiddenForScreenshots] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const isAdmin = roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin');
+  const canHideCompletely = isAdmin;
 
   useEffect(() => {
     if (!isOpen) {
@@ -144,67 +146,90 @@ export default function PurchaseHelpBanner() {
   return (
     <>
       <section className="mx-auto w-full max-w-7xl px-4 pt-6">
-        <div className="overflow-hidden rounded-[2rem] border border-amber-400/30 bg-[linear-gradient(135deg,rgba(245,158,11,0.22),rgba(249,115,22,0.16)_45%,rgba(15,23,42,0.94))] px-6 py-6 shadow-[0_28px_80px_rgba(0,0,0,0.22)] md:px-8 md:py-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-4xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/90">
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  Новый способ покупки
-                </div>
-                {!authenticated ? (
-                  <div className="inline-flex items-center rounded-full border border-white/12 bg-black/15 px-3 py-1 text-xs font-medium text-amber-50/80">
-                    Доступно после входа
-                  </div>
-                ) : null}
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsHiddenForScreenshots(true)}
-                    className="inline-flex items-center rounded-full border border-white/12 bg-black/15 px-3 py-1 text-xs font-medium text-amber-50/80 transition hover:bg-black/25"
-                  >
-                    Скрыть для скриншотов
-                  </button>
-                ) : null}
-              </div>
-              <h2 className="mt-4 text-2xl font-black leading-tight text-white md:text-3xl">
+        <div className="overflow-hidden rounded-[2rem] border border-amber-400/30 bg-[linear-gradient(135deg,rgba(245,158,11,0.22),rgba(249,115,22,0.16)_45%,rgba(15,23,42,0.94))] shadow-[0_28px_80px_rgba(0,0,0,0.22)]">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/5 md:px-6"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/12 bg-white/10 text-amber-100">
+              <MessageCircle className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[clamp(0.95rem,2.3vw,1.4rem)] font-black leading-tight text-white">
                 Помощь с покупкой акционных предложений без передачи аккаунта и с получением
                 дополнительных бонусов
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-amber-50/85 md:text-base">
-                Нажмите, чтобы посмотреть пошаговый сценарий, примеры экранов и способ связи в
-                Telegram.
-              </p>
+              </div>
             </div>
+            <div className="shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100/85">
+              {isCollapsed ? 'Развернуть' : 'Свернуть'}
+            </div>
+          </button>
 
-            <div className="flex items-center gap-2 self-start md:self-center">
-              <button
-                type="button"
-                onClick={handleOpenDetails}
-                disabled={!authenticated}
-                className="inline-flex items-center justify-center rounded-2xl border border-white/12 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-white/10"
-              >
-                Открыть подробности
-              </button>
-              {!authenticated ? (
-                <HeroInfoPopover
-                  label="Почему недоступно"
-                  content="Войдите в аккаунт, чтобы открыть инструкцию."
-                />
-              ) : null}
+          {!isCollapsed ? (
+            <div className="px-6 py-6 md:px-8 md:py-7">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-4xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/90">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      Новый способ покупки
+                    </div>
+                    {!authenticated ? (
+                      <div className="inline-flex items-center rounded-full border border-white/12 bg-black/15 px-3 py-1 text-xs font-medium text-amber-50/80">
+                        Доступно после входа
+                      </div>
+                    ) : null}
+                    {canHideCompletely ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsHiddenForScreenshots(true)}
+                        className="inline-flex items-center rounded-full border border-white/12 bg-black/15 px-3 py-1 text-xs font-medium text-amber-50/80 transition hover:bg-black/25"
+                      >
+                        Скрыть для скриншотов
+                      </button>
+                    ) : null}
+                  </div>
+                  <h2 className="mt-4 text-2xl font-black leading-tight text-white md:text-3xl">
+                    Помощь с покупкой акционных предложений без передачи аккаунта и с получением
+                    дополнительных бонусов
+                  </h2>
+                  <p className="mt-3 max-w-3xl text-sm leading-7 text-amber-50/85 md:text-base">
+                    Нажмите, чтобы посмотреть пошаговый сценарий, примеры экранов и способ связи в
+                    Telegram.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start md:self-center">
+                  <button
+                    type="button"
+                    onClick={handleOpenDetails}
+                    disabled={!authenticated}
+                    className="inline-flex items-center justify-center rounded-2xl border border-white/12 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-65 disabled:hover:bg-white/10"
+                  >
+                    Открыть подробности
+                  </button>
+                  {!authenticated ? (
+                    <HeroInfoPopover
+                      label="Почему недоступно"
+                      content="Войдите в аккаунт, чтобы открыть инструкцию."
+                    />
+                  ) : null}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </section>
 
       {isOpen ? (
         <div
-          className="fixed inset-0 z-[85] bg-black/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[85] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
           onClick={() => setIsOpen(false)}
         >
-          <div className="flex h-full items-start justify-center py-4">
+          <div className="flex min-h-full items-start justify-center py-4">
             <div
-              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl"
+              className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5 sm:px-6">
@@ -249,7 +274,7 @@ export default function PurchaseHelpBanner() {
                 </button>
               </div>
 
-              <div className="overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5 [webkit-overflow-scrolling:touch] sm:px-6 sm:py-6">
                 <div className="space-y-5">
                   {purchaseHelpSteps.map((step) => (
                     <section

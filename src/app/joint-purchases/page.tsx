@@ -79,38 +79,43 @@ export default function JointPurchasesPage() {
         </div>
       )}
 
-      <PurchaseHelpBanner />
-
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         {authenticated ? (
-          <JointPurchasesPageClient />
+          <>
+            <PurchaseHelpBanner />
+            <JointPurchasesPageClient />
+          </>
         ) : (
-          <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center">
-            <div className="w-full rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.18)]">
-              <h1 className="text-3xl font-black text-[var(--foreground)]">
-                {messages.jointPurchases.guestAccessTitle}
-              </h1>
-              <p className="mt-4 text-sm leading-7 text-[var(--foreground-soft)]">
-                {messages.jointPurchases.guestAccessDescription}
-              </p>
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+            <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center">
+              <div className="w-full rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.18)]">
+                <h1 className="text-3xl font-black text-[var(--foreground)]">
+                  {messages.jointPurchases.guestAccessTitle}
+                </h1>
+                <p className="mt-4 text-sm leading-7 text-[var(--foreground-soft)]">
+                  {messages.jointPurchases.guestAccessDescription}
+                </p>
 
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={login}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-                >
-                  {messages.navbar.login}
-                </button>
-                <button
-                  type="button"
-                  onClick={navigateHome}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                >
-                  {messages.home.menuPageOne}
-                </button>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={login}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  >
+                    {messages.navbar.login}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={navigateHome}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    {messages.home.menuPageOne}
+                  </button>
+                </div>
               </div>
             </div>
+
+            <PurchaseHelpBanner />
           </div>
         )}
       </main>
