@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
+import PurchaseHelpBanner from '@/components/joint-purchases/PurchaseHelpBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/lib/auth-context';
@@ -77,6 +78,8 @@ export default function JointPurchasesPage() {
           />
         </div>
       )}
+
+      <PurchaseHelpBanner />
 
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         {authenticated ? (
