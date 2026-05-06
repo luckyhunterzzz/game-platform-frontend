@@ -434,11 +434,11 @@ export default function JointPurchasesPageClient() {
         openOffersTitle: 'Доступные офферы и мои участия',
         openOffersHint: 'Здесь видны открытые предложения и закупки, в которых ты уже подтверждён как участник.',
         organizerOffersTitle: 'Мои офферы',
-        organizerOffersHint: 'Создание, статусы, заявки, перевод между MAIN и RESERVE и feedback.',
+        organizerOffersHint: 'Создание, статусы, заявки, перевод между основным и резервным составом и отзывы.',
         organizerBoardTitle: 'Панель оффера',
-        organizerBoardHint: 'Выбери оффер справа и работай с заявками и финальным feedback.',
+        organizerBoardHint: 'Выбери оффер справа и работай с заявками и финальными отзывами.',
         applicationsTitle: 'Заявки',
-        feedbackTitle: 'Feedback по MAIN',
+        feedbackTitle: 'Отзывы по основному составу',
         createModalTitle: 'Создать оффер закупки',
         editModalTitle: 'Редактировать оффер закупки',
         applyModalTitle: 'Подать заявку',
@@ -454,7 +454,7 @@ export default function JointPurchasesPageClient() {
         reserveParticipantsLabel: 'Резерв',
         plannedStartLabel: 'Плановый старт',
         plannedEndLabel: 'Плановое завершение',
-        autoApproveLabel: 'Разрешить auto-approve',
+        autoApproveLabel: 'Автоподтверждение',
         create: 'Создать',
         saveChanges: 'Сохранить изменения',
         submitApplication: 'Отправить заявку',
@@ -471,13 +471,13 @@ export default function JointPurchasesPageClient() {
         moveToMain: 'Перевести в основной набор',
         moveToReserve: 'Перевести в резерв',
         removeFromPurchase: 'Убрать из закупки',
-        saveFeedback: 'Сохранить feedback',
-        resultSuccess: 'SUCCESS',
-        resultUnsuccess: 'UNSUCCESS',
+        saveFeedback: 'Сохранить отзыв',
+        resultSuccess: 'Успешно',
+        resultUnsuccess: 'Неуспешно',
         commentLabel: 'Комментарий',
-        selectedOfferMissing: 'Выбери оффер, чтобы открыть заявки и feedback.',
+        selectedOfferMissing: 'Выбери оффер, чтобы открыть заявки и отзывы.',
         noApplications: 'Заявок пока нет.',
-        noFeedback: 'Feedback по MAIN пока не заполнен.',
+        noFeedback: 'Отзывы по основному составу пока не заполнены.',
         noOrganizerOffers: 'Ты ещё не создал ни одного оффера.',
         noOpenOffers: 'Сейчас нет открытых офферов.',
         apply: 'Участвовать',
@@ -486,7 +486,7 @@ export default function JointPurchasesPageClient() {
         createSuccess: 'Оффер создан.',
         updateSuccess: 'Оффер обновлён.',
         applySuccess: 'Заявка отправлена.',
-        feedbackSuccess: 'Feedback сохранён.',
+        feedbackSuccess: 'Отзыв сохранён.',
         statusSuccess: 'Статус оффера обновлён.',
         actionSuccess: 'Действие выполнено.',
         statusLabels: {
@@ -498,11 +498,12 @@ export default function JointPurchasesPageClient() {
           CANCELLED: 'Отменено',
         } as Record<JointPurchaseOfferStatus, string>,
         applicationStatusLabels: {
-          PENDING_TRUST_CHECK: 'Ожидает trust score',
-          PENDING_ORGANIZER_REVIEW: 'Ждёт review',
+          PENDING_TRUST_CHECK: 'Ожидает проверки доверия',
+          PENDING_ORGANIZER_REVIEW: 'Ждёт подтверждения',
           APPROVED_MAIN: 'Одобрено в основной набор',
-          APPROVED_RESERVE: 'Одобрено в резерв',
+          APPROVED_RESERVE: 'Одобрено в резервный состав',
           REJECTED: 'Отклонено',
+          CANCELLED: 'Отменено',
         } as Record<string, string>,
       }
     : {
@@ -519,11 +520,11 @@ export default function JointPurchasesPageClient() {
         openOffersTitle: 'Available offers and my participations',
         openOffersHint: 'This list shows open offers and purchases where you are already confirmed as a participant.',
         organizerOffersTitle: 'My offers',
-        organizerOffersHint: 'Creation, statuses, applications, MAIN/RESERVE moves, and feedback.',
+        organizerOffersHint: 'Creation, statuses, applications, main and reserve moves, and feedback.',
         organizerBoardTitle: 'Offer board',
         organizerBoardHint: 'Pick an offer and work with applications and final feedback.',
         applicationsTitle: 'Applications',
-        feedbackTitle: 'MAIN feedback',
+        feedbackTitle: 'Main roster feedback',
         createModalTitle: 'Create purchase offer',
         editModalTitle: 'Edit purchase offer',
         applyModalTitle: 'Submit application',
@@ -539,7 +540,7 @@ export default function JointPurchasesPageClient() {
         reserveParticipantsLabel: 'Reserve',
         plannedStartLabel: 'Planned start',
         plannedEndLabel: 'Planned end',
-        autoApproveLabel: 'Allow auto-approve',
+        autoApproveLabel: 'Auto approve',
         create: 'Create',
         saveChanges: 'Save changes',
         submitApplication: 'Submit application',
@@ -557,12 +558,12 @@ export default function JointPurchasesPageClient() {
         moveToReserve: 'Move to reserve',
         removeFromPurchase: 'Remove from purchase',
         saveFeedback: 'Save feedback',
-        resultSuccess: 'SUCCESS',
-        resultUnsuccess: 'UNSUCCESS',
+        resultSuccess: 'Successful',
+        resultUnsuccess: 'Unsuccessful',
         commentLabel: 'Comment',
         selectedOfferMissing: 'Select an offer to open applications and feedback.',
         noApplications: 'No applications yet.',
-        noFeedback: 'No MAIN feedback yet.',
+        noFeedback: 'No main roster feedback yet.',
         noOrganizerOffers: 'You have not created any offers yet.',
         noOpenOffers: 'There are no open offers right now.',
         apply: 'Apply',
@@ -583,11 +584,12 @@ export default function JointPurchasesPageClient() {
           CANCELLED: 'Cancelled',
         } as Record<JointPurchaseOfferStatus, string>,
         applicationStatusLabels: {
-          PENDING_TRUST_CHECK: 'Waiting trust score',
-          PENDING_ORGANIZER_REVIEW: 'Waiting review',
+          PENDING_TRUST_CHECK: 'Waiting for trust check',
+          PENDING_ORGANIZER_REVIEW: 'Waiting for confirmation',
           APPROVED_MAIN: 'Approved to main roster',
-          APPROVED_RESERVE: 'Approved to reserve',
+          APPROVED_RESERVE: 'Approved to reserve roster',
           REJECTED: 'Rejected',
+          CANCELLED: 'Cancelled',
         } as Record<string, string>,
       };
 
@@ -623,7 +625,7 @@ export default function JointPurchasesPageClient() {
   const reserveLabel = locale === 'ru' ? 'Резервный состав' : 'Reserve roster';
   const cancelApplicationLabel = locale === 'ru' ? 'Отозвать заявку' : 'Withdraw application';
   const feedbackTitleLabel =
-    locale === 'ru' ? 'Фидбэк по основному набору' : 'Main roster feedback';
+    locale === 'ru' ? 'Отзывы по основному составу' : 'Main roster feedback';
   const activeOrganizerOffers = organizerOffers.filter(
     (offer) => offer.status !== 'COMPLETED' && offer.status !== 'CANCELLED',
   );
@@ -761,6 +763,45 @@ export default function JointPurchasesPageClient() {
     }
 
     const normalizedMessage = message.toLowerCase();
+
+    const localizeFieldName = (field: string) => {
+      const labels = {
+        title: locale === 'ru' ? 'заголовок' : 'title',
+        description: locale === 'ru' ? 'описание' : 'description',
+        alliancename: locale === 'ru' ? 'название альянса' : 'alliance name',
+        contactgroup: locale === 'ru' ? 'группу для связи' : 'contact group',
+        requiredparticipants: locale === 'ru' ? 'размер основного состава' : 'main roster size',
+        reserveparticipants: locale === 'ru' ? 'размер резервного состава' : 'reserve roster size',
+        plannedstartat: locale === 'ru' ? 'дату начала' : 'planned start date',
+        plannedendat: locale === 'ru' ? 'дату завершения' : 'planned end date',
+      } as const;
+
+      return labels[field as keyof typeof labels] ?? field;
+    };
+
+    if (normalizedMessage.includes('must not be null') || normalizedMessage.includes('must not be blank')) {
+      const fieldMatch = normalizedMessage.match(/([a-z0-9]+)\s+must not be (?:null|blank)/);
+      const fieldName = fieldMatch?.[1];
+
+      if (fieldName) {
+        const localizedField = localizeFieldName(fieldName);
+        return locale === 'ru'
+          ? `Нужно заполнить поле: ${localizedField}.`
+          : `Please fill in the ${localizedField} field.`;
+      }
+    }
+
+    if (normalizedMessage.includes('feedback must be provided for all')) {
+      return locale === 'ru'
+        ? 'Нужно заполнить отзыв для всех участников основного состава.'
+        : 'Feedback must be provided for all main roster participants.';
+    }
+
+    if (normalizedMessage.includes('feedback description must not be blank')) {
+      return locale === 'ru'
+        ? 'Нужно заполнить текст отзыва.'
+        : 'Feedback description is required.';
+    }
 
     if (normalizedMessage.includes('game nickname is required')) {
       return locale === 'ru' ? 'Игровой ник обязателен.' : 'Game nickname is required.';
@@ -1580,13 +1621,13 @@ export default function JointPurchasesPageClient() {
     const availableStatuses = (() => {
       switch (offer.status) {
         case 'OPEN_FOR_APPLICATIONS':
-          return ['READY_TO_START'] satisfies JointPurchaseOfferStatus[];
+          return ['READY_TO_START', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'MAIN_GROUP_FILLED':
-          return ['READY_TO_START'] satisfies JointPurchaseOfferStatus[];
+          return ['READY_TO_START', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'READY_TO_START':
-          return ['IN_PROGRESS'] satisfies JointPurchaseOfferStatus[];
+          return ['IN_PROGRESS', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'IN_PROGRESS':
-          return ['COMPLETED'] satisfies JointPurchaseOfferStatus[];
+          return ['COMPLETED', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         default:
           return [];
       }
@@ -1617,16 +1658,6 @@ export default function JointPurchasesPageClient() {
           </button>
         ))}
 
-        {offer.status !== 'CANCELLED' && offer.status !== 'COMPLETED' ? (
-          <button
-            type="button"
-            onClick={() => void handleUpdateOfferStatus(offer.id, 'CANCELLED')}
-            disabled={actionOfferId === offer.id}
-            className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            CANCELLED
-          </button>
-        ) : null}
       </div>
     );
   };
@@ -2768,8 +2799,8 @@ export default function JointPurchasesPageClient() {
                   </div>
                   <div className="hidden">
                     {locale === 'ru'
-                      ? 'Получатели: активные MAIN и RESERVE участники'
-                      : 'Recipients: active MAIN and RESERVE participants'}
+                      ? 'Получатели: активные участники основного и резервного состава'
+                      : 'Recipients: active participants from the main and reserve rosters'}
                   </div>
                 </div>
 
