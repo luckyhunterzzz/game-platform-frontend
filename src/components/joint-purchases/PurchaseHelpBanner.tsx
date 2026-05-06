@@ -12,6 +12,8 @@ const TELEGRAM_HANDLE = 'gameops_platform';
 const TELEGRAM_APP_URL = `tg://resolve?domain=${TELEGRAM_HANDLE}`;
 const TELEGRAM_WEB_URL = `https://t.me/${TELEGRAM_HANDLE}`;
 const STORE_URL = 'https://www.empiresandpuzzles.com/ru#gempacks';
+const COLLAPSE_STORAGE_KEY = 'joint-purchase-help-banner-collapsed-until';
+const COLLAPSE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 type PurchaseHelpImage = {
   src: string;
@@ -123,6 +125,30 @@ export default function PurchaseHelpBanner() {
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const collapsedUntilRaw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (!collapsedUntilRaw) {
+      return;
+    }
+
+    const collapsedUntil = Number(collapsedUntilRaw);
+    if (!Number.isFinite(collapsedUntil)) {
+      window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+      return;
+    }
+
+    if (collapsedUntil > Date.now()) {
+      setIsCollapsed(true);
+      return;
+    }
+
+    window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+  }, []);
+
   if (locale !== 'ru' || isHiddenForScreenshots) {
     return null;
   }
@@ -143,13 +169,32 @@ export default function PurchaseHelpBanner() {
     setIsOpen(true);
   };
 
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const nextValue = !prev;
+
+      if (typeof window !== 'undefined') {
+        if (nextValue) {
+          window.localStorage.setItem(
+            COLLAPSE_STORAGE_KEY,
+            String(Date.now() + COLLAPSE_DURATION_MS),
+          );
+        } else {
+          window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+        }
+      }
+
+      return nextValue;
+    });
+  };
+
   return (
     <>
       <section className="mx-auto w-full max-w-7xl px-4 pt-6">
         <div className="overflow-hidden rounded-[2rem] border border-amber-400/30 bg-[linear-gradient(135deg,rgba(245,158,11,0.22),rgba(249,115,22,0.16)_45%,rgba(15,23,42,0.94))] shadow-[0_28px_80px_rgba(0,0,0,0.22)]">
           <button
             type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
+            onClick={toggleCollapsed}
             className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-white/5 md:px-6"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/12 bg-white/10 text-amber-100">
