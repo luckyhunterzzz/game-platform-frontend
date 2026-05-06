@@ -189,20 +189,6 @@ function buildTelegramHref(value?: string | null): string | null {
   return `https://t.me/${handle}`;
 }
 
-function getCooldownRemainingMs(nextAllowedAt?: string | null): number {
-  if (!nextAllowedAt) {
-    return 0;
-  }
-
-  const nextAllowedTimestamp = new Date(nextAllowedAt).getTime();
-
-  if (Number.isNaN(nextAllowedTimestamp)) {
-    return 0;
-  }
-
-  return Math.max(0, nextAllowedTimestamp - Date.now());
-}
-
 function formatCooldownRemaining(ms: number, locale: 'ru' | 'en'): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
