@@ -55,15 +55,18 @@ export default function JointPurchasesPage() {
                 </Link>
               </li>
               <li>
-                {authenticated ? (
-                  <Link
-                    href="/joint-purchases"
-                    onClick={() => setSidebarOpen(false)}
-                    className="block text-[var(--foreground)] transition hover:text-cyan-300"
-                  >
-                    {messages.home.navJointPurchases}
-                  </Link>
-                ) : null}
+                <Link
+                  href="/joint-purchases"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground)] transition hover:text-cyan-300"
+                >
+                  <span className="block">{messages.home.navJointPurchases}</span>
+                  {!authenticated ? (
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {messages.home.navJointPurchasesAuthHint}
+                    </span>
+                  ) : null}
+                </Link>
               </li>
             </ul>
           </div>
@@ -82,10 +85,10 @@ export default function JointPurchasesPage() {
           <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center">
             <div className="w-full rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.18)]">
               <h1 className="text-3xl font-black text-[var(--foreground)]">
-                {messages.profile.signInTitle}
+                {messages.jointPurchases.guestAccessTitle}
               </h1>
               <p className="mt-4 text-sm leading-7 text-[var(--foreground-soft)]">
-                {messages.profile.signInDescription}
+                {messages.jointPurchases.guestAccessDescription}
               </p>
 
               <div className="mt-6 flex flex-wrap justify-center gap-3">

@@ -14,6 +14,7 @@ type QuickLinkItem = {
   label: string;
   href?: string;
   imageSrc?: string;
+  authHint?: string;
 };
 
 export default function HomePage() {
@@ -28,9 +29,12 @@ export default function HomePage() {
       { label: messages.home.navEvents, imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
-      ...(authenticated
-        ? [{ label: messages.home.navJointPurchases, href: '/joint-purchases', imageSrc: '/home-quick-links/joint-purchases.webp' }]
-        : []),
+      {
+        label: messages.home.navJointPurchases,
+        href: '/joint-purchases',
+        imageSrc: '/home-quick-links/joint-purchases.webp',
+        authHint: authenticated ? undefined : messages.home.navJointPurchasesAuthHint,
+      },
     ],
     [
       locale,
@@ -38,6 +42,7 @@ export default function HomePage() {
       messages.home.navEvents,
       messages.home.navAlliances,
       messages.home.navJointPurchases,
+      messages.home.navJointPurchasesAuthHint,
       authenticated,
     ],
   );
@@ -76,17 +81,20 @@ export default function HomePage() {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
-              {authenticated ? (
-                <li>
-                  <Link
-                    href="/joint-purchases"
-                    onClick={() => setSidebarOpen(false)}
-                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                  >
-                    {messages.home.navJointPurchases}
-                  </Link>
-                </li>
-              ) : null}
+              <li>
+                <Link
+                  href="/joint-purchases"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  <span className="block">{messages.home.navJointPurchases}</span>
+                  {!authenticated ? (
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {messages.home.navJointPurchasesAuthHint}
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -125,6 +133,11 @@ export default function HomePage() {
                 <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
                   {item.label}
                 </span>
+                {item.authHint ? (
+                  <span className="mt-1 text-center text-[10px] font-medium text-[var(--foreground-soft)] sm:text-[11px]">
+                    {item.authHint}
+                  </span>
+                ) : null}
               </>
             );
 
