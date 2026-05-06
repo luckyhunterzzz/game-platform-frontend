@@ -39,6 +39,12 @@ type CreateOfferFormState = {
   title: string;
   description: string;
   allianceName: string;
+  contactGroup: string;
+  showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
   requiredParticipants: number;
   reserveParticipants: number;
   plannedStartAt: string;
@@ -54,6 +60,8 @@ type FeedbackDraft = {
 type BulkEmailFormState = {
   subject: string;
   message: string;
+  sendToMain: boolean;
+  sendToReserve: boolean;
 };
 
 const ORGANIZER_ROLES = new Set(['ROLE_contractor', 'ROLE_admin', 'ROLE_superadmin']);
@@ -62,6 +70,12 @@ const initialCreateForm: CreateOfferFormState = {
   title: '',
   description: '',
   allianceName: '',
+  contactGroup: '',
+  showOrganizerContacts: false,
+  showOrganizerGameNickname: false,
+  showOrganizerTelegram: false,
+  showOrganizerVk: false,
+  showOrganizerDiscord: false,
   requiredParticipants: 29,
   reserveParticipants: 3,
   plannedStartAt: '',
@@ -72,6 +86,8 @@ const initialCreateForm: CreateOfferFormState = {
 const initialBulkEmailForm: BulkEmailFormState = {
   subject: '',
   message: '',
+  sendToMain: true,
+  sendToReserve: false,
 };
 
 const ALLIANCE_NAME_VISIBLE_STATUSES = new Set<JointPurchaseOfferStatus>([
@@ -86,6 +102,25 @@ function fromLocalDateTimeValue(value: string): string {
   }
 
   return new Date(value).toISOString();
+}
+
+function toLocalDateTimeValue(value?: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function toLocalDateTimeInputValue(date: Date): string {
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 }
 
 function formatDateTime(value?: string | null, locale: 'ru' | 'en' = 'ru'): string {
@@ -106,6 +141,74 @@ function formatDateTime(value?: string | null, locale: 'ru' | 'en' = 'ru'): stri
 
 function normalizeText(value?: string | null): string {
   return value?.trim() ?? '';
+}
+
+function buildContactGroupHref(value?: string | null): string | null {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return normalized;
+  }
+
+  if (normalized.startsWith('@')) {
+    return `https://t.me/${normalized.slice(1)}`;
+  }
+
+  if (normalized.startsWith('t.me/') || normalized.startsWith('telegram.me/')) {
+    return `https://${normalized}`;
+  }
+
+  if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(normalized)) {
+    return `https://${normalized}`;
+  }
+
+  return null;
+}
+
+function buildTelegramHref(value?: string | null): string | null {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    return normalized;
+  }
+
+  const handle = normalized.startsWith('@') ? normalized.slice(1) : normalized;
+
+  if (!/^[a-zA-Z0-9_]+$/.test(handle)) {
+    return null;
+  }
+
+  return `https://t.me/${handle}`;
+}
+
+function getCooldownRemainingMs(nextAllowedAt?: string | null): number {
+  if (!nextAllowedAt) {
+    return 0;
+  }
+
+  const nextAllowedTimestamp = new Date(nextAllowedAt).getTime();
+
+  if (Number.isNaN(nextAllowedTimestamp)) {
+    return 0;
+  }
+
+  return Math.max(0, nextAllowedTimestamp - Date.now());
+}
+
+function formatCooldownRemaining(ms: number, locale: 'ru' | 'en'): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return locale === 'ru' ? `${minutes} мин ${seconds} сек` : `${minutes} min ${seconds} sec`;
 }
 
 function buildEmptyFeedbackDraft(): FeedbackDraft {
@@ -240,8 +343,12 @@ export default function JointPurchasesPageClient() {
   const [bulkEmailModalOpen, setBulkEmailModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<{ url: string; title: string } | null>(null);
   const [showProcessedApplications, setShowProcessedApplications] = useState(false);
+  const [showCompletedClientOffers, setShowCompletedClientOffers] = useState(false);
   const [expandedInactiveOfferIds, setExpandedInactiveOfferIds] = useState<Record<string, boolean>>({});
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   const [createOfferForm, setCreateOfferForm] = useState<CreateOfferFormState>(initialCreateForm);
+  const [plannedStartDraft, setPlannedStartDraft] = useState(initialCreateForm.plannedStartAt);
+  const [plannedEndDraft, setPlannedEndDraft] = useState(initialCreateForm.plannedEndAt);
   const [createOfferFileName, setCreateOfferFileName] = useState<string | null>(null);
   const [createOfferScreenshot, setCreateOfferScreenshot] = useState<ImageUploadResponse | null>(null);
   const [createOfferUploadLoading, setCreateOfferUploadLoading] = useState(false);
@@ -255,9 +362,10 @@ export default function JointPurchasesPageClient() {
   const [applyModalError, setApplyModalError] = useState<string | null>(null);
   const [bulkEmailModalError, setBulkEmailModalError] = useState<string | null>(null);
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, FeedbackDraft>>({});
-  const [organizerProfileStatus, setOrganizerProfileStatus] = useState<PlayerProfileResponse['status'] | null>(null);
+  const [organizerProfile, setOrganizerProfile] = useState<PlayerProfileResponse | null>(null);
   const [bulkEmailForm, setBulkEmailForm] = useState<BulkEmailFormState>(initialBulkEmailForm);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
   const isOrganizer = useMemo(
     () => roles.some((role) => ORGANIZER_ROLES.has(role)),
@@ -265,6 +373,14 @@ export default function JointPurchasesPageClient() {
   );
   const isAdminOrganizer = roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin');
   const isContractorOnlyOrganizer = roles.includes('ROLE_contractor') && !isAdminOrganizer;
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCooldownNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (!imagePreview) {
@@ -307,22 +423,24 @@ export default function JointPurchasesPageClient() {
     ? {
         overviewTitle: 'Совместные закупки',
         overviewSubtitle:
-          'Здесь можно создавать офферы, подавать заявки, разбирать участников вручную и доводить закупку до completed.',
+          'Здесь вы можете скоординироваться вместе и выгодно приобрести акционные предложения.',
         organizerBadge: 'Доступ организатора',
         createOffer: 'Создать оффер',
+        editOffer: 'Редактировать оффер',
         createOfferHint: 'Открой новую закупку и сразу собери первый рабочий сценарий.',
         emptyTitle: 'Пока нет совместных закупок',
         emptyDescription: 'Как только появятся первые офферы, они будут показаны здесь.',
         organizerEmptyDescription: 'Можно уже создать первый оффер и проверить flow прямо с этого экрана.',
-        openOffersTitle: 'Открытые офферы',
-        openOffersHint: 'Все пользователи видят предложения, а участвовать могут только авторизованные с заполненным профилем.',
+        openOffersTitle: 'Доступные офферы и мои участия',
+        openOffersHint: 'Здесь видны открытые предложения и закупки, в которых ты уже подтверждён как участник.',
         organizerOffersTitle: 'Мои офферы',
-        organizerOffersHint: 'Создание, статусы, заявки, перевод между MAIN и RESERVE и feedback.',
+        organizerOffersHint: 'Создание, статусы, заявки, перевод между основным и резервным составом и отзывы.',
         organizerBoardTitle: 'Панель оффера',
-        organizerBoardHint: 'Выбери оффер справа и работай с заявками и финальным feedback.',
+        organizerBoardHint: 'Выбери оффер справа и работай с заявками и финальными отзывами.',
         applicationsTitle: 'Заявки',
-        feedbackTitle: 'Feedback по MAIN',
+        feedbackTitle: 'Отзывы по основному составу',
         createModalTitle: 'Создать оффер закупки',
+        editModalTitle: 'Редактировать оффер закупки',
         applyModalTitle: 'Подать заявку',
         detailsModalTitle: 'Детали заявки',
         screenshotLabel: 'Скриншот',
@@ -336,8 +454,9 @@ export default function JointPurchasesPageClient() {
         reserveParticipantsLabel: 'Резерв',
         plannedStartLabel: 'Плановый старт',
         plannedEndLabel: 'Плановое завершение',
-        autoApproveLabel: 'Разрешить auto-approve',
+        autoApproveLabel: 'Автоподтверждение',
         create: 'Создать',
+        saveChanges: 'Сохранить изменения',
         submitApplication: 'Отправить заявку',
         cancel: 'Отмена',
         close: 'Закрыть',
@@ -351,21 +470,23 @@ export default function JointPurchasesPageClient() {
         reject: 'Отклонить',
         moveToMain: 'Перевести в основной набор',
         moveToReserve: 'Перевести в резерв',
-        saveFeedback: 'Сохранить feedback',
-        resultSuccess: 'SUCCESS',
-        resultUnsuccess: 'UNSUCCESS',
+        removeFromPurchase: 'Убрать из закупки',
+        saveFeedback: 'Сохранить отзыв',
+        resultSuccess: 'Успешно',
+        resultUnsuccess: 'Неуспешно',
         commentLabel: 'Комментарий',
-        selectedOfferMissing: 'Выбери оффер, чтобы открыть заявки и feedback.',
+        selectedOfferMissing: 'Выбери оффер, чтобы открыть заявки и отзывы.',
         noApplications: 'Заявок пока нет.',
-        noFeedback: 'Feedback по MAIN пока не заполнен.',
+        noFeedback: 'Отзывы по основному составу пока не заполнены.',
         noOrganizerOffers: 'Ты ещё не создал ни одного оффера.',
         noOpenOffers: 'Сейчас нет открытых офферов.',
         apply: 'Участвовать',
         ownerBadge: 'Твой оффер',
         loadError: 'Не удалось загрузить данные раздела.',
         createSuccess: 'Оффер создан.',
+        updateSuccess: 'Оффер обновлён.',
         applySuccess: 'Заявка отправлена.',
-        feedbackSuccess: 'Feedback сохранён.',
+        feedbackSuccess: 'Отзыв сохранён.',
         statusSuccess: 'Статус оффера обновлён.',
         actionSuccess: 'Действие выполнено.',
         statusLabels: {
@@ -377,32 +498,35 @@ export default function JointPurchasesPageClient() {
           CANCELLED: 'Отменено',
         } as Record<JointPurchaseOfferStatus, string>,
         applicationStatusLabels: {
-          PENDING_TRUST_CHECK: 'Ожидает trust score',
-          PENDING_ORGANIZER_REVIEW: 'Ждёт review',
+          PENDING_TRUST_CHECK: 'Ожидает проверки доверия',
+          PENDING_ORGANIZER_REVIEW: 'Ждёт подтверждения',
           APPROVED_MAIN: 'Одобрено в основной набор',
-          APPROVED_RESERVE: 'Одобрено в резерв',
+          APPROVED_RESERVE: 'Одобрено в резервный состав',
           REJECTED: 'Отклонено',
+          CANCELLED: 'Отменено',
         } as Record<string, string>,
       }
     : {
         overviewTitle: 'Joint purchases',
         overviewSubtitle:
-          'Create offers, submit applications, review participants manually, and close the purchase flow to completed.',
+          'Here you can coordinate together and purchase promotional offers more advantageously.',
         organizerBadge: 'Organizer access',
         createOffer: 'Create offer',
+        editOffer: 'Edit offer',
         createOfferHint: 'Open a new purchase and build the first real flow.',
         emptyTitle: 'No joint purchases yet',
         emptyDescription: 'The first offers will appear here.',
         organizerEmptyDescription: 'You can already create the first offer and test the flow from this screen.',
-        openOffersTitle: 'Open offers',
-        openOffersHint: 'Everyone can see offers. Participation is still checked by backend rules.',
+        openOffersTitle: 'Available offers and my participations',
+        openOffersHint: 'This list shows open offers and purchases where you are already confirmed as a participant.',
         organizerOffersTitle: 'My offers',
-        organizerOffersHint: 'Creation, statuses, applications, MAIN/RESERVE moves, and feedback.',
+        organizerOffersHint: 'Creation, statuses, applications, main and reserve moves, and feedback.',
         organizerBoardTitle: 'Offer board',
         organizerBoardHint: 'Pick an offer and work with applications and final feedback.',
         applicationsTitle: 'Applications',
-        feedbackTitle: 'MAIN feedback',
+        feedbackTitle: 'Main roster feedback',
         createModalTitle: 'Create purchase offer',
+        editModalTitle: 'Edit purchase offer',
         applyModalTitle: 'Submit application',
         detailsModalTitle: 'Application details',
         screenshotLabel: 'Screenshot',
@@ -416,8 +540,9 @@ export default function JointPurchasesPageClient() {
         reserveParticipantsLabel: 'Reserve',
         plannedStartLabel: 'Planned start',
         plannedEndLabel: 'Planned end',
-        autoApproveLabel: 'Allow auto-approve',
+        autoApproveLabel: 'Auto approve',
         create: 'Create',
+        saveChanges: 'Save changes',
         submitApplication: 'Submit application',
         cancel: 'Cancel',
         close: 'Close',
@@ -431,19 +556,21 @@ export default function JointPurchasesPageClient() {
         reject: 'Reject',
         moveToMain: 'Move to main roster',
         moveToReserve: 'Move to reserve',
+        removeFromPurchase: 'Remove from purchase',
         saveFeedback: 'Save feedback',
-        resultSuccess: 'SUCCESS',
-        resultUnsuccess: 'UNSUCCESS',
+        resultSuccess: 'Successful',
+        resultUnsuccess: 'Unsuccessful',
         commentLabel: 'Comment',
         selectedOfferMissing: 'Select an offer to open applications and feedback.',
         noApplications: 'No applications yet.',
-        noFeedback: 'No MAIN feedback yet.',
+        noFeedback: 'No main roster feedback yet.',
         noOrganizerOffers: 'You have not created any offers yet.',
         noOpenOffers: 'There are no open offers right now.',
         apply: 'Apply',
         ownerBadge: 'Your offer',
         loadError: 'Failed to load section data.',
         createSuccess: 'Offer created.',
+        updateSuccess: 'Offer updated.',
         applySuccess: 'Application submitted.',
         feedbackSuccess: 'Feedback saved.',
         statusSuccess: 'Offer status updated.',
@@ -457,16 +584,31 @@ export default function JointPurchasesPageClient() {
           CANCELLED: 'Cancelled',
         } as Record<JointPurchaseOfferStatus, string>,
         applicationStatusLabels: {
-          PENDING_TRUST_CHECK: 'Waiting trust score',
-          PENDING_ORGANIZER_REVIEW: 'Waiting review',
+          PENDING_TRUST_CHECK: 'Waiting for trust check',
+          PENDING_ORGANIZER_REVIEW: 'Waiting for confirmation',
           APPROVED_MAIN: 'Approved to main roster',
-          APPROVED_RESERVE: 'Approved to reserve',
+          APPROVED_RESERVE: 'Approved to reserve roster',
           REJECTED: 'Rejected',
+          CANCELLED: 'Cancelled',
         } as Record<string, string>,
       };
 
   const allianceNameHiddenLabel =
     locale === 'ru' ? 'Скрыто до готовности закупки' : 'Hidden until purchase is ready';
+  const contactGroupLabel = locale === 'ru' ? 'Группа для связи' : 'Contact group';
+  const contactGroupHiddenLabel =
+    locale === 'ru'
+      ? 'Доступно после подтверждения в основной состав'
+      : 'Visible after approval to the main roster';
+  const organizerContactsToggleLabel =
+    locale === 'ru' ? 'Показывать контакты организатора' : 'Show organizer contacts';
+  const organizerContactsSectionLabel =
+    locale === 'ru' ? 'Контакты организатора' : 'Organizer contacts';
+  const organizerNicknameLabel =
+    locale === 'ru' ? 'Игровой никнейм' : 'Game nickname';
+  const telegramLabel = 'Telegram';
+  const vkLabel = 'VK';
+  const discordLabel = 'Discord';
   const offersActiveDescription =
     locale === 'ru'
       ? 'Ниже уже есть активные офферы. Можно сразу переходить к нужному сценарию.'
@@ -480,10 +622,10 @@ export default function JointPurchasesPageClient() {
       ? 'Не удалось проверить профиль. Попробуй ещё раз.'
       : 'Failed to check profile. Try again.';
   const mainLabel = locale === 'ru' ? 'Основной набор' : 'Main roster';
-  const reserveLabel = locale === 'ru' ? 'Резерв' : 'Reserve';
+  const reserveLabel = locale === 'ru' ? 'Резервный состав' : 'Reserve roster';
   const cancelApplicationLabel = locale === 'ru' ? 'Отозвать заявку' : 'Withdraw application';
   const feedbackTitleLabel =
-    locale === 'ru' ? 'Фидбэк по основному набору' : 'Main roster feedback';
+    locale === 'ru' ? 'Отзывы по основному составу' : 'Main roster feedback';
   const activeOrganizerOffers = organizerOffers.filter(
     (offer) => offer.status !== 'COMPLETED' && offer.status !== 'CANCELLED',
   );
@@ -492,12 +634,42 @@ export default function JointPurchasesPageClient() {
   );
   const organizerHasOffers = activeOrganizerOffers.length > 0;
   const shouldShowOrganizerCreate = isOrganizer && activeOrganizerOffers.length === 0;
-  const organizerCanCreateOffer = !isContractorOnlyOrganizer || organizerProfileStatus === 'COMPLETE';
+  const organizerCanCreateOffer = !isContractorOnlyOrganizer || organizerProfile?.status === 'COMPLETE';
+  const activeVisibleOffers = openOffers.filter(
+    (offer) => offer.status !== 'COMPLETED' && offer.status !== 'CANCELLED',
+  );
+  const inactiveParticipantOffers = openOffers.filter(
+    (offer) =>
+      (offer.status === 'COMPLETED' || offer.status === 'CANCELLED')
+      && Boolean(offer.currentUserApplicationStatus)
+      && offer.organizerUserId !== userId,
+  );
+  const nowInputValue = toLocalDateTimeInputValue(new Date());
+  const plannedStartMaxValue = toLocalDateTimeInputValue(new Date(Date.now() + 48 * 60 * 60 * 1000));
+  const effectiveStartInputValue = plannedStartDraft || createOfferForm.plannedStartAt || nowInputValue;
+  const plannedEndMaxValue = (() => {
+    const startDate = new Date(effectiveStartInputValue);
+    if (Number.isNaN(startDate.getTime())) {
+      return toLocalDateTimeInputValue(new Date(Date.now() + 48 * 60 * 60 * 1000));
+    }
+    return toLocalDateTimeInputValue(new Date(startDate.getTime() + 48 * 60 * 60 * 1000));
+  })();
+  const hasPendingStartApply = plannedStartDraft !== createOfferForm.plannedStartAt;
+  const hasPendingEndApply = plannedEndDraft !== createOfferForm.plannedEndAt;
 
   const selectedOrganizerOffer = useMemo(
     () => activeOrganizerOffers.find((offer) => offer.id === selectedOrganizerOfferId) ?? null,
     [activeOrganizerOffers, selectedOrganizerOfferId],
   );
+  const selectedOrganizerOfferCooldownMs = selectedOrganizerOffer
+    ? Math.max(
+        0,
+        (selectedOrganizerOffer.nextParticipantsEmailAllowedAt
+          ? new Date(selectedOrganizerOffer.nextParticipantsEmailAllowedAt).getTime()
+          : 0) - cooldownNow,
+      )
+    : 0;
+  const selectedOrganizerOfferEmailCooldownActive = selectedOrganizerOfferCooldownMs > 0;
 
   const approvedMainApplications = useMemo(
     () =>
@@ -516,7 +688,10 @@ export default function JointPurchasesPageClient() {
   }, [offerApplications, showProcessedApplications]);
 
   const resetCreateState = () => {
+    setEditingOfferId(null);
     setCreateOfferForm(initialCreateForm);
+    setPlannedStartDraft(initialCreateForm.plannedStartAt);
+    setPlannedEndDraft(initialCreateForm.plannedEndAt);
     setCreateOfferFileName(null);
     setCreateOfferScreenshot(null);
     setCreateModalError(null);
@@ -537,10 +712,46 @@ export default function JointPurchasesPageClient() {
     setSendingBulkEmail(false);
   };
 
+  const startEditingOffer = (offer: JointPurchaseOffer) => {
+    setEditingOfferId(offer.id);
+    setCreateOfferForm({
+      title: offer.title,
+      description: offer.description ?? '',
+      allianceName: offer.allianceName ?? '',
+      contactGroup: offer.contactGroup ?? '',
+      showOrganizerContacts: Boolean(offer.showOrganizerContacts),
+      showOrganizerGameNickname: Boolean(offer.showOrganizerGameNickname),
+      showOrganizerTelegram: Boolean(offer.showOrganizerTelegram),
+      showOrganizerVk: Boolean(offer.showOrganizerVk),
+      showOrganizerDiscord: Boolean(offer.showOrganizerDiscord),
+      requiredParticipants: offer.requiredParticipants,
+      reserveParticipants: offer.reserveParticipants,
+      plannedStartAt: toLocalDateTimeValue(offer.plannedStartAt),
+      plannedEndAt: toLocalDateTimeValue(offer.plannedEndAt),
+      autoApproveEnabled: Boolean(offer.autoApproveEnabled),
+    });
+    setPlannedStartDraft(toLocalDateTimeValue(offer.plannedStartAt));
+    setPlannedEndDraft(toLocalDateTimeValue(offer.plannedEndAt));
+    setCreateOfferFileName(offer.screenshotObjectKey ? offer.screenshotObjectKey.split('/').pop() ?? null : null);
+    setCreateOfferScreenshot(
+      offer.screenshotBucket && offer.screenshotObjectKey
+        ? {
+            bucket: offer.screenshotBucket,
+            objectKey: offer.screenshotObjectKey,
+            url: offer.screenshotUrl ?? null,
+          }
+        : null,
+    );
+    setCreateModalError(null);
+    setCreateModalOpen(true);
+  };
+
   const openBulkEmailModal = (offer: JointPurchaseOffer) => {
     setBulkEmailForm({
       subject: buildDefaultBulkEmailSubject(offer, locale),
       message: buildDefaultBulkEmailMessage(offer, locale),
+      sendToMain: true,
+      sendToReserve: false,
     });
     setBulkEmailModalError(null);
     setBulkEmailModalOpen(true);
@@ -552,6 +763,45 @@ export default function JointPurchasesPageClient() {
     }
 
     const normalizedMessage = message.toLowerCase();
+
+    const localizeFieldName = (field: string) => {
+      const labels = {
+        title: locale === 'ru' ? 'заголовок' : 'title',
+        description: locale === 'ru' ? 'описание' : 'description',
+        alliancename: locale === 'ru' ? 'название альянса' : 'alliance name',
+        contactgroup: locale === 'ru' ? 'группу для связи' : 'contact group',
+        requiredparticipants: locale === 'ru' ? 'размер основного состава' : 'main roster size',
+        reserveparticipants: locale === 'ru' ? 'размер резервного состава' : 'reserve roster size',
+        plannedstartat: locale === 'ru' ? 'дату начала' : 'planned start date',
+        plannedendat: locale === 'ru' ? 'дату завершения' : 'planned end date',
+      } as const;
+
+      return labels[field as keyof typeof labels] ?? field;
+    };
+
+    if (normalizedMessage.includes('must not be null') || normalizedMessage.includes('must not be blank')) {
+      const fieldMatch = normalizedMessage.match(/([a-z0-9]+)\s+must not be (?:null|blank)/);
+      const fieldName = fieldMatch?.[1];
+
+      if (fieldName) {
+        const localizedField = localizeFieldName(fieldName);
+        return locale === 'ru'
+          ? `Нужно заполнить поле: ${localizedField}.`
+          : `Please fill in the ${localizedField} field.`;
+      }
+    }
+
+    if (normalizedMessage.includes('feedback must be provided for all')) {
+      return locale === 'ru'
+        ? 'Нужно заполнить отзыв для всех участников основного состава.'
+        : 'Feedback must be provided for all main roster participants.';
+    }
+
+    if (normalizedMessage.includes('feedback description must not be blank')) {
+      return locale === 'ru'
+        ? 'Нужно заполнить текст отзыва.'
+        : 'Feedback description is required.';
+    }
 
     if (normalizedMessage.includes('game nickname is required')) {
       return locale === 'ru' ? 'Игровой ник обязателен.' : 'Game nickname is required.';
@@ -591,6 +841,12 @@ export default function JointPurchasesPageClient() {
         : 'You have already submitted an application for this offer.';
     }
 
+    if (normalizedMessage.includes('user already has active main participation')) {
+      return locale === 'ru'
+        ? 'Нельзя подать новую заявку, пока ты уже находишься в основном составе другой активной закупки.'
+        : 'You cannot submit a new application while you are already in the main roster of another active purchase.';
+    }
+
     if (normalizedMessage.includes('main group is already full')) {
       return locale === 'ru'
         ? 'Основной набор уже заполнен.'
@@ -601,6 +857,22 @@ export default function JointPurchasesPageClient() {
       return locale === 'ru'
         ? 'Резерв уже заполнен.'
         : 'Reserve is already full.';
+    }
+
+    if (normalizedMessage.includes('participants email cooldown is active')) {
+      const secondsMatch = normalizedMessage.match(/retry after (\d+) seconds/);
+      const seconds = secondsMatch ? Number(secondsMatch[1]) : 0;
+
+      if (seconds > 0) {
+        const formatted = formatCooldownRemaining(seconds * 1000, locale);
+        return locale === 'ru'
+          ? `Повторная отправка будет доступна через ${formatted}.`
+          : `Email sending will be available again in ${formatted}.`;
+      }
+
+      return locale === 'ru'
+        ? 'Повторная отправка писем пока недоступна.'
+        : 'Email sending is temporarily unavailable.';
     }
 
     if (normalizedMessage.includes('application can be cancelled only before the purchase is ready')) {
@@ -619,6 +891,24 @@ export default function JointPurchasesPageClient() {
       return locale === 'ru'
         ? 'Плановое завершение должно быть позже времени старта.'
         : 'Planned end must be later than planned start.';
+    }
+
+    if (normalizedMessage.includes('plannedstartat must be in the future')) {
+      return locale === 'ru'
+        ? 'Дата начала должна быть позже текущего времени.'
+        : 'Start date must be later than the current time.';
+    }
+
+    if (normalizedMessage.includes('plannedstartat cannot be later than 48 hours from now')) {
+      return locale === 'ru'
+        ? 'Дата начала не может быть позже чем через 48 часов от текущего времени.'
+        : 'Start date cannot be later than 48 hours from now.';
+    }
+
+    if (normalizedMessage.includes('plannedendat cannot be later than 48 hours after plannedstartat')) {
+      return locale === 'ru'
+        ? 'Дата завершения не может быть позже чем через 48 часов после даты начала.'
+        : 'End date cannot be later than 48 hours after the start date.';
     }
 
     if (normalizedMessage.includes('invalid offer status transition')) {
@@ -645,13 +935,13 @@ export default function JointPurchasesPageClient() {
   };
 
   const loadOrganizerProfileStatus = async () => {
-    if (!isContractorOnlyOrganizer) {
-      setOrganizerProfileStatus(null);
+    if (!isOrganizer) {
+      setOrganizerProfile(null);
       return;
     }
 
     const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me');
-    setOrganizerProfileStatus(response.status);
+    setOrganizerProfile(response);
   };
 
   const loadOrganizerOffers = async (preserveSelection = true) => {
@@ -796,7 +1086,31 @@ export default function JointPurchasesPageClient() {
     }
   };
 
-  const handleCreateOffer = async () => {
+  const handleSubmitOffer = async () => {
+    if (hasPendingStartApply || hasPendingEndApply) {
+      setCreateModalError(
+        locale === 'ru'
+          ? 'Подтверди выбранные даты кнопкой OK перед сохранением оффера.'
+          : 'Confirm the selected dates with OK before saving the offer.',
+      );
+      return;
+    }
+
+    if (
+      createOfferForm.showOrganizerContacts &&
+      !createOfferForm.showOrganizerGameNickname &&
+      !createOfferForm.showOrganizerTelegram &&
+      !createOfferForm.showOrganizerVk &&
+      !createOfferForm.showOrganizerDiscord
+    ) {
+      setCreateModalError(
+        locale === 'ru'
+          ? 'Выбери хотя бы один контакт организатора для показа в оффере.'
+          : 'Select at least one organizer contact to show in the offer.',
+      );
+      return;
+    }
+
     setSubmittingCreate(true);
     setPageError(null);
     setPageSuccess(null);
@@ -807,6 +1121,12 @@ export default function JointPurchasesPageClient() {
         title: normalizeText(createOfferForm.title),
         description: normalizeText(createOfferForm.description),
         allianceName: normalizeText(createOfferForm.allianceName),
+        contactGroup: normalizeText(createOfferForm.contactGroup),
+        showOrganizerContacts: createOfferForm.showOrganizerContacts,
+        showOrganizerGameNickname: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerGameNickname,
+        showOrganizerTelegram: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerTelegram,
+        showOrganizerVk: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerVk,
+        showOrganizerDiscord: createOfferForm.showOrganizerContacts && createOfferForm.showOrganizerDiscord,
         screenshotBucket: createOfferScreenshot?.bucket ?? null,
         screenshotObjectKey: createOfferScreenshot?.objectKey ?? null,
         requiredParticipants: createOfferForm.requiredParticipants,
@@ -816,16 +1136,28 @@ export default function JointPurchasesPageClient() {
         plannedEndAt: fromLocalDateTimeValue(createOfferForm.plannedEndAt),
       };
 
-      const created = await apiPostJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
-        '/api/v1/organizer/joint-purchases',
-        payload,
-      );
+      if (editingOfferId) {
+        const updated = await apiPutJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
+          `/api/v1/organizer/joint-purchases/${editingOfferId}`,
+          payload,
+        );
+        setCreateModalOpen(false);
+        resetCreateState();
+        setPageSuccess(copyText.updateSuccess);
+        await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
+        setSelectedOrganizerOfferId(updated.id);
+      } else {
+        const created = await apiPostJson<CreateJointPurchaseOfferRequest, JointPurchaseOffer>(
+          '/api/v1/organizer/joint-purchases',
+          payload,
+        );
 
-      setCreateModalOpen(false);
-      resetCreateState();
-      setPageSuccess(copyText.createSuccess);
-      await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
-      setSelectedOrganizerOfferId(created.id);
+        setCreateModalOpen(false);
+        resetCreateState();
+        setPageSuccess(copyText.createSuccess);
+        await Promise.all([loadOpenOffers(), loadOrganizerOffers(false)]);
+        setSelectedOrganizerOfferId(created.id);
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         setCreateModalError(localizeJointPurchaseError(error.message));
@@ -922,6 +1254,37 @@ export default function JointPurchasesPageClient() {
     return allianceNameHiddenLabel;
   };
 
+  const getContactGroupLabel = (offer: JointPurchaseOffer, organizerView: boolean) => {
+    const isOwnOffer = Boolean(userId && offer.organizerUserId === userId);
+    const isMainParticipant = offer.currentUserAssignedParticipationType === 'MAIN';
+
+    if (organizerView || isOwnOffer || isMainParticipant) {
+      return offer.contactGroup;
+    }
+
+    return contactGroupHiddenLabel;
+  };
+
+  const renderContactGroupValue = (offer: JointPurchaseOffer, organizerView: boolean) => {
+    const label = getContactGroupLabel(offer, organizerView);
+    const href = buildContactGroupHref(label);
+
+    if (!href || label === contactGroupHiddenLabel) {
+      return label;
+    }
+
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
+      >
+        {label}
+      </a>
+    );
+  };
+
   const getParticipationTypeLabel = (participationType?: ParticipationType | null) => {
     if (!participationType) {
       return null;
@@ -964,6 +1327,40 @@ export default function JointPurchasesPageClient() {
     );
   };
 
+  const renderOrganizerContacts = (offer: JointPurchaseOffer) => {
+    const items = [
+      offer.organizerGameNickname
+        ? { label: organizerNicknameLabel, value: offer.organizerGameNickname }
+        : null,
+      offer.organizerTelegramUsername
+        ? { label: telegramLabel, value: `@${normalizeText(offer.organizerTelegramUsername).replace(/^@/, '')}` }
+        : null,
+      offer.organizerVkUsername
+        ? { label: vkLabel, value: offer.organizerVkUsername }
+        : null,
+      offer.organizerDiscordUsername
+        ? { label: discordLabel, value: offer.organizerDiscordUsername }
+        : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>;
+
+    if (!offer.showOrganizerContacts || items.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+        <div className="text-xs uppercase tracking-[0.18em]">{organizerContactsSectionLabel}</div>
+        <div className="mt-2 grid gap-2">
+          {items.map((item) => (
+            <div key={item.label}>
+              <span className="text-[var(--foreground)]">{item.label}:</span> {item.value}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const canCancelCurrentUserApplication = (offer: JointPurchaseOffer) => {
     if (!offer.currentUserApplicationStatus) {
       return false;
@@ -979,6 +1376,22 @@ export default function JointPurchasesPageClient() {
       || offer.currentUserApplicationStatus === 'APPROVED_MAIN'
       || offer.currentUserApplicationStatus === 'APPROVED_RESERVE'
     );
+  };
+
+  const canApplyToOffer = (offer: JointPurchaseOffer, isOwnOffer: boolean, currentUserHasApplication: boolean) => {
+    if (!authenticated || isOwnOffer || currentUserHasApplication) {
+      return false;
+    }
+
+    if (offer.status === 'OPEN_FOR_APPLICATIONS') {
+      return true;
+    }
+
+    if (offer.status === 'MAIN_GROUP_FILLED') {
+      return offer.currentReserveParticipants < offer.reserveParticipants;
+    }
+
+    return false;
   };
 
   const handleLoadApplicationDetails = async (offerId: string, applicationId: string) => {
@@ -1070,8 +1483,41 @@ export default function JointPurchasesPageClient() {
     }
   };
 
+  const handleOrganizerCancelApprovedApplication = async (
+    offerId: string,
+    applicationId: string,
+  ) => {
+    setActionApplicationId(applicationId);
+    setPageError(null);
+
+    try {
+      await apiDelete<ParticipationApplication>(
+        `/api/v1/organizer/joint-purchases/${offerId}/applications/${applicationId}`,
+      );
+      setApplicationDetails((current) => (
+        current?.id === applicationId ? null : current
+      ));
+      setDetailsModalOpen(false);
+      setPageSuccess(copyText.actionSuccess);
+      await refreshAfterApplicationAction(offerId);
+    } catch (error) {
+      handleApiError(error, copyText.loadError);
+    } finally {
+      setActionApplicationId(null);
+    }
+  };
+
   const handleSendBulkEmail = async () => {
     if (!selectedOrganizerOffer) {
+      return;
+    }
+
+    if (!bulkEmailForm.sendToMain && !bulkEmailForm.sendToReserve) {
+      setBulkEmailModalError(
+        locale === 'ru'
+          ? 'Выбери хотя бы один состав для рассылки.'
+          : 'Select at least one roster for the email.',
+      );
       return;
     }
 
@@ -1084,6 +1530,8 @@ export default function JointPurchasesPageClient() {
       const payload: SendOfferParticipantsEmailRequest = {
         subject: normalizeText(bulkEmailForm.subject),
         message: normalizeText(bulkEmailForm.message),
+        sendToMain: bulkEmailForm.sendToMain,
+        sendToReserve: bulkEmailForm.sendToReserve,
       };
 
       const response = await apiPostJson<
@@ -1096,6 +1544,7 @@ export default function JointPurchasesPageClient() {
 
       setBulkEmailModalOpen(false);
       resetBulkEmailState();
+      await loadOrganizerOffers();
       setPageSuccess(
         locale === 'ru'
           ? `Письма поставлены в отправку: ${response.recipientsCount}`
@@ -1172,13 +1621,13 @@ export default function JointPurchasesPageClient() {
     const availableStatuses = (() => {
       switch (offer.status) {
         case 'OPEN_FOR_APPLICATIONS':
-          return ['READY_TO_START'] satisfies JointPurchaseOfferStatus[];
+          return ['READY_TO_START', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'MAIN_GROUP_FILLED':
-          return ['READY_TO_START'] satisfies JointPurchaseOfferStatus[];
+          return ['READY_TO_START', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'READY_TO_START':
-          return ['IN_PROGRESS'] satisfies JointPurchaseOfferStatus[];
+          return ['IN_PROGRESS', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         case 'IN_PROGRESS':
-          return ['COMPLETED'] satisfies JointPurchaseOfferStatus[];
+          return ['COMPLETED', 'CANCELLED'] satisfies JointPurchaseOfferStatus[];
         default:
           return [];
       }
@@ -1186,6 +1635,17 @@ export default function JointPurchasesPageClient() {
 
     return (
       <div className="mt-4 flex flex-wrap gap-2">
+        {offer.status === 'OPEN_FOR_APPLICATIONS' ? (
+          <button
+            type="button"
+            onClick={() => startEditingOffer(offer)}
+            disabled={actionOfferId === offer.id}
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {copyText.editOffer}
+          </button>
+        ) : null}
+
         {availableStatuses.map((status) => (
           <button
             key={status}
@@ -1198,16 +1658,6 @@ export default function JointPurchasesPageClient() {
           </button>
         ))}
 
-        {offer.status !== 'CANCELLED' && offer.status !== 'COMPLETED' ? (
-          <button
-            type="button"
-            onClick={() => void handleUpdateOfferStatus(offer.id, 'CANCELLED')}
-            disabled={actionOfferId === offer.id}
-            className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            CANCELLED
-          </button>
-        ) : null}
       </div>
     );
   };
@@ -1215,7 +1665,7 @@ export default function JointPurchasesPageClient() {
   const renderOfferCard = (offer: JointPurchaseOffer, organizerView: boolean) => {
     const isOwnOffer = Boolean(userId && offer.organizerUserId === userId);
     const currentUserHasApplication = Boolean(offer.currentUserApplicationStatus);
-    const canApply = authenticated && !isOwnOffer && !currentUserHasApplication;
+    const canApply = canApplyToOffer(offer, isOwnOffer, currentUserHasApplication);
     const canCancelApplication = canCancelCurrentUserApplication(offer);
 
     return (
@@ -1279,6 +1729,12 @@ export default function JointPurchasesPageClient() {
               {getAllianceNameLabel(offer, organizerView)}
             </div>
           </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+            <div className="text-xs uppercase tracking-[0.18em]">{contactGroupLabel}</div>
+            <div className="mt-1 text-base font-semibold text-[var(--foreground)]">
+              {renderContactGroupValue(offer, organizerView)}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-4 text-sm text-[var(--foreground-soft)]">
@@ -1287,6 +1743,7 @@ export default function JointPurchasesPageClient() {
         </div>
 
         {renderCurrentUserStatus(offer, organizerView)}
+        {renderOrganizerContacts(offer)}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {organizerView ? (
@@ -1325,6 +1782,42 @@ export default function JointPurchasesPageClient() {
         </div>
 
         {renderStatusActions(offer)}
+      </div>
+    );
+  };
+
+  const renderArchivedParticipantOfferCard = (offer: JointPurchaseOffer) => {
+    const assignedLabel = getParticipationTypeLabel(offer.currentUserAssignedParticipationType);
+
+    return (
+      <div
+        key={offer.id}
+        className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-base font-semibold text-[var(--foreground)]">{offer.title}</div>
+            <div className="mt-2 text-sm text-[var(--foreground-soft)]">
+              {copyText.plannedStartLabel}: {formatDateTime(offer.plannedStartAt, locale)}
+            </div>
+            <div className="text-sm text-[var(--foreground-soft)]">
+              {copyText.plannedEndLabel}: {formatDateTime(offer.plannedEndAt, locale)}
+            </div>
+          </div>
+          <OfferStatusBadge status={offer.status} labels={copyText.statusLabels} />
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-cyan-400/15 bg-cyan-400/8 px-4 py-3 text-sm">
+          <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">
+            {copyText.statusTitle}
+          </div>
+          <div className="mt-1 font-semibold text-[var(--foreground)]">
+            {getApplicationStatusLabel(offer.currentUserApplicationStatus)}
+          </div>
+          {assignedLabel ? (
+            <div className="mt-1 text-[var(--foreground-soft)]">{assignedLabel}</div>
+          ) : null}
+        </div>
       </div>
     );
   };
@@ -1413,12 +1906,12 @@ export default function JointPurchasesPageClient() {
                   </div>
 
                   <div className="mt-6 space-y-4">
-                    {openOffers.length === 0 ? (
+                    {activeVisibleOffers.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
                         {copyText.noOpenOffers}
                       </div>
                     ) : (
-                      openOffers.map((offer) => renderOfferCard(offer, false))
+                      activeVisibleOffers.map((offer) => renderOfferCard(offer, false))
                     )}
                   </div>
                 </SectionCard>
@@ -1431,7 +1924,7 @@ export default function JointPurchasesPageClient() {
                   <h2 className="text-2xl font-semibold text-[var(--foreground)]">
                     {copyText.organizerOffersTitle}
                   </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                  <p className="hidden">
                     {copyText.organizerOffersHint}
                   </p>
 
@@ -1476,11 +1969,19 @@ export default function JointPurchasesPageClient() {
                           <button
                             type="button"
                             onClick={() => openBulkEmailModal(selectedOrganizerOffer)}
-                            className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                            disabled={selectedOrganizerOfferEmailCooldownActive}
+                            className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {locale === 'ru' ? 'Написать участникам' : 'Email participants'}
                           </button>
                         </div>
+                        {selectedOrganizerOfferEmailCooldownActive ? (
+                          <div className="mt-2 text-xs text-amber-300">
+                            {locale === 'ru'
+                              ? `Повторная отправка через ${formatCooldownRemaining(selectedOrganizerOfferCooldownMs, locale)}`
+                              : `Next email available in ${formatCooldownRemaining(selectedOrganizerOfferCooldownMs, locale)}`}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div>
@@ -1565,26 +2066,50 @@ export default function JointPurchasesPageClient() {
                                     </>
                                   ) : null}
 
-                                  {application.status === 'APPROVED_MAIN' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'RESERVE')}
-                                      disabled={actionApplicationId === application.id}
-                                      className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {copyText.moveToReserve}
-                                    </button>
+                                  {(selectedOrganizerOffer.status === 'OPEN_FOR_APPLICATIONS'
+                                    || selectedOrganizerOffer.status === 'MAIN_GROUP_FILLED')
+                                    && application.status === 'APPROVED_MAIN' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'RESERVE')}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.moveToReserve}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleOrganizerCancelApprovedApplication(selectedOrganizerOffer.id, application.id)}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.removeFromPurchase}
+                                      </button>
+                                    </>
                                   ) : null}
 
-                                  {application.status === 'APPROVED_RESERVE' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'MAIN')}
-                                      disabled={actionApplicationId === application.id}
-                                      className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {copyText.moveToMain}
-                                    </button>
+                                  {(selectedOrganizerOffer.status === 'OPEN_FOR_APPLICATIONS'
+                                    || selectedOrganizerOffer.status === 'MAIN_GROUP_FILLED')
+                                    && application.status === 'APPROVED_RESERVE' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleMove(selectedOrganizerOffer.id, application.id, 'MAIN')}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.moveToMain}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleOrganizerCancelApprovedApplication(selectedOrganizerOffer.id, application.id)}
+                                        disabled={actionApplicationId === application.id}
+                                        className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {copyText.removeFromPurchase}
+                                      </button>
+                                    </>
                                   ) : null}
                                 </div>
                               </div>
@@ -1714,13 +2239,46 @@ export default function JointPurchasesPageClient() {
             </section>
             ) : null}
 
+            {inactiveParticipantOffers.length > 0 ? (
+              <SectionCard>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[var(--foreground)]">
+                      {locale === 'ru' ? 'Завершённые закупки' : 'Completed purchases'}
+                    </h2>
+                    <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? 'Здесь остаются закупки, в которых ты уже участвовал. Можно быстро проверить итоговый статус и свой набор.'
+                        : 'This section keeps purchases where you already participated, with the final offer status and your roster.'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedClientOffers((current) => !current)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    {showCompletedClientOffers
+                      ? (locale === 'ru' ? 'Скрыть завершённые закупки' : 'Hide completed purchases')
+                      : (locale === 'ru' ? 'Посмотреть завершённые закупки' : 'View completed purchases')}
+                  </button>
+                </div>
+
+                {showCompletedClientOffers ? (
+                  <div className="mt-6 space-y-4">
+                    {inactiveParticipantOffers.map((offer) => renderArchivedParticipantOfferCard(offer))}
+                  </div>
+                ) : null}
+              </SectionCard>
+            ) : null}
+
             {isOrganizer && inactiveOrganizerOffers.length > 0 ? (
               <SectionCard>
                 <div>
                   <h2 className="text-2xl font-semibold text-[var(--foreground)]">
                     {locale === 'ru' ? 'Завершённые и отменённые' : 'Completed and cancelled'}
                   </h2>
-                  <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                  <p className="hidden">
                     {locale === 'ru'
                       ? 'История прошлых закупок. Их можно развернуть и посмотреть.'
                       : 'History of past purchases. Expand any item to review it.'}
@@ -1773,7 +2331,10 @@ export default function JointPurchasesPageClient() {
       {createModalOpen ? (
         <div
           className="fixed inset-0 z-[80] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
-          onClick={() => setCreateModalOpen(false)}
+          onClick={() => {
+            setCreateModalOpen(false);
+            resetCreateState();
+          }}
         >
           <div className="flex h-full items-start justify-center py-4">
             <div
@@ -1782,12 +2343,15 @@ export default function JointPurchasesPageClient() {
             >
               <div className="mb-5 flex items-center justify-between gap-4">
                 <h3 className="text-xl font-semibold text-[var(--foreground)]">
-                  {copyText.createModalTitle}
+                  {editingOfferId ? copyText.editModalTitle : copyText.createModalTitle}
                 </h3>
 
                 <button
                   type="button"
-                  onClick={() => setCreateModalOpen(false)}
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    resetCreateState();
+                  }}
                   className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >
                   <X className="h-4 w-4" />
@@ -1854,6 +2418,104 @@ export default function JointPurchasesPageClient() {
                   </label>
 
                   <label className="space-y-2">
+                    <span className="text-sm font-medium text-[var(--foreground)]">{contactGroupLabel}</span>
+                    <input
+                      value={createOfferForm.contactGroup}
+                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, contactGroup: event.target.value }))}
+                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </label>
+
+                  <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={createOfferForm.showOrganizerContacts}
+                        onChange={(event) =>
+                          setCreateOfferForm((prev) => ({
+                            ...prev,
+                            showOrganizerContacts: event.target.checked,
+                          }))
+                        }
+                        className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface-strong)]"
+                      />
+                      <span className="text-sm text-[var(--foreground)]">{organizerContactsToggleLabel}</span>
+                    </label>
+
+                    {createOfferForm.showOrganizerContacts ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {organizerProfile?.currentGameNickname ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerGameNickname}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerGameNickname: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{organizerNicknameLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.telegramUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerTelegram}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerTelegram: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{telegramLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.vkUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerVk}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerVk: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{vkLabel}</span>
+                          </label>
+                        ) : null}
+
+                        {organizerProfile?.discordUsername ? (
+                          <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={createOfferForm.showOrganizerDiscord}
+                              onChange={(event) =>
+                                setCreateOfferForm((prev) => ({
+                                  ...prev,
+                                  showOrganizerDiscord: event.target.checked,
+                                }))
+                              }
+                              className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                            />
+                            <span className="text-sm text-[var(--foreground)]">{discordLabel}</span>
+                          </label>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.requiredParticipantsLabel}</span>
                     <input
                       type="number"
@@ -1887,31 +2549,70 @@ export default function JointPurchasesPageClient() {
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.plannedStartLabel}</span>
-                    <input
-                      type="datetime-local"
-                      value={createOfferForm.plannedStartAt}
-                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, plannedStartAt: event.target.value }))}
-                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        min={nowInputValue}
+                        max={plannedStartMaxValue}
+                        value={plannedStartDraft}
+                        onChange={(event) => setPlannedStartDraft(event.target.value)}
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreateOfferForm((prev) => ({ ...prev, plannedStartAt: plannedStartDraft }));
+                          if (!createOfferForm.plannedEndAt || plannedEndDraft < plannedStartDraft) {
+                            setPlannedEndDraft(plannedStartDraft);
+                            setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: plannedStartDraft }));
+                          }
+                        }}
+                        className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                      >
+                        OK
+                      </button>
+                    </div>
+                    <div className="text-xs text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? `Применено: ${createOfferForm.plannedStartAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedStartAt), locale) : '--'}`
+                        : `Applied: ${createOfferForm.plannedStartAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedStartAt), locale) : '--'}`}
+                    </div>
                   </label>
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-[var(--foreground)]">{copyText.plannedEndLabel}</span>
-                    <input
-                      type="datetime-local"
-                      value={createOfferForm.plannedEndAt}
-                      onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: event.target.value }))}
-                      className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        min={effectiveStartInputValue}
+                        max={plannedEndMaxValue}
+                        value={plannedEndDraft}
+                        onChange={(event) => setPlannedEndDraft(event.target.value)}
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCreateOfferForm((prev) => ({ ...prev, plannedEndAt: plannedEndDraft }))}
+                        className="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+                      >
+                        OK
+                      </button>
+                    </div>
+                    <div className="text-xs text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? `Применено: ${createOfferForm.plannedEndAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedEndAt), locale) : '--'}`
+                        : `Applied: ${createOfferForm.plannedEndAt ? formatDateTime(fromLocalDateTimeValue(createOfferForm.plannedEndAt), locale) : '--'}`}
+                    </div>
                   </label>
                 </div>
 
-                <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4">
+                <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 opacity-60">
                   <input
                     type="checkbox"
                     checked={createOfferForm.autoApproveEnabled}
+                    disabled
                     onChange={(event) => setCreateOfferForm((prev) => ({ ...prev, autoApproveEnabled: event.target.checked }))}
-                    className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface-strong)]"
+                    className="mt-1 h-4 w-4 cursor-not-allowed rounded border-[var(--border)] bg-[var(--surface-strong)]"
                   />
                   <span className="text-sm text-[var(--foreground)]">{copyText.autoApproveLabel}</span>
                 </label>
@@ -1926,18 +2627,21 @@ export default function JointPurchasesPageClient() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setCreateModalOpen(false)}
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    resetCreateState();
+                  }}
                   className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
                 >
                   {copyText.cancel}
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleCreateOffer()}
+                  onClick={() => void handleSubmitOffer()}
                   disabled={submittingCreate || createOfferUploadLoading}
                   className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submittingCreate ? '...' : copyText.create}
+                  {submittingCreate ? '...' : (editingOfferId ? copyText.saveChanges : copyText.create)}
                 </button>
               </div>
             </div>
@@ -2062,6 +2766,11 @@ export default function JointPurchasesPageClient() {
                   </h3>
                   <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
                     {locale === 'ru'
+                      ? 'Выбери, кому отправлять письмо. По умолчанию выбран только основной состав.'
+                      : 'Choose which participants should receive the email. By default, only the main roster is selected.'}
+                  </p>
+                  <p className="hidden">
+                    {locale === 'ru'
                       ? 'Письмо уйдет всем активным участникам этого оффера. Текст можно отредактировать перед отправкой.'
                       : 'The message will be sent to all active participants of this offer. You can edit the text before sending.'}
                   </p>
@@ -2085,9 +2794,40 @@ export default function JointPurchasesPageClient() {
                   </div>
                   <div className="mt-2 text-sm text-[var(--foreground-soft)]">
                     {locale === 'ru'
-                      ? 'Получатели: активные MAIN и RESERVE участники'
-                      : 'Recipients: active MAIN and RESERVE participants'}
+                      ? 'Получатели: подтвержденные активные участники выбранных составов'
+                      : 'Recipients: confirmed active participants from the selected rosters'}
                   </div>
+                  <div className="hidden">
+                    {locale === 'ru'
+                      ? 'Получатели: активные участники основного и резервного состава'
+                      : 'Recipients: active participants from the main and reserve rosters'}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-2">
+                  <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={bulkEmailForm.sendToMain}
+                      onChange={(event) =>
+                        setBulkEmailForm((prev) => ({ ...prev, sendToMain: event.target.checked }))
+                      }
+                      className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                    />
+                    <span className="text-sm text-[var(--foreground)]">{mainLabel}</span>
+                  </label>
+
+                  <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={bulkEmailForm.sendToReserve}
+                      onChange={(event) =>
+                        setBulkEmailForm((prev) => ({ ...prev, sendToReserve: event.target.checked }))
+                      }
+                      className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)]"
+                    />
+                    <span className="text-sm text-[var(--foreground)]">{reserveLabel}</span>
+                  </label>
                 </div>
 
                 <label className="space-y-2">
@@ -2140,7 +2880,7 @@ export default function JointPurchasesPageClient() {
                 <button
                   type="button"
                   onClick={() => void handleSendBulkEmail()}
-                  disabled={sendingBulkEmail}
+                  disabled={sendingBulkEmail || selectedOrganizerOfferEmailCooldownActive}
                   className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {sendingBulkEmail
@@ -2200,20 +2940,34 @@ export default function JointPurchasesPageClient() {
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                       <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{copyText.profileBlockTitle}</div>
                       <div className="space-y-2 text-sm text-[var(--foreground-soft)]">
-                        <div><span className="text-[var(--foreground)]">ID:</span> {applicationDetails.playerProfile?.userId ?? applicationDetails.applicantUserId}</div>
-                        <div><span className="text-[var(--foreground)]">Email:</span> {applicationDetails.playerProfile?.email ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">First name:</span> {applicationDetails.playerProfile?.firstName ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Last name:</span> {applicationDetails.playerProfile?.lastName ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Nickname:</span> {applicationDetails.playerProfile?.currentGameNickname ?? '--'}</div>
-                        <div><span className="text-[var(--foreground)]">Profile status:</span> {applicationDetails.playerProfile?.status ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Почта:' : 'Email:'}</span> {applicationDetails.playerProfile?.email ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Имя:' : 'First name:'}</span> {applicationDetails.playerProfile?.firstName ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Фамилия:' : 'Last name:'}</span> {applicationDetails.playerProfile?.lastName ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Игровой никнейм:' : 'Game nickname:'}</span> {applicationDetails.playerProfile?.currentGameNickname ?? '--'}</div>
+                        <div><span className="text-[var(--foreground)]">{locale === 'ru' ? 'Статус профиля:' : 'Profile status:'}</span> {applicationDetails.playerProfile?.status ?? '--'}</div>
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                       <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{copyText.contactsTitle}</div>
                       <div className="space-y-2 text-sm text-[var(--foreground-soft)]">
-                        <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {applicationDetails.playerProfile?.email ?? '--'}</div>
-                        <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> TG: {applicationDetails.playerProfile?.telegramUsername ?? '--'}</div>
+                        <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {locale === 'ru' ? 'Почта:' : 'Email:'} {applicationDetails.playerProfile?.email ?? '--'}</div>
+                        <div className="flex items-center gap-2">
+                          <MessageCircle className="h-4 w-4" />
+                          {locale === 'ru' ? 'Telegram:' : 'Telegram:'}{' '}
+                          {buildTelegramHref(applicationDetails.playerProfile?.telegramUsername) ? (
+                            <a
+                              href={buildTelegramHref(applicationDetails.playerProfile?.telegramUsername) ?? undefined}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
+                            >
+                              @{normalizeText(applicationDetails.playerProfile?.telegramUsername).replace(/^@/, '')}
+                            </a>
+                          ) : (
+                            applicationDetails.playerProfile?.telegramUsername ?? '--'
+                          )}
+                        </div>
                         <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> VK: {applicationDetails.playerProfile?.vkUsername ?? '--'}</div>
                         <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /> Discord: {applicationDetails.playerProfile?.discordUsername ?? '--'}</div>
                       </div>

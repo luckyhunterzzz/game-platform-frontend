@@ -16,6 +16,7 @@ type QuickLinkItem = {
   imageSrc?: string;
   icon?: ComponentType<{ className?: string }>;
   imageClassName?: string;
+  authHint?: string;
 };
 
 export default function AlliancePage() {
@@ -37,9 +38,12 @@ export default function AlliancePage() {
       imageSrc: '/brand-dragon.png',
       imageClassName: 'h-11 w-11',
     },
-    ...(authenticated
-      ? [{ label: messages.home.navJointPurchases, href: '/joint-purchases', icon: UsersRound }]
-      : []),
+    {
+      label: messages.home.navJointPurchases,
+      href: '/joint-purchases',
+      icon: UsersRound,
+      authHint: authenticated ? undefined : messages.home.navJointPurchasesAuthHint,
+    },
   ];
 
   return (
@@ -70,17 +74,20 @@ export default function AlliancePage() {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
-              {authenticated ? (
-                <li>
-                  <Link
-                    href="/joint-purchases"
-                    onClick={() => setSidebarOpen(false)}
-                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                  >
-                    {messages.home.navJointPurchases}
-                  </Link>
-                </li>
-              ) : null}
+              <li>
+                <Link
+                  href="/joint-purchases"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  <span className="block">{messages.home.navJointPurchases}</span>
+                  {!authenticated ? (
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {messages.home.navJointPurchasesAuthHint}
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -116,6 +123,11 @@ export default function AlliancePage() {
               <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
                 {item.label}
               </span>
+              {item.authHint ? (
+                <span className="mt-1 text-center text-[10px] font-medium text-[var(--foreground-soft)] sm:text-[11px]">
+                  {item.authHint}
+                </span>
+              ) : null}
             </Link>
           ))}
         </div>

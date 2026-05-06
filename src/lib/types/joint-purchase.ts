@@ -24,6 +24,18 @@ export type JointPurchaseOffer = {
   title: string;
   description: string | null;
   allianceName: string;
+  contactGroup: string;
+  showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
+  organizerGameNickname: string | null;
+  organizerTelegramUsername: string | null;
+  organizerVkUsername: string | null;
+  organizerDiscordUsername: string | null;
+  participantsEmailSendCount: number | null;
+  nextParticipantsEmailAllowedAt: string | null;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   screenshotUrl: string | null;
@@ -92,6 +104,12 @@ export type CreateJointPurchaseOfferRequest = {
   title: string;
   description: string;
   allianceName: string;
+  contactGroup: string;
+  showOrganizerContacts: boolean;
+  showOrganizerGameNickname: boolean;
+  showOrganizerTelegram: boolean;
+  showOrganizerVk: boolean;
+  showOrganizerDiscord: boolean;
   screenshotBucket: string | null;
   screenshotObjectKey: string | null;
   requiredParticipants: number;
@@ -126,6 +144,8 @@ export type UpsertParticipantFeedbackRequest = {
 export type SendOfferParticipantsEmailRequest = {
   subject: string;
   message: string;
+  sendToMain: boolean;
+  sendToReserve: boolean;
 };
 
 export type OfferParticipantsEmailResponse = {

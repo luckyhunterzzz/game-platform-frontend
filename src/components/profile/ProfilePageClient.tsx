@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, CircleHelp, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -364,6 +364,7 @@ export default function ProfilePageClient() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isCompletionHelpOpen, setIsCompletionHelpOpen] = useState(false);
 
   const [profileHeroes, setProfileHeroes] = useState<PlayerProfileHeroResponse[]>([]);
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
@@ -1210,23 +1211,59 @@ export default function ProfilePageClient() {
           {messages.profile.pageTitle}
         </h1>
 
-        <div
-          className={`inline-flex items-center gap-2 self-start rounded-full border px-4 py-2 text-sm font-semibold ${
-            profile?.status === 'COMPLETE'
-              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
-              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-          }`}
-        >
-          {profile?.status === 'COMPLETE' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <ShieldAlert className="h-4 w-4" />
-          )}
-          <span>
-            {profile?.status === 'COMPLETE'
-              ? messages.profile.statusComplete
-              : messages.profile.statusIncomplete}
-          </span>
+        <div className="relative self-start">
+          <div
+            className={`inline-flex items-center gap-2 self-start rounded-full border px-4 py-2 text-sm font-semibold ${
+              profile?.status === 'COMPLETE'
+                ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+                : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+            }`}
+          >
+            {profile?.status === 'COMPLETE' ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <ShieldAlert className="h-4 w-4" />
+            )}
+            <span>
+              {profile?.status === 'COMPLETE'
+                ? messages.profile.statusComplete
+                : messages.profile.statusIncomplete}
+            </span>
+            {profile?.status !== 'COMPLETE' ? (
+              <button
+                type="button"
+                onClick={() => setIsCompletionHelpOpen((prev) => !prev)}
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-300/30 bg-amber-300/10 text-amber-200 transition hover:bg-amber-300/20"
+                aria-label={messages.profile.requiredForComplete}
+                title={messages.profile.requiredForComplete}
+              >
+                <CircleHelp className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+
+          {profile?.status !== 'COMPLETE' && isCompletionHelpOpen ? (
+            <div className="absolute right-0 top-full z-20 mt-3 w-80 rounded-2xl border border-amber-400/25 bg-[var(--surface-strong)] p-4 text-sm shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-[var(--foreground)]">
+                    {messages.profile.requiredForComplete}
+                  </div>
+                  <p className="mt-2 leading-6 text-[var(--foreground-soft)]">
+                    {messages.profile.completionHint}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCompletionHelpOpen(false)}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  aria-label={locale === 'ru' ? 'Закрыть' : 'Close'}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 

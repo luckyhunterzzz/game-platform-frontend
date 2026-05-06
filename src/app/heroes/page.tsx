@@ -48,17 +48,20 @@ export default function HeroesPage() {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
-              {authenticated ? (
-                <li>
-                  <Link
-                    href="/joint-purchases"
-                    onClick={() => setSidebarOpen(false)}
-                    className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                  >
-                    {messages.home.navJointPurchases}
-                  </Link>
-                </li>
-              ) : null}
+              <li>
+                <Link
+                  href="/joint-purchases"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  <span className="block">{messages.home.navJointPurchases}</span>
+                  {!authenticated ? (
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {messages.home.navJointPurchasesAuthHint}
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
             </ul>
           </div>
 
