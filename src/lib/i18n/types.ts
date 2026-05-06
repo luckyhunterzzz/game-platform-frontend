@@ -28,6 +28,7 @@ export type Messages = {
     navGuides: string;
     navAlliances: string;
     navJointPurchases: string;
+    navJointPurchasesAuthHint: string;
   };
   heroes: {
     pageTitle: string;
@@ -99,6 +100,9 @@ export type Messages = {
   jointPurchases: {
     pageTitle: string;
     pageSubtitle: string;
+    guestAccessTitle: string;
+    guestAccessDescription: string;
+    guestAccessNote: string;
     organizerBadge: string;
     createOffer: string;
     createOfferHint: string;

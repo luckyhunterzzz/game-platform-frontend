@@ -26,6 +26,7 @@ export const enMessages: Messages = {
     navGuides: 'Guides',
     navAlliances: 'Alliances',
     navJointPurchases: 'Joint purchases',
+    navJointPurchasesAuthHint: 'Login required',
   },
   heroes: {
     pageTitle: 'Heroes Catalog',
@@ -99,6 +100,9 @@ export const enMessages: Messages = {
   jointPurchases: {
     pageTitle: 'Joint purchases',
     pageSubtitle: 'Open group buying offers, apply to active groups, and coordinate organizer flows in one place.',
+    guestAccessTitle: 'Sign in to continue',
+    guestAccessDescription: 'Joint purchases work only for authorized users. Sign in to create offers, submit applications and participate in group buys.',
+    guestAccessNote: 'Available after login',
     organizerBadge: 'Organizer access',
     createOffer: 'Create offer',
     createOfferHint: 'Open a new joint purchase and start collecting participants.',
