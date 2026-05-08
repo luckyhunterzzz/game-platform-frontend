@@ -532,27 +532,19 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
             <SectionText>
               В портале доступны герои семей <strong>Musketeer</strong> и <strong>Beauty and the Beast</strong>.
             </SectionText>
-            <SectionSubtitle>Избранные герои</SectionSubtitle>
-            <SectionList
-              items={[
-                <>The Beast</>,
-                <>Rose de Flo</>,
-                <>Aramis + Costume</>,
-              ]}
-            />
             <SectionSubtitle>Классические герои</SectionSubtitle>
             <SectionList
               items={[
-                <>Редкий: <strong>47.3%</strong></>,
-                <>Эпический: <strong>18.5%</strong></>,
+                <>Редкий: <strong>64.3%</strong></>,
+                <>Эпический: <strong>20.8%</strong></>,
                 <>Легендарный: <strong>1.2%</strong></>,
               ]}
             />
             <SectionSubtitle>Ивентовые герои</SectionSubtitle>
             <SectionList
               items={[
-                <>Редкий: <strong>23.7%</strong></>,
-                <>Эпический: <strong>8.0%</strong></>,
+                <>Редкий: <strong>6.7%</strong></>,
+                <>Эпический: <strong>5.7%</strong></>,
                 <>Легендарный: <strong>0.3%</strong></>,
                 <>Избранный легендарный: <strong>1.0%</strong></>,
               ]}
@@ -809,27 +801,19 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
           <SectionText>
             Available hero families: <strong>Musketeer</strong> and <strong>Beauty and the Beast</strong>.
           </SectionText>
-          <SectionSubtitle>Featured heroes</SectionSubtitle>
-          <SectionList
-            items={[
-              <>The Beast</>,
-              <>Rose de Flo</>,
-              <>Aramis + Costume</>,
-            ]}
-          />
           <SectionSubtitle>Classic heroes</SectionSubtitle>
           <SectionList
             items={[
-              <>Rare: <strong>47.3%</strong></>,
-              <>Epic: <strong>18.5%</strong></>,
+              <>Rare: <strong>64.3%</strong></>,
+              <>Epic: <strong>20.8%</strong></>,
               <>Legendary: <strong>1.2%</strong></>,
             ]}
           />
           <SectionSubtitle>Event heroes</SectionSubtitle>
           <SectionList
             items={[
-              <>Rare: <strong>23.7%</strong></>,
-              <>Epic: <strong>8.0%</strong></>,
+              <>Rare: <strong>6.7%</strong></>,
+              <>Epic: <strong>5.7%</strong></>,
               <>Legendary: <strong>0.3%</strong></>,
               <>Featured Legendary: <strong>1.0%</strong></>,
             ]}
