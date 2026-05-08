@@ -157,7 +157,12 @@ function ZoomableOverviewImage({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        close();
+        setOpen(false);
+        setScale(1);
+        setOffset({ x: 0, y: 0 });
+        setIsDragging(false);
+        dragStateRef.current = { x: 0, y: 0, active: false };
+        pinchStateRef.current = null;
       }
     };
 
@@ -333,7 +338,7 @@ function ZoomableOverviewImage({
                   height: '100%',
                   transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
                   transformOrigin: 'center center',
-                  cursor: scale > 1 ? (dragStateRef.current.active ? 'grabbing' : 'grab') : 'default',
+                  cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
                   touchAction: 'none',
                   transition: isDragging ? 'none' : 'transform 120ms ease-out',
                 }}
