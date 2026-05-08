@@ -146,17 +146,20 @@ export default function EventsPage() {
             {eventGuideItems.map((item) => {
               const title = locale === 'ru' ? item.titleRu : item.titleEn;
               const isActive = item.slug === 'the-brave-and-the-beautiful';
+              const usesWidePreview = Boolean(item.listPreviewImageSrc);
               const cardContent = (
                 <article className="flex h-full flex-col rounded-[calc(1rem-2px)] bg-[var(--surface)] p-4">
                   <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_56%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
                     <div className="relative aspect-[3/4] w-full overflow-hidden">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
                       <Image
-                        src={item.previewImageSrc}
+                        src={item.listPreviewImageSrc ?? item.previewImageSrc}
                         alt={title}
                         fill
                         sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                        className={`relative z-10 object-contain object-top p-4 transition duration-200 ${
+                        className={`relative z-10 transition duration-200 ${
+                          usesWidePreview ? 'object-cover object-center' : 'object-contain object-top p-4'
+                        } ${
                           isActive ? 'scale-[0.96] group-hover:scale-100 group-active:scale-[0.93]' : 'scale-[0.94]'
                         }`}
                       />
