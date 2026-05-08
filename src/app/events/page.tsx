@@ -25,12 +25,6 @@ export default function EventsPage() {
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
-      {
-        label: locale === 'ru' ? 'Главная' : 'Home',
-        href: '/',
-        imageSrc: '/brand-dragon.png',
-        imageClassName: 'h-11 w-11 object-contain sm:h-14 sm:w-14',
-      },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
       {
