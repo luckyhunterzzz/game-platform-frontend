@@ -81,10 +81,10 @@ export default function JointPurchasesPage() {
 
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         {authenticated ? (
-          <>
+          <div className="flex w-full max-w-7xl flex-col gap-8">
             <PurchaseHelpBanner />
             <JointPurchasesPageClient />
-          </>
+          </div>
         ) : (
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
             <div className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center">

@@ -24,6 +24,42 @@ type EventSection = {
   content: ReactNode;
 };
 
+type ScoreTableRow = {
+  stage: string;
+  enemyScore: string;
+  minimum: string;
+  easy: string;
+  medium: string;
+  hard: string;
+  random: string;
+};
+
+type ScoreTable = {
+  titleRu: string;
+  titleEn: string;
+  rows: ScoreTableRow[];
+  total: ScoreTableRow;
+};
+
+type RewardItem = {
+  textRu: string;
+  textEn: string;
+  iconSrcs?: string[];
+};
+
+type RewardCategory = {
+  titleRu: string;
+  titleEn: string;
+  items: RewardItem[];
+};
+
+type RewardRankTab = {
+  id: string;
+  labelRu: string;
+  labelEn: string;
+  categories: RewardCategory[];
+};
+
 function SectionText({
   children,
   className = '',
@@ -57,6 +93,682 @@ function SectionSubtitle({ children }: { children: ReactNode }) {
     <h3 className="mt-6 text-lg font-bold tracking-tight text-[var(--foreground)] md:text-xl">
       {children}
     </h3>
+  );
+}
+
+function ScoreTableBlock({
+  locale,
+  table,
+}: {
+  locale: 'ru' | 'en';
+  table: ScoreTable;
+}) {
+  const title = locale === 'ru' ? table.titleRu : table.titleEn;
+  const totalLabel = locale === 'ru' ? 'Сумма' : 'Total';
+
+  return (
+    <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.10)]">
+      <h3 className="mb-4 text-lg font-bold text-[var(--foreground)]">{title}</h3>
+      <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full border-separate border-spacing-0 text-left text-sm">
+          <thead>
+            <tr>
+              <th className="rounded-l-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Этап' : 'Stage'}
+              </th>
+              <th className="border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Счет за врагов' : 'Enemy score'}
+              </th>
+              <th className="border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Минимум' : 'Minimum'}
+              </th>
+              <th className="border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Легко' : 'Easy'}
+              </th>
+              <th className="border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Средне' : 'Medium'}
+              </th>
+              <th className="border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Трудно' : 'Hard'}
+              </th>
+              <th className="rounded-r-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Рандом' : 'Random'}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row) => (
+              <tr key={`${title}-${row.stage}`}>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.stage}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.enemyScore}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.minimum}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.easy}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.medium}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.hard}</td>
+                <td className="border border-[var(--border)] px-3 py-3 text-[var(--foreground-soft)]">{row.random}</td>
+              </tr>
+            ))}
+            <tr>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{totalLabel}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.enemyScore}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.minimum}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.easy}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.medium}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.hard}</td>
+              <td className="border border-[var(--border)] bg-cyan-400/8 px-3 py-3 font-semibold text-[var(--foreground)]">{table.total.random}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+const braveScoreTables: ScoreTable[] = [
+  {
+    titleRu: 'Редкий',
+    titleEn: 'Rare',
+    rows: [
+      { stage: '1', enemyScore: '5 500', minimum: '27 500', easy: '30 250', medium: '30 800', hard: '31 625', random: '32 450' },
+      { stage: '2', enemyScore: '6 160', minimum: '30 800', easy: '33 880', medium: '34 496', hard: '35 420', random: '36 344' },
+      { stage: '3', enemyScore: '7 440', minimum: '37 200', easy: '40 549', medium: '41 292', hard: '42 408', random: '43 524' },
+      { stage: '4', enemyScore: '8 160', minimum: '40 392', easy: '44 472', medium: '45 288', hard: '46 512', random: '47 736' },
+      { stage: '5', enemyScore: '8 880', minimum: '43 956', easy: '48 396', medium: '49 284', hard: '50 616', random: '51 948' },
+      { stage: '6', enemyScore: '12 000', minimum: '59 400', easy: '66 000', medium: '67 200', hard: '69 000', random: '70 800' },
+      { stage: '7', enemyScore: '12 900', minimum: '64 500', easy: '70 950', medium: '72 240', hard: '74 175', random: '76 110' },
+      { stage: '8', enemyScore: '13 800', minimum: '69 000', easy: '75 900', medium: '77 280', hard: '79 350', random: '81 420' },
+      { stage: '9', enemyScore: '14 700', minimum: '73 500', easy: '80 850', medium: '82 320', hard: '84 525', random: '86 730' },
+      { stage: '10', enemyScore: '15 600', minimum: '78 000', easy: '85 800', medium: '87 360', hard: '89 700', random: '92 040' },
+    ],
+    total: { stage: 'sum', enemyScore: '105 140', minimum: '524 248', easy: '577 046', medium: '587 560', hard: '603 331', random: '619 102' },
+  },
+  {
+    titleRu: 'Эпический',
+    titleEn: 'Epic',
+    rows: [
+      { stage: '1', enemyScore: '8 250', minimum: '41 250', easy: '45 376', medium: '46 200', hard: '47 438', random: '48 675' },
+      { stage: '2', enemyScore: '8 910', minimum: '44 550', easy: '49 005', medium: '49 896', hard: '51 233', random: '52 569' },
+      { stage: '3', enemyScore: '10 440', minimum: '51 678', easy: '56 898', medium: '57 942', hard: '59 508', random: '61 074' },
+      { stage: '4', enemyScore: '11 160', minimum: '55 242', easy: '60 822', medium: '61 938', hard: '63 612', random: '65 286' },
+      { stage: '5', enemyScore: '11 880', minimum: '58 806', easy: '64 746', medium: '65 934', hard: '67 716', random: '69 498' },
+      { stage: '6', enemyScore: '15 750', minimum: '78 750', easy: '86 625', medium: '88 200', hard: '90 563', random: '92 925' },
+      { stage: '7', enemyScore: '16 650', minimum: '83 250', easy: '91 575', medium: '93 240', hard: '95 738', random: '98 235' },
+      { stage: '8', enemyScore: '17 550', minimum: '87 750', easy: '96 525', medium: '98 280', hard: '100 913', random: '103 545' },
+      { stage: '9', enemyScore: '18 450', minimum: '92 250', easy: '101 475', medium: '103 320', hard: '106 088', random: '108 855' },
+      { stage: '10', enemyScore: '19 350', minimum: '96 750', easy: '106 425', medium: '108 360', hard: '111 263', random: '114 165' },
+    ],
+    total: { stage: 'sum', enemyScore: '138 390', minimum: '690 276', easy: '759 471', medium: '773 310', hard: '794 069', random: '814 827' },
+  },
+  {
+    titleRu: 'Легендарный',
+    titleEn: 'Legendary',
+    rows: [
+      { stage: '1', enemyScore: '11 000', minimum: '55 000', easy: '60 500', medium: '61 600', hard: '63 250', random: '64 900' },
+      { stage: '2', enemyScore: '11 660', minimum: '58 300', easy: '64 130', medium: '65 296', hard: '67 045', random: '68 794' },
+      { stage: '3', enemyScore: '13 440', minimum: '66 528', easy: '73 248', medium: '74 592', hard: '76 608', random: '78 624' },
+      { stage: '4', enemyScore: '14 160', minimum: '70 092', easy: '77 172', medium: '78 588', hard: '80 712', random: '82 836' },
+      { stage: '5', enemyScore: '14 880', minimum: '73 656', easy: '81 096', medium: '82 584', hard: '84 816', random: '87 048' },
+      { stage: '6', enemyScore: '19 500', minimum: '97 500', easy: '107 250', medium: '109 200', hard: '112 125', random: '115 050' },
+      { stage: '7', enemyScore: '20 400', minimum: '102 000', easy: '112 200', medium: '114 240', hard: '117 300', random: '120 360' },
+      { stage: '8', enemyScore: '21 300', minimum: '106 500', easy: '117 150', medium: '119 280', hard: '122 475', random: '125 670' },
+      { stage: '9', enemyScore: '22 200', minimum: '111 000', easy: '122 100', medium: '124 320', hard: '127 650', random: '130 980' },
+      { stage: '10', enemyScore: '23 100', minimum: '115 500', easy: '127 050', medium: '129 360', hard: '132 825', random: '136 290' },
+    ],
+    total: { stage: 'sum', enemyScore: '171 640', minimum: '856 076', easy: '941 896', medium: '959 060', hard: '984 806', random: '1 010 552' },
+  },
+  {
+    titleRu: 'Итог',
+    titleEn: 'Total',
+    rows: [],
+    total: { stage: 'sum', enemyScore: '415 170', minimum: '2 070 600', easy: '2 278 413', medium: '2 319 930', hard: '2 382 206', random: '2 444 881' },
+  },
+];
+
+const rewardIcons = {
+  aetherLegendary: '/events/brave-beautiful/rewards/aether_legendary.png',
+  aetherRare: '/events/brave-beautiful/rewards/aether_epic.png',
+  aetherEpic: '/events/brave-beautiful/rewards/aether_rare.png',
+  epicHeroAmulet: '/events/brave-beautiful/rewards/epic_hero_amulet.webp',
+  epicTroopAmulet: '/events/brave-beautiful/rewards/epic_troop_amulet.webp',
+  worldEnergyFlask: '/events/brave-beautiful/rewards/energy_pve_flask.webp',
+  ascensionTelescope: '/events/brave-beautiful/rewards/ascension_elite_farsight_telescope.png',
+  ascensionTome: '/events/brave-beautiful/rewards/ascension_elite_tome_of_tactics.png',
+  emblems: '/events/brave-beautiful/rewards/emblem.webp',
+  avatar: '/events/brave-beautiful/rewards/profile_avatar.webp',
+} as const;
+
+const playerRewardsTabs: RewardRankTab[] = [
+  {
+    id: 'player-top-1',
+    labelRu: 'Топ 1',
+    labelEn: 'Top 1',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '2 шт', textEn: '2 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 100%', textEn: '1 slot - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 100%', textEn: '2 slots - 100%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Жетоны', titleEn: 'Tokens', items: [{ textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.epicHeroAmulet] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '6', textEn: '6', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+      { titleRu: 'Предметы', titleEn: 'Items', items: [{ textRu: '2 слота - 100%', textEn: '2 slots - 100%', iconSrcs: [rewardIcons.ascensionTelescope, rewardIcons.ascensionTome] }] },
+    ],
+  },
+  {
+    id: 'player-top-2-10',
+    labelRu: 'Топ 2-10',
+    labelEn: 'Top 2-10',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '2 шт', textEn: '2 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 100%', textEn: '1 slot - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 90%', textEn: '2 slots - 90%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '2 слота - 90%', textEn: '2 slots - 90%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Жетоны', titleEn: 'Tokens', items: [{ textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.epicHeroAmulet] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '5', textEn: '5', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+      { titleRu: 'Предметы', titleEn: 'Items', items: [{ textRu: '2 слота - 100%', textEn: '2 slots - 100%', iconSrcs: [rewardIcons.ascensionTelescope, rewardIcons.ascensionTome] }] },
+    ],
+  },
+  {
+    id: 'player-top-11-100',
+    labelRu: 'Топ 11-100',
+    labelEn: 'Top 11-100',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '1 шт', textEn: '1 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 100%', textEn: '1 slot - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 80%', textEn: '2 slots - 80%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '2 слота - 80%', textEn: '2 slots - 80%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Жетоны', titleEn: 'Tokens', items: [{ textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.epicHeroAmulet] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '4', textEn: '4', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+      { titleRu: 'Предметы', titleEn: 'Items', items: [{ textRu: '2 слота - 50%', textEn: '2 slots - 50%', iconSrcs: [rewardIcons.ascensionTelescope, rewardIcons.ascensionTome] }] },
+    ],
+  },
+  {
+    id: 'player-top-101-1000',
+    labelRu: 'Топ 101-1000',
+    labelEn: 'Top 101-1000',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '1 шт', textEn: '1 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 20%', textEn: '1 slot - 20%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 70%', textEn: '2 slots - 70%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '2 слота - 70%', textEn: '2 slots - 70%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Жетоны', titleEn: 'Tokens', items: [{ textRu: '2 слота - 100%', textEn: '2 slots - 100%', iconSrcs: [rewardIcons.epicHeroAmulet] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '3', textEn: '3', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+      { titleRu: 'Предметы', titleEn: 'Items', items: [{ textRu: '1 слот - 50%', textEn: '1 slot - 50%', iconSrcs: [rewardIcons.ascensionTelescope, rewardIcons.ascensionTome] }] },
+    ],
+  },
+  {
+    id: 'player-top-1001-10000',
+    labelRu: 'Топ 1001-10.000',
+    labelEn: 'Top 1001-10,000',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '1 шт', textEn: '1 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 20%', textEn: '1 slot - 20%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '1 слот - 60%', textEn: '1 slot - 60%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '2 слота - 60%', textEn: '2 slots - 60%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      {
+        titleRu: 'Жетоны',
+        titleEn: 'Tokens',
+        items: [
+          { textRu: '2 слота - 50%', textEn: '2 slots - 50%', iconSrcs: [rewardIcons.epicHeroAmulet] },
+          { textRu: '2 слота - 50%', textEn: '2 slots - 50%', iconSrcs: [rewardIcons.epicTroopAmulet] },
+        ],
+      },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '2', textEn: '2', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+      { titleRu: 'Предметы', titleEn: 'Items', items: [{ textRu: '1 слот - 20%', textEn: '1 slot - 20%', iconSrcs: [rewardIcons.ascensionTelescope, rewardIcons.ascensionTome] }] },
+    ],
+  },
+  {
+    id: 'player-top-10001-100000',
+    labelRu: 'Топ 10.001-100.000',
+    labelEn: 'Top 10,001-100,000',
+    categories: [
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 10%', textEn: '1 slot - 10%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '1 слот - 50%', textEn: '1 slot - 50%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '2 слота - 50%', textEn: '2 slots - 50%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      {
+        titleRu: 'Жетоны',
+        titleEn: 'Tokens',
+        items: [
+          { textRu: '2 слота - 20%', textEn: '2 slots - 20%', iconSrcs: [rewardIcons.epicHeroAmulet] },
+          { textRu: '2 слота - 80%', textEn: '2 slots - 80%', iconSrcs: [rewardIcons.epicTroopAmulet] },
+        ],
+      },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '1', textEn: '1', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'player-top-100001-below',
+    labelRu: 'Топ 100.001 и ниже',
+    labelEn: 'Top 100,001 and below',
+    categories: [
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 50%', textEn: '1 slot - 50%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '1 слот - 50%', textEn: '1 slot - 50%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+    ],
+  },
+];
+
+const allianceRewardsTabs: RewardRankTab[] = [
+  {
+    id: 'alliance-top-1',
+    labelRu: 'Топ 1',
+    labelEn: 'Top 1',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '2 шт', textEn: '2 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '3 слота - 100%', textEn: '3 slots - 100%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '4 слота - 100%', textEn: '4 slots - 100%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x50 - 4 слота - 100%', textEn: 'x50 - 4 slots - 100%', iconSrcs: [rewardIcons.emblems] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '5', textEn: '5', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'alliance-top-2-10',
+    labelRu: 'Топ 2-10',
+    labelEn: 'Top 2-10',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '2 шт', textEn: '2 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '2 слота - 100%', textEn: '2 slots - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 90%', textEn: '2 slots - 90%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 90%', textEn: '3 slots - 90%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x30 - 4 слота - 100%', textEn: 'x30 - 4 slots - 100%', iconSrcs: [rewardIcons.emblems] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '4', textEn: '4', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'alliance-top-11-100',
+    labelRu: 'Топ 11-100',
+    labelEn: 'Top 11-100',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '1 шт', textEn: '1 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 100%', textEn: '1 slot - 100%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 80%', textEn: '2 slots - 80%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 80%', textEn: '3 slots - 80%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x30 - 3 слота - 100%', textEn: 'x30 - 3 slots - 100%', iconSrcs: [rewardIcons.emblems] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '3', textEn: '3', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'alliance-top-101-1000',
+    labelRu: 'Топ 101-1000',
+    labelEn: 'Top 101-1000',
+    categories: [
+      { titleRu: 'Авы', titleEn: 'Avatars', items: [{ textRu: '1 шт', textEn: '1 pcs', iconSrcs: [rewardIcons.avatar] }] },
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 20%', textEn: '1 slot - 20%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 70%', textEn: '2 slots - 70%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 70%', textEn: '3 slots - 70%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x20 - 3 слота - 100%', textEn: 'x20 - 3 slots - 100%', iconSrcs: [rewardIcons.emblems] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '2', textEn: '2', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'alliance-top-1001-10000',
+    labelRu: 'Топ 1001-10.000',
+    labelEn: 'Top 1001-10,000',
+    categories: [
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '1 слот - 10%', textEn: '1 slot - 10%', iconSrcs: [rewardIcons.aetherLegendary] },
+          { textRu: '2 слота - 60%', textEn: '2 slots - 60%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 60%', textEn: '3 slots - 60%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x20 - 2 слота - 100%', textEn: 'x20 - 2 slots - 100%', iconSrcs: [rewardIcons.emblems] }] },
+      { titleRu: 'Фляги', titleEn: 'Flasks', items: [{ textRu: '1', textEn: '1', iconSrcs: [rewardIcons.worldEnergyFlask] }] },
+    ],
+  },
+  {
+    id: 'alliance-top-10001-below',
+    labelRu: 'Топ 10.001 и ниже',
+    labelEn: 'Top 10,001 and below',
+    categories: [
+      {
+        titleRu: 'Эфир',
+        titleEn: 'Aether',
+        items: [
+          { textRu: '2 слота - 50%', textEn: '2 slots - 50%', iconSrcs: [rewardIcons.aetherRare] },
+          { textRu: '3 слота - 50%', textEn: '3 slots - 50%', iconSrcs: [rewardIcons.aetherEpic] },
+        ],
+      },
+      { titleRu: 'Эмки', titleEn: 'Emblems', items: [{ textRu: 'x10 - 1 слот - 100%', textEn: 'x10 - 1 slot - 100%', iconSrcs: [rewardIcons.emblems] }] },
+    ],
+  },
+];
+
+function ScoreReferenceBlock({ locale }: { locale: 'ru' | 'en' }) {
+  const difficultyTables = braveScoreTables.slice(0, 3);
+  const totalTable = braveScoreTables[3];
+  const [activeTab, setActiveTab] = useState(difficultyTables[0]?.titleEn ?? 'Rare');
+
+  const activeTable =
+    difficultyTables.find((table) => table.titleEn === activeTab) ?? difficultyTables[0];
+
+  if (!activeTable || !totalTable) {
+    return null;
+  }
+
+  const labels =
+    locale === 'ru'
+      ? {
+          stage: 'Этап',
+          enemyScore: 'Счет за\nврагов',
+          minimum: 'Мин.',
+          easy: 'Легко',
+          medium: 'Средне',
+          hard: 'Трудно',
+          random: 'Рандом',
+          total: 'Итог',
+          note:
+            'Внимание: на 3-5 этапах всех сложностей применен другой коэффициент, на 0,05 меньше заявленного в верхней строке таблицы, поскольку там другая формула подсчета бонуса времени.',
+          original: 'Оригинал:',
+        }
+      : {
+          stage: 'Stage',
+          enemyScore: 'Enemy score',
+          minimum: 'Minimum',
+          easy: 'Easy',
+          medium: 'Medium',
+          hard: 'Hard',
+          random: 'Random',
+          total: 'Total',
+          note:
+            'Note: on stages 3-5 of every difficulty, a different coefficient is used. It is lower by 0.05 than the value shown in the top row because those stages use a different time bonus formula.',
+          original: 'Original:',
+        };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-2">
+        {difficultyTables.map((table) => {
+          const isActive = table.titleEn === activeTab;
+          const label = locale === 'ru' ? table.titleRu : table.titleEn;
+
+          return (
+            <button
+              key={table.titleEn}
+              type="button"
+              onClick={() => setActiveTab(table.titleEn)}
+              className={`rounded-2xl border px-4 py-2 text-sm font-bold transition ${
+                isActive
+                  ? 'border-cyan-300/40 bg-cyan-400/16 text-cyan-200'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-cyan-400/24 hover:text-[var(--foreground)]'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] shadow-[0_14px_36px_rgba(0,0,0,0.10)]">
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] border-separate border-spacing-0 text-left text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-30 min-w-[88px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.stage}
+                </th>
+                <th className="min-w-[136px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 text-[11px] font-semibold leading-4 text-[var(--foreground)]">
+                  <span className="block whitespace-pre-line">{labels.enemyScore}</span>
+                </th>
+                <th className="min-w-[132px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.minimum}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.easy}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.medium}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.hard}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.random}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeTable.rows.map((row) => (
+                <tr key={`${activeTable.titleEn}-${row.stage}`}>
+                  <td className="sticky left-0 z-20 min-w-[88px] border-r border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3 text-[var(--foreground)]">
+                    {row.stage}
+                  </td>
+                  <td className="min-w-[136px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">
+                    {row.enemyScore}
+                  </td>
+                  <td className="min-w-[132px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">{row.minimum}</td>
+                  <td className="min-w-[132px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">{row.easy}</td>
+                  <td className="min-w-[132px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">{row.medium}</td>
+                  <td className="min-w-[132px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">{row.hard}</td>
+                  <td className="min-w-[132px] border-r border-[var(--border)] px-3 py-3 text-[var(--foreground)]">{row.random}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[1.5rem] border border-cyan-400/16 bg-cyan-400/8 shadow-[0_14px_36px_rgba(0,0,0,0.10)]">
+        <div className="overflow-x-auto">
+          <table className="min-w-[760px] border-separate border-spacing-0 text-left text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-30 min-w-[136px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.total}
+                </th>
+                <th className="min-w-[136px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 text-[11px] font-semibold leading-4 text-[var(--foreground)]">
+                  <span className="block whitespace-pre-line">{labels.enemyScore}</span>
+                </th>
+                <th className="min-w-[132px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.minimum}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.easy}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.medium}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.hard}
+                </th>
+                <th className="min-w-[132px] border-b border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.random}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="sticky left-0 z-20 min-w-[136px] border-r border-cyan-400/16 bg-[var(--surface-strong)] px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {labels.total}
+                </td>
+                <td className="min-w-[136px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">
+                  {totalTable.total.enemyScore}
+                </td>
+                <td className="min-w-[132px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">{totalTable.total.minimum}</td>
+                <td className="min-w-[132px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">{totalTable.total.easy}</td>
+                <td className="min-w-[132px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">{totalTable.total.medium}</td>
+                <td className="min-w-[132px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">{totalTable.total.hard}</td>
+                <td className="min-w-[132px] border-r border-cyan-400/16 px-3 py-3 font-semibold text-[var(--foreground)]">{totalTable.total.random}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <SectionText>{labels.note}</SectionText>
+        <SectionText>
+          by <strong>@mister_random</strong>
+        </SectionText>
+        <SectionText>
+          {labels.original}{' '}
+          <a
+            href="https://t.me/AQevents/481"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-cyan-300 transition hover:text-cyan-200"
+          >
+            Telegram
+          </a>
+        </SectionText>
+      </div>
+    </div>
+  );
+}
+
+function RewardsTabsBlock({
+  locale,
+  tabs,
+  noteRu,
+  noteEn,
+}: {
+  locale: 'ru' | 'en';
+  tabs: RewardRankTab[];
+  noteRu: ReactNode;
+  noteEn: ReactNode;
+}) {
+  const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? '');
+  const activeTabData = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+
+  if (!activeTabData) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTab;
+          const label = locale === 'ru' ? tab.labelRu : tab.labelEn;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-2xl border px-4 py-2 text-sm font-bold transition ${
+                isActive
+                  ? 'border-cyan-300/40 bg-cyan-400/16 text-cyan-200'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-cyan-400/24 hover:text-[var(--foreground)]'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {activeTabData.categories.map((category) => (
+          <div
+            key={`${activeTabData.id}-${locale === 'ru' ? category.titleRu : category.titleEn}`}
+            className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.10)]"
+          >
+            <h3 className="text-base font-bold text-[var(--foreground)] md:text-lg">
+              {locale === 'ru' ? category.titleRu : category.titleEn}
+            </h3>
+            <div className="mt-4 space-y-3">
+              {category.items.map((item, index) => (
+                <div
+                  key={`${activeTabData.id}-${index}`}
+                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-3"
+                >
+                  {item.iconSrcs?.length ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {item.iconSrcs.map((iconSrc) => (
+                        <div
+                          key={iconSrc}
+                          className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]"
+                        >
+                          <Image
+                            src={iconSrc}
+                            alt=""
+                            width={48}
+                            height={48}
+                            className="h-10 w-10 object-contain"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="flex-1 text-sm leading-6 text-[var(--foreground)] md:text-base">
+                    {locale === 'ru' ? item.textRu : item.textEn}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SectionText>{locale === 'ru' ? noteRu : noteEn}</SectionText>
+    </div>
   );
 }
 
@@ -431,20 +1143,12 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         content: (
           <div className="space-y-4">
             <SectionText>
-              Как и в других похожих событиях, герои текущего ивента получают бонусы в Alliance Quest <em>The Brave & The Beautiful</em>.
+              Как и в других похожих событиях, герои текущего ивента получают бонусы в АИ <em>Храбрые и Прекрасные</em>.
             </SectionText>
             <SectionSubtitle>Конкретно</SectionSubtitle>
             <SectionList
               items={[
-                <>Герои семей <strong>Musketeer</strong> и <strong>Beauty and the Beast</strong> игнорируют Элементальные Барьеры.</>,
-                <>Также они получают <strong>+20% к атаке</strong>, <strong>+20% к защите</strong> и <strong>+20% к здоровью</strong>.</>,
-              ]}
-            />
-            <SectionSubtitle>Важно</SectionSubtitle>
-            <SectionList
-              items={[
-                <>Бонус работает <strong>только</strong> внутри Alliance Quest <em>The Brave & The Beautiful</em>.</>,
-                <>Бонус не требует уникальных героев: его получают все герои этих семей, если они участвуют в событии.</>,
+                <>Герои семей <strong>Мушкетеры</strong> и <strong>Храбрые и Прекрасные</strong> получают <strong>+20% к атаке</strong>, <strong>+20% к защите</strong> и <strong>+20% к здоровью</strong>.</>,
               ]}
             />
           </div>
@@ -456,13 +1160,13 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         content: (
           <div className="space-y-4">
             <SectionText>
-              Главная механика события называется <strong>All For One!</strong>
+              Главная механика события называется <strong>Все за одного!</strong>
             </SectionText>
             <SectionSubtitle>Мушкетёрские щиты</SectionSubtitle>
             <SectionList
               items={[
-                <>Если собрать комбинацию из 4 камней, вместо Dragon Shield появляется <strong>Musketeer Shield</strong>.</>,
-                <>При совпадении он взрывается как обычный Dragon Shield.</>,
+                <>Если собрать комбинацию из 4 камней, вместо Бомбы (Dragon Shield) появляется <strong>Мушкетерский щит</strong>.</>,
+                <>При совпадении он взрывается как обычная Бомба (Dragon Shield).</>,
                 <>Дополнительно он уничтожает 4 соседних тайла: вверх, вниз, влево и вправо.</>,
                 <>Также он снимает бафы со всех врагов.</>,
               ]}
@@ -470,7 +1174,7 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
             <SectionSubtitle>Элитный мушкетёрский щит</SectionSubtitle>
             <SectionList
               items={[
-                <>Если собрать комбинацию из 5 камней, вместо Power Shard появляется <strong>Elite Musketeer Shield</strong>.</>,
+                <>Если собрать комбинацию из 5 камней, вместо Кристалла (Power Shard) появляется <strong>Элитный мушкетёрский щит</strong>.</>,
                 <>При совпадении он уничтожает весь ряд и всю колонку.</>,
                 <>Также он снимает бафы со всех врагов.</>,
               ]}
@@ -485,7 +1189,7 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
             <SectionSubtitle>Важный момент</SectionSubtitle>
             <SectionList
               items={[
-                <>Бафы врагов снимаются <strong>до</strong> того, как урон от тайлов долетит до врагов.</>,
+                <>Бафы врагов снимаются <strong>до</strong> того, как урон от камней долетит до врагов.</>,
                 <>Например, если на враге был контрудар, то после снятия бафа ваши герои не получат урон от контратаки.</>,
               ]}
             />
@@ -498,7 +1202,7 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         content: (
           <div className="space-y-4">
             <SectionText>
-              Дополнительный модификатор события называется <strong>Fortification</strong>.
+              Дополнительный модификатор.
             </SectionText>
             <SectionList
               items={[
@@ -514,9 +1218,9 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         title: 'Разблокировка сложности',
         content: (
           <div className="space-y-4">
-            <SectionSubtitle>Epic</SectionSubtitle>
+            <SectionSubtitle>Эпический</SectionSubtitle>
             <SectionList items={[<>Открывается, когда альянс набирает <strong>2 500 000</strong> очков.</>]} />
-            <SectionSubtitle>Legendary</SectionSubtitle>
+            <SectionSubtitle>Легендарный</SectionSubtitle>
             <SectionList items={[<>Открывается, когда альянс набирает <strong>10 000 000</strong> очков.</>]} />
           </div>
         ),
@@ -527,10 +1231,10 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         content: (
           <div className="space-y-4">
             <SectionText>
-              В событии доступен отдельный портал призыва <em>The Brave & The Beautiful</em>.
+              В событии доступен отдельный портал призыва <em>Храбрые и Прекрасные</em>.
             </SectionText>
             <SectionText>
-              В портале доступны герои семей <strong>Musketeer</strong> и <strong>Beauty and the Beast</strong>.
+              В портале доступны герои семей <strong>Мушкетеров</strong> и <strong>Храбрых и Прекрасных</strong>.
             </SectionText>
             <SectionSubtitle>Классические герои</SectionSubtitle>
             <SectionList
@@ -561,12 +1265,12 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
         content: (
           <div className="space-y-4">
             <SectionText>
-              Событие использует стандартные <strong>Alliance Quest Coins</strong>, как и другие Alliance Quest.
+              Событие использует стандартные <strong>Монеты Квеста Альянса</strong>, как и другие Альянсовые Квесты.
             </SectionText>
             <SectionSubtitle>Важно</SectionSubtitle>
             <SectionList
               items={[
-                <>В событии нет <strong>Suspicious Chests</strong>.</>,
+                <>В событии нет <strong>Suspicious Chests (Сундуков)</strong>.</>,
                 <>Монеты можно получить только за первое прохождение этапов.</>,
               ]}
             />
@@ -582,7 +1286,7 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
       },
       {
         anchorId: 'event-information',
-        title: 'Информация о событии',
+        title: 'Важнаянформация о событии',
         content: (
           <div className="space-y-4">
             <SectionText>
@@ -625,6 +1329,40 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
                 <>Только игроки, которые вступили в альянс <strong>до начала события</strong>.</>,
               ]}
             />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'score-reference',
+        title: 'Таблица очков',
+        content: (
+          <div className="space-y-4">
+            <SectionText>
+              Ниже приведена удобная таблица очков по всем сложностям и этапам.
+            </SectionText>
+            <div className="space-y-4">
+              {braveScoreTables.map((table) => (
+                <ScoreTableBlock key={table.titleEn} locale={locale} table={table} />
+              ))}
+            </div>
+            <SectionText className="mt-4">
+              Внимание: на 3-5 этапах всех сложностей применён другой коэффициент, на 0,05 меньше заявленного в верхней строке таблицы, потому что там используется другая формула подсчёта бонуса времени.
+            </SectionText>
+            <SectionText>
+              by <strong>@mister_random</strong>
+            </SectionText>
+            <SectionText>
+              Оригинал:
+              {' '}
+              <a
+                href="https://t.me/AQevents/481"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-cyan-300 transition hover:text-cyan-200"
+              >
+                Telegram
+              </a>
+            </SectionText>
           </div>
         ),
       },
@@ -898,6 +1636,40 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
       ),
     },
     {
+      anchorId: 'score-reference',
+      title: 'Score table',
+      content: (
+        <div className="space-y-4">
+          <SectionText>
+            Below is a quick score reference for every stage and difficulty.
+          </SectionText>
+          <div className="space-y-4">
+            {braveScoreTables.map((table) => (
+              <ScoreTableBlock key={table.titleEn} locale={locale} table={table} />
+            ))}
+          </div>
+          <SectionText className="mt-4">
+            Note: on stages 3-5 of every difficulty, a different coefficient is used. It is lower by 0.05 than the value shown in the top row because those stages use a different time bonus formula.
+          </SectionText>
+          <SectionText>
+            by <strong>@mister_random</strong>
+          </SectionText>
+          <SectionText>
+            Original:
+            {' '}
+            <a
+              href="https://t.me/AQevents/481"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-cyan-300 transition hover:text-cyan-200"
+            >
+              Telegram
+            </a>
+          </SectionText>
+        </div>
+      ),
+    },
+    {
       anchorId: 'monster-lure',
       title: 'Monster lure',
       content: (
@@ -1020,10 +1792,136 @@ export default function EventDetailsPage() {
   const listLabel = locale === 'ru' ? 'Все события' : 'All events';
   const jumpLabel = locale === 'ru' ? 'Быстрый переход по разделам' : 'Jump to section';
   const jumpHint = locale === 'ru' ? 'Открыть список' : 'Open list';
-  const sourceLabel = locale === 'ru' ? 'Вся информация взята с дискорда:' : 'All information is taken from Discord:';
-
   const isBravePage = eventItem.slug === 'the-brave-and-the-beautiful';
   const braveSections = isBravePage ? buildBraveSections(locale) : [];
+  const allianceWarningSection: EventSection = locale === 'ru'
+    ? {
+        anchorId: 'alliance-warning',
+        title: 'Как не подставить альянс и не потерять награды',
+        content: (
+          <div className="space-y-4">
+            <SectionSubtitle>Важно помнить:</SectionSubtitle>
+            <SectionText>1. Чтобы проходить этапы, набирать очки и получать награды:</SectionText>
+            <SectionList items={[<>нужно находиться в альянсе ДО старта события.</>]} />
+            <SectionText>Если вы часто переходите между альянсами:</SectionText>
+            <SectionList
+              items={[
+                <>следите ещё и за войнами,</>,
+                <>потому что Квест Альянса иногда стартует прямо во время войны.</>,
+              ]}
+            />
+            <SectionText>Можно случайно:</SectionText>
+            <SectionList
+              items={[
+                <>подставить альянс,</>,
+                <>не отбить тапки,</>,
+                <>и потерять часть наград.</>,
+              ]}
+            />
+            <SectionText>2. Если выйти из альянса во время события:</SectionText>
+            <SectionList
+              items={[
+                <>ваши очки сохранятся,</>,
+                <>но после возвращения вы НЕ сможете:</>,
+              ]}
+            />
+            <SectionList
+              items={[
+                <>улучшать результат,</>,
+                <>перепроходить этапы,</>,
+                <>получать награды события.</>,
+              ]}
+            />
+            <SectionText>Поэтому если вы выходите ради закупок, подарков или временного перехода:</SectionText>
+            <SectionList
+              items={[
+                <>сначала набейте нужное количество очков для альянса,</>,
+                <>чтобы потом не пришлось возвращаться и пытаться что-то добивать.</>,
+              ]}
+            />
+          </div>
+        ),
+      }
+    : {
+        anchorId: 'alliance-warning',
+        title: 'How Not to Let Your Alliance Down and Lose Rewards',
+        content: (
+          <div className="space-y-4">
+            <SectionSubtitle>Important to remember:</SectionSubtitle>
+            <SectionText>1. To clear stages, score points, and receive rewards:</SectionText>
+            <SectionList items={[<>you need to be in the alliance BEFORE the event starts.</>]} />
+            <SectionText>If you often move between alliances:</SectionText>
+            <SectionList
+              items={[
+                <>also keep an eye on wars,</>,
+                <>because Alliance Quest can sometimes start right in the middle of one.</>,
+              ]}
+            />
+            <SectionText>You can accidentally:</SectionText>
+            <SectionList
+              items={[
+                <>let your alliance down,</>,
+                <>fail to use all war flags,</>,
+                <>and lose part of the rewards.</>,
+              ]}
+            />
+            <SectionText>2. If you leave the alliance during the event:</SectionText>
+            <SectionList
+              items={[
+                <>your points will remain,</>,
+                <>but after returning you will NOT be able to:</>,
+              ]}
+            />
+            <SectionList
+              items={[
+                <>improve your score,</>,
+                <>replay unfinished stages,</>,
+                <>receive event rewards.</>,
+              ]}
+            />
+            <SectionText>So if you leave for purchases, gifts, or a temporary move:</SectionText>
+            <SectionList
+              items={[
+                <>first score the amount of points your alliance needs,</>,
+                <>so you do not have to come back and try to finish or improve anything later.</>,
+              ]}
+            />
+          </div>
+        ),
+      };
+  const hiddenSectionIds = new Set([
+    'summoning-odds',
+    'event-coins',
+    'event-information',
+    'alliance-quest-rules',
+    'who-can-participate',
+    'score-reference',
+    'alliance-warning',
+  ]);
+  const visibleBraveSections = isBravePage
+    ? braveSections.filter((section) => !hiddenSectionIds.has(section.anchorId))
+    : [];
+  const difficultyUnlockIndex = visibleBraveSections.findIndex((section) => section.anchorId === 'difficulty-unlock');
+  const articleSections = isBravePage
+    ? [
+        ...visibleBraveSections.slice(0, difficultyUnlockIndex + 1),
+        allianceWarningSection,
+        ...visibleBraveSections.slice(difficultyUnlockIndex + 1),
+      ]
+    : [];
+  const scoreSectionTitle = locale === 'ru' ? 'Таблица очков' : 'Score table';
+  const playerRewardsTitle =
+    locale === 'ru' ? 'Награды за Альянсовый Ивент (Топ игроков)' : 'Alliance Event Rewards (Top Players)';
+  const allianceRewardsTitle =
+    locale === 'ru' ? 'Награда за Альянсовый Ивент (Топ альянсов)' : 'Alliance Event Rewards (Top Alliances)';
+  const quickJumpSections = isBravePage
+    ? [
+        ...articleSections,
+        { anchorId: 'player-top-rewards', title: playerRewardsTitle },
+        { anchorId: 'alliance-top-rewards', title: allianceRewardsTitle },
+        { anchorId: 'score-reference', title: scoreSectionTitle },
+      ]
+    : [];
 
   const placeholderText =
     locale === 'ru'
@@ -1174,7 +2072,7 @@ export default function EventDetailsPage() {
               </summary>
               <div className="border-t border-[var(--border)] px-5 py-4">
                 <div className="flex flex-wrap gap-2">
-                  {braveSections.map((section) => (
+                  {quickJumpSections.map((section) => (
                     <a
                       key={section.anchorId}
                       href={`#${section.anchorId}`}
@@ -1188,7 +2086,7 @@ export default function EventDetailsPage() {
             </details>
 
             <div className="mt-8 space-y-6">
-              {braveSections.map((section) => (
+              {articleSections.map((section) => (
                 <EventSectionCard
                   key={section.anchorId}
                   section={section}
@@ -1199,15 +2097,126 @@ export default function EventDetailsPage() {
               ))}
             </div>
 
+            <section
+              id="player-top-rewards"
+              className="mt-8 scroll-mt-24 rounded-[2rem] border border-cyan-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-7"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
+                  {playerRewardsTitle}
+                </h2>
+                <CopyLinkButton
+                  href={`${eventPath}#player-top-rewards`}
+                  copyLabel={copyLabel}
+                  copiedLabel={copiedLabel}
+                />
+              </div>
+
+              <RewardsTabsBlock
+                locale={locale}
+                tabs={playerRewardsTabs}
+                noteRu={
+                  <>
+                    Примечание: если указано <strong>Эфир 4* - 2 слота - 60%</strong>, это означает, что тебе могут выпасть две отдельные 4* эфирки, каждая с шансом 60%. Также дополнительно дают элитную расходку и материалы для крафта - здесь указан только самый значимый лут.
+                  </>
+                }
+                noteEn={
+                  <>
+                    Note: if it says <strong>4* Aether - 2 slots - 60%</strong>, it means you can get two separate 4* Aethers, each with a 60% chance. Additional elite battle items and crafting materials are also included, but only the most valuable loot is shown here.
+                  </>
+                }
+              />
+            </section>
+
+            <section
+              id="alliance-top-rewards"
+              className="mt-8 scroll-mt-24 rounded-[2rem] border border-cyan-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-7"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
+                  {allianceRewardsTitle}
+                </h2>
+                <CopyLinkButton
+                  href={`${eventPath}#alliance-top-rewards`}
+                  copyLabel={copyLabel}
+                  copiedLabel={copiedLabel}
+                />
+              </div>
+
+              <RewardsTabsBlock
+                locale={locale}
+                tabs={allianceRewardsTabs}
+                noteRu={
+                  <>
+                    Примечание: если указано <strong>Эфир 4* - 2 слота - 60%</strong>, это означает, что тебе могут выпасть две отдельные 4* эфирки, каждая с шансом 60%. Также дополнительно дают элитную расходку и материалы для крафта - здесь указан только самый значимый лут.
+                  </>
+                }
+                noteEn={
+                  <>
+                    Note: if it says <strong>4* Aether - 2 slots - 60%</strong>, it means you can get two separate 4* Aethers, each with a 60% chance. Additional elite battle items and crafting materials are also included, but only the most valuable loot is shown here.
+                  </>
+                }
+              />
+
+              <SectionText className="mt-5">
+                {locale === 'ru' ? 'Источник: ' : 'Source: '}
+                <a
+                  href="https://t.me/EmpiresPuzzlesBot"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-cyan-300 transition hover:text-cyan-200"
+                >
+                  @EmpiresPuzzlesBot
+                </a>
+                {' '}
+                <a
+                  href="https://t.me/Tudan_news"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-cyan-300 transition hover:text-cyan-200"
+                >
+                  @Tudan_news
+                </a>
+              </SectionText>
+            </section>
+
+            <section
+              id="score-reference"
+              className="mt-8 scroll-mt-24 rounded-[2rem] border border-cyan-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-7"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
+                  {scoreSectionTitle}
+                </h2>
+                <CopyLinkButton
+                  href={`${eventPath}#score-reference`}
+                  copyLabel={copyLabel}
+                  copiedLabel={copiedLabel}
+                />
+              </div>
+
+              <SectionText className="mb-5">
+                {locale === 'ru'
+                  ? 'Таблица с необходимыми очками для занятия хороших мест в топе.'
+                  : 'This table is from another author. You can quickly switch difficulty tabs and check the needed stages.'}
+              </SectionText>
+
+              <ScoreReferenceBlock locale={locale} />
+            </section>
+
             <footer className="mt-8 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm leading-7 text-[var(--foreground-soft)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]">
-              <span>{sourceLabel} </span>
+              <span>
+                {locale === 'ru'
+                  ? 'Благодарность за помощь в составлении данной статьи @Vesta22: '
+                  : 'Thanks to @Vesta22 for help with this article: '}
+              </span>
               <a
-                href="https://discord.com/channels/1351108014765117450/1417756917987803207/threads/1437920534795915426"
+                href="https://t.me/VestiVesta"
                 target="_blank"
                 rel="noreferrer"
                 className="font-semibold text-cyan-300 transition hover:text-cyan-200"
               >
-                Discord
+                Telegram
               </a>
             </footer>
           </>
