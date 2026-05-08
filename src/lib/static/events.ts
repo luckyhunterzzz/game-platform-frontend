@@ -42,6 +42,7 @@ export const eventGuideItems: EventGuideItem[] = [
     accentClassName:
       'border-blue-300/70 bg-gradient-to-b from-blue-400/74 via-indigo-500/30 to-slate-950/18 shadow-[0_0_32px_rgba(96,165,250,0.32)]',
     previewImageSrc: '/events/previews/magic.webp',
+    listPreviewImageSrc: '/events/list-previews/magic.jpg',
   },
   {
     slug: 'beowulf-challenge',
@@ -50,6 +51,7 @@ export const eventGuideItems: EventGuideItem[] = [
     accentClassName:
       'border-zinc-300/70 bg-gradient-to-b from-zinc-300/70 via-zinc-400/28 to-zinc-950/14 shadow-[0_0_32px_rgba(212,212,216,0.3)]',
     previewImageSrc: '/events/previews/beowulf.webp',
+    listPreviewImageSrc: '/events/list-previews/beowulf.jpg',
   },
 ];
 
