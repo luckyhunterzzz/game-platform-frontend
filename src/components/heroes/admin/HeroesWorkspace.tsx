@@ -635,6 +635,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [loadingMoreAdmin, setLoadingMoreAdmin] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
+  const [editingHeroId, setEditingHeroId] = useState<number | null>(null);
   const [selectedAdminVariants, setSelectedAdminVariants] = useState<AdminHeroVariantsResponse | null>(null);
   const [selectedAdminHeroExpertOpinions, setSelectedAdminHeroExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
   const [elements, setElements] = useState<ElementItem[]>([]);
@@ -988,7 +989,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           return prev ?? mapped[0]?.id ?? null;
         }
 
-        if (prev && mapped.some((item) => item.id === prev)) {
+        if (prev) {
           return prev;
         }
 
@@ -1013,6 +1014,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setLoadingList(false);
     }
   }, [adminMode, fetchAdminCatalogPage, fetchPublicCatalogPage]);
+
+  const loadListRef = useRef(loadList);
+
+  useEffect(() => {
+    loadListRef.current = loadList;
+  }, [loadList]);
 
   const handleLoadMorePublic = useCallback(async () => {
     if (!publicPage?.hasNext || loadingMorePublic) {
@@ -1195,8 +1202,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, selectedPublicHeroDetails?.slug]);
 
   useEffect(() => {
-    void loadList();
-  }, [loadList]);
+    void loadListRef.current();
+  }, [adminMode, adminSearch, publicSearch, publicFilters, locale]);
 
   useEffect(() => {
     if (adminMode) {
@@ -1692,8 +1699,12 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const openEditModal = () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isAdminSelectionReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
     setEditForm(toForm(selectedItem));
+    setEditingHeroId(selectedItem.id);
     setEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
     setInitialEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
     setSubmitError(null);
@@ -1729,6 +1740,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setEditPreviewFileName(null);
     setEditPreviewUploadError(null);
     setEditUploadingPreview(false);
+    setEditingHeroId(null);
     setEditExpertOpinions([]);
     setInitialEditExpertOpinions([]);
     resetImageInput('edit', 'RU');
@@ -1768,6 +1780,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   );
 
   const currentAuditLabel = userEmail ?? displayName ?? userId ?? null;
+  const isAdminSelectionReady =
+    selectedItem !== null &&
+    selectedId !== null &&
+    selectedItem.id === selectedId &&
+    !loadingDetails;
+  const selectionSyncError =
+    locale === 'RU'
+      ? 'Подождите, пока загрузится выбранный герой.'
+      : 'Wait until the selected hero is fully loaded.';
 
   const resolveName = (list: Array<{ id: number; name: LocalizedText }>, id?: number | null) => {
     if (id == null) return t.noValue;
@@ -2101,7 +2122,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isAdminSelectionReady || editingHeroId === null) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
     if (!userId) {
       setSubmitError('Missing user id for update audit');
       return;
@@ -2119,23 +2143,24 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const updated = await apiPutJson<HeroMutationRequest, AdminHeroResponseDto>(`${ADMIN_API}/${selectedItem.id}`, buildPayload(editForm));
+      const updated = await apiPutJson<HeroMutationRequest, AdminHeroResponseDto>(`${ADMIN_API}/${editingHeroId}`, buildPayload(editForm));
       let savedExpertOpinions: HeroExpertOpinionDraft[] = [];
 
       try {
         savedExpertOpinions = await syncHeroExpertOpinions(
-          selectedItem.id,
+          editingHeroId,
           editExpertOpinions,
           initialEditExpertOpinions,
         );
       } catch (opinionError) {
         upsertHero(updated);
-        await loadAdminHeroExpertOpinions(selectedItem.id);
+        await loadAdminHeroExpertOpinions(editingHeroId);
         setSubmitError(
           opinionError instanceof Error
             ? `Hero updated, but expert opinions sync failed: ${opinionError.message}`
             : 'Hero updated, but expert opinions sync failed',
         );
+        setEditingHeroId(null);
         setEditOpen(false);
         return;
       }
@@ -2145,6 +2170,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setInitialEditExpertOpinions(savedExpertOpinions);
       setEditPassiveSkillsOpen(false);
       setEditPassiveSkillQuery('');
+      setEditingHeroId(null);
       setEditOpen(false);
       setEditImagePreviewUrl({ RU: null, EN: null });
       setEditImageFileName({ RU: null, EN: null });
@@ -2167,7 +2193,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const handleDelete = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isAdminSelectionReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
     if (!window.confirm(t.deleteConfirm(getLocalizedText(selectedItem.name, locale) || selectedItem.slug))) return;
     setSubmitting(true);
     setSubmitError(null);
@@ -2864,7 +2893,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div><h3 className="text-lg font-semibold text-[var(--foreground)]">{t.detailsTitle}</h3><p className="text-sm text-[var(--foreground-soft)]">{t.detailsSubtitle}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" disabled={!selectedItem || loadingDetails} onClick={openEditModal} className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-sky-300">{t.edit}</button><button type="button" disabled={!selectedItem || submitting || loadingDetails} onClick={handleDelete} className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50">{t.delete}</button></div>
+            <div className="flex flex-wrap gap-2"><button type="button" disabled={!isAdminSelectionReady} onClick={openEditModal} className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-sky-300">{t.edit}</button><button type="button" disabled={!isAdminSelectionReady || submitting} onClick={handleDelete} className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50">{t.delete}</button></div>
           </div>
           {submitError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{submitError}</div>}
           {detailsError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{detailsError}</div>}
