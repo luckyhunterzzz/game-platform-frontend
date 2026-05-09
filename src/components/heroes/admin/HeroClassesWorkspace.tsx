@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import {
@@ -143,6 +143,7 @@ export default function HeroClassesWorkspace() {
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [createForm, setCreateForm] = useState<FormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
@@ -175,6 +176,12 @@ export default function HeroClassesWorkspace() {
       setLoadingList(false);
     }
   }, [apiJson]);
+
+  const loadListRef = useRef(loadList);
+
+  useEffect(() => {
+    loadListRef.current = loadList;
+  }, [loadList]);
 
   const handleLoadMore = async () => {
     if (!catalogPage?.hasNext || loadingMore) {
@@ -216,11 +223,11 @@ export default function HeroClassesWorkspace() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void loadList(searchQuery);
+      void loadListRef.current(searchQuery);
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [loadList, searchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (selectedId !== null) {
@@ -235,10 +242,21 @@ export default function HeroClassesWorkspace() {
       return;
     }
 
-    if (selectedId === null || !items.some((item) => item.id === selectedId)) {
+    if (selectedId === null) {
       setSelectedId(items[0].id);
     }
   }, [items, selectedId]);
+
+  const isSelectedItemReady =
+    selectedItem !== null &&
+    selectedId !== null &&
+    selectedItem.id === selectedId &&
+    !loadingDetails;
+
+  const selectionSyncError =
+    locale === 'RU'
+      ? 'Подождите, пока загрузится выбранная запись.'
+      : 'Wait until the selected entry is fully loaded.';
 
   const validateLocalized = (
     value: LocalizedText,
@@ -360,13 +378,20 @@ export default function HeroClassesWorkspace() {
   };
 
   const handleOpenEdit = () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
     resetEditForm(selectedItem);
+    setEditingId(selectedItem.id);
     setEditOpen(true);
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady || editingId === null) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
 
     if (editImageUploadError) {
       setSubmitError(editImageUploadError);
@@ -384,13 +409,15 @@ export default function HeroClassesWorkspace() {
 
     try {
       const updated = await apiPutJson<UpdateHeroClassRequest, HeroClassResponseDto>(
-        `${API}/${selectedItem.id}`,
+        `${API}/${editingId}`,
         buildPayload(editForm),
       );
 
       const mapped = mapHeroClassDto(updated);
       setItems((prev) => prev.map((item) => (item.id === mapped.id ? mapped : item)));
+      setSelectedId(mapped.id);
       setSelectedItem(mapped);
+      setEditingId(null);
       setEditOpen(false);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to update hero class');
@@ -400,7 +427,10 @@ export default function HeroClassesWorkspace() {
   };
 
   const handleDelete = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
 
     if (!window.confirm(t.deleteConfirm(selectedItem))) {
       return;
@@ -526,7 +556,7 @@ export default function HeroClassesWorkspace() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={!selectedItem || loadingDetails}
+                disabled={!isSelectedItemReady}
                 onClick={handleOpenEdit}
                 className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -535,7 +565,7 @@ export default function HeroClassesWorkspace() {
 
               <button
                 type="button"
-                disabled={!selectedItem || submitting || loadingDetails}
+                disabled={!isSelectedItemReady || submitting}
                 onClick={handleDelete}
                 className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
               >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import { getLocaleText, resolveHeroLocale } from '@/lib/heroes-ui';
@@ -159,6 +159,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState<FormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
 
@@ -208,6 +209,17 @@ export default function RarityEvolutionMultipliersWorkspace() {
     }
   }, [apiJson]);
 
+  const loadRaritiesRef = useRef(loadRarities);
+  const loadListRef = useRef(loadList);
+
+  useEffect(() => {
+    loadRaritiesRef.current = loadRarities;
+  }, [loadRarities]);
+
+  useEffect(() => {
+    loadListRef.current = loadList;
+  }, [loadList]);
+
   const handleLoadMore = async () => {
     if (!catalogPage?.hasNext || loadingMore) return;
 
@@ -245,9 +257,20 @@ export default function RarityEvolutionMultipliersWorkspace() {
   );
 
   useEffect(() => {
-    void loadRarities();
-    void loadList();
-  }, [loadList, loadRarities]);
+    void loadRaritiesRef.current();
+    void loadListRef.current();
+  }, []);
+
+  const isSelectedItemReady =
+    selectedItem !== null &&
+    selectedId !== null &&
+    selectedItem.id === selectedId &&
+    !loadingDetails;
+
+  const selectionSyncError =
+    locale === 'RU'
+      ? 'Подождите, пока загрузится выбранная запись.'
+      : 'Wait until the selected entry is fully loaded.';
 
   useEffect(() => {
     if (selectedId !== null) {
@@ -350,13 +373,20 @@ export default function RarityEvolutionMultipliersWorkspace() {
   };
 
   const handleOpenEdit = () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
     resetEditForm(selectedItem);
+    setEditingId(selectedItem.id);
     setEditOpen(true);
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady || editingId === null) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
 
     const validationError = validateForm(editForm);
     if (validationError) {
@@ -371,11 +401,13 @@ export default function RarityEvolutionMultipliersWorkspace() {
       const updated = await apiPutJson<
         UpdateRarityEvolutionMultiplierRequest,
         RarityEvolutionMultiplierResponseDto
-      >(`${API}/${selectedItem.id}`, buildPayload(editForm));
+      >(`${API}/${editingId}`, buildPayload(editForm));
 
       const mapped = mapRarityEvolutionMultiplierDto(updated);
       setItems((prev) => prev.map((item) => (item.id === mapped.id ? mapped : item)));
+      setSelectedId(mapped.id);
       setSelectedItem(mapped);
+      setEditingId(null);
       setEditOpen(false);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to update multiplier');
@@ -385,7 +417,10 @@ export default function RarityEvolutionMultipliersWorkspace() {
   };
 
   const handleDelete = async () => {
-    if (!selectedItem) return;
+    if (!selectedItem || !isSelectedItemReady) {
+      setSubmitError(selectionSyncError);
+      return;
+    }
 
     if (!window.confirm(t.deleteConfirm(selectedItem))) {
       return;
@@ -615,7 +650,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={!selectedItem || loadingDetails}
+                disabled={!isSelectedItemReady}
                 onClick={handleOpenEdit}
                 className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -624,7 +659,7 @@ export default function RarityEvolutionMultipliersWorkspace() {
 
               <button
                 type="button"
-                disabled={!selectedItem || submitting || loadingDetails}
+                disabled={!isSelectedItemReady || submitting}
                 onClick={handleDelete}
                 className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
               >
