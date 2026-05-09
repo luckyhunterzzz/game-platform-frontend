@@ -78,6 +78,8 @@ export type PublicHeroDetailsItem = {
   imageUrl?: string | null;
   previewUrl?: string | null;
   releaseDate?: string | null;
+  heroCoachDate?: string | null;
+  visitingOutfitterDate?: string | null;
 };
 
 export type PublicHeroVariantSummaryItem = {
@@ -126,6 +128,31 @@ function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallb
     month: 'long',
     year: 'numeric',
   }).format(date);
+}
+
+function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isDateInPastOrToday(value: string | null | undefined): boolean {
+  const parsed = parseIsoDate(value);
+  if (!parsed) return false;
+
+  parsed.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return parsed.getTime() <= today.getTime();
 }
 
 function relationName(value: string | null | undefined, fallback: string) {
@@ -199,6 +226,32 @@ function formatCostumeBonusContent(
         ];
 
   return lines.join('\n');
+}
+
+function HeroAvailabilityInfoCard({
+  title,
+  imageUrl,
+  tooltipContent,
+  statusText,
+}: {
+  title: string;
+  imageUrl: string;
+  tooltipContent: string;
+  statusText: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1 text-sm font-semibold text-[var(--foreground)]">{title}</div>
+        <HeroInfoPopover label={title} content={tooltipContent} />
+      </div>
+      <div className="mt-3 text-sm leading-6 text-[var(--foreground-soft)]">{statusText}</div>
+      <div className="mt-4 flex justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageUrl} alt={title} className="h-24 w-24 object-contain" />
+      </div>
+    </div>
+  );
 }
 
 function StackedReferenceRow({
@@ -369,6 +422,25 @@ export default function PublicHeroDetailsModal({
   );
 
   const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
+  const heroCoachInfoTitle = locale === 'RU' ? 'Тренер героев' : 'Hero Coach Info';
+  const visitingOutfitterInfoTitle =
+    locale === 'RU' ? 'Приезжий портной' : 'Visiting Outfitter Info';
+  const availableSinceLabel = locale === 'RU' ? 'Доступен с' : 'Available since';
+  const availableAfterLabel = locale === 'RU' ? 'Доступен после' : 'Available after';
+  const heroCoachTooltip =
+    locale === 'RU'
+      ? 'Это регулярное событие позволяет игрокам прокачивать легендарных героев до 4/90 в обмен на гемы.\nКостюмы нельзя прокачивать с помощью Тренера героев.\nПосле выбора героя Тренер героев покажет, как будет выглядеть ваш герой на уровне 4/90.\nВы можете выбрать для тренировки только героя, который был выпущен более чем за 730 дней до начала события.\nМожно тренировать только одного героя за событие.\n\nПримеры стоимости в гемах:\nПрокачка с 4/85: 18 гемов\nПрокачка с 4/80: 37 гемов\nПрокачка с 3/70 и 4/1: 334 гема\nПрокачка с 2/60 и 3/1: 593 гема\nПрокачка с 1/50 и 2/1: 815 гемов\nПрокачка с 1/1: 1000 гемов\n\nКаждый уровень уменьшает стоимость на 3-4 гема.\n(~3.7 гема за уровень в среднем.)'
+      : "This recurring event allows players to level their Legendary Heroes to 4/90, in exchange for Gems.\nCostumes can't be leveled up with Hero Coach.\nAfter selecting a Hero, the Hero Coach will show you how your hero will look like at 4/90.\nYou can only select a Hero to train, which is released earlier than 2 years before the start of the event.\nIn the live game, players will be able to train one Hero per event.\n\nExample Gem Costs in Beta:\nTraining from 4/85: 18 Gems\nTraining from 4/80: 37 Gems\nTraining from 3/70 and 4/1: 334 Gems\nTraining from 2/60 and 3/1: 593 Gems\nTraining from 1/50 and 2/1: 815 Gems\nTraining from 1/1: 1000 Gems\nEach level is reducing the Gem cost with 3-4 Gems. (~3.7 Gems / level on average.)";
+  const visitingOutfitterTooltip =
+    locale === 'RU'
+      ? 'Это регулярное событие позволяет игрокам получать определённые костюмы для своих героев в обмен на гемы.\n\nПосле выбора героя Портной покажет, какой костюм доступен.\n\nПортной всегда предлагает самый старый отсутствующий костюм для выбранного героя и предлагает только те костюмы, которые были выпущены более чем за 18 месяцев (548 дней) до начала события.\n\nВы можете выбрать только тех героев, у которых есть отсутствующий у вас костюм.\n\nПосле выбора героя вы сможете увидеть, какой именно костюм получите.\n\nИгроки могут получить только один костюм за событие.\n\nСтоимость покупки отсутствующих костюмов по редкости:\nКостюм для Редкого (3*) героя: 100 гемов\nКостюм для Эпического (4*) героя: 200 гемов\nКостюм для Легендарного (5*) героя: 300 гемов'
+      : 'This recurring event allows players to get certain Costumes for their Heroes, in exchange for Gems.\nAfter selecting a Hero, the Outfitter will show which Costume is available.\nThe Outfitter will always offer the oldest missing Costume for the selected Hero, and only offers Costumes released earlier than 18 months (548 days) before the start of the event.\nYou can only choose those heroes, which has a costume that you do not have.\nOnce you select a hero, then you can see which costume you will get.\nPlayers can get one Costume per event.\n\nCosts of puchasing the missing costumes per rarity:\nRare costume: 100 Gem\nEpic costune: 200 Gem\nLegendary costume: 300 Gem';
+  const heroCoachDateFormatted = heroDetails?.heroCoachDate
+    ? formatDate(heroDetails.heroCoachDate, locale, t.noValue)
+    : null;
+  const visitingOutfitterDateFormatted = heroDetails?.visitingOutfitterDate
+    ? formatDate(heroDetails.visitingOutfitterDate, locale, t.noValue)
+    : null;
   const resolvedPreviewUrl = heroDetails?.previewUrl ?? heroCard?.previewUrl ?? heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
   const resolvedImageUrl = heroDetails?.imageUrl ?? heroCard?.imageUrl ?? null;
   const imagePreviewSource = resolvedImageUrl ?? resolvedPreviewUrl;
@@ -377,8 +449,13 @@ export default function PublicHeroDetailsModal({
     locale === 'RU' ? '\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u0441\u044b\u043b\u043a\u0443 \u043d\u0430 \u0433\u0435\u0440\u043e\u044f' : 'Copy hero link';
   const copiedHeroLinkLabel =
     locale === 'RU' ? '\u0421\u0441\u044b\u043b\u043a\u0430 \u0441\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0430' : 'Hero link copied';
-  const currentHeroIsCostume =
-    heroDetails?.baseHeroId != null && heroVariants?.baseHero.slug !== currentHeroSlug;
+  const currentHeroIsCostume = heroDetails?.baseHeroId != null;
+  const heroCoachStatusText = heroCoachDateFormatted
+    ? `${isDateInPastOrToday(heroDetails?.heroCoachDate) ? availableSinceLabel : availableAfterLabel}: ${heroCoachDateFormatted}`
+    : `${availableAfterLabel}: ${t.noValue}`;
+  const visitingOutfitterStatusText = visitingOutfitterDateFormatted
+    ? `${isDateInPastOrToday(heroDetails?.visitingOutfitterDate) ? availableSinceLabel : availableAfterLabel}: ${visitingOutfitterDateFormatted}`
+    : `${availableAfterLabel}: ${t.noValue}`;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
   const resolvedCostumes = heroVariants?.costumes ?? [];
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
@@ -683,6 +760,23 @@ export default function PublicHeroDetailsModal({
             loading={heroExpertOpinionsLoading}
             error={heroExpertOpinionsError}
           />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <HeroAvailabilityInfoCard
+              title={heroCoachInfoTitle}
+              imageUrl="/heroes/activity-icons/hero-coach.png"
+              tooltipContent={heroCoachTooltip}
+              statusText={heroCoachStatusText}
+            />
+            {currentHeroIsCostume ? (
+              <HeroAvailabilityInfoCard
+                title={visitingOutfitterInfoTitle}
+                imageUrl="/heroes/activity-icons/visiting-outfitter.png"
+                tooltipContent={visitingOutfitterTooltip}
+                statusText={visitingOutfitterStatusText}
+              />
+            ) : null}
+          </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">

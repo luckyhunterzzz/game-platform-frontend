@@ -9,6 +9,7 @@ import DictionaryMiniIcon from './DictionaryMiniIcon';
 type Reference = {
   id: number;
   name: string;
+  description?: string | null;
   imageUrl?: string | null;
 } | null;
 
@@ -301,6 +302,7 @@ export default function PublicHeroDetailsModal({
                     label={t.family}
                     value={String(renderValue(details.family?.name))}
                     imageUrl={details.family?.imageUrl}
+                    tooltipContent={details.family?.description ?? null}
                     imageSize={34}
                   />
                 </div>
@@ -308,6 +310,7 @@ export default function PublicHeroDetailsModal({
                   <LabeledReferenceRow
                     label={t.manaSpeed}
                     value={String(renderValue(details.manaSpeed?.name))}
+                    tooltipContent={details.manaSpeed?.description ?? null}
                     showImage={false}
                   />
                 </div>
@@ -316,6 +319,7 @@ export default function PublicHeroDetailsModal({
                     label={t.alphaTalent}
                     value={String(renderValue(details.alphaTalent?.name))}
                     imageUrl={details.alphaTalent?.imageUrl}
+                    tooltipContent={details.alphaTalent?.description ?? null}
                     imageSize={34}
                   />
                 </div>
