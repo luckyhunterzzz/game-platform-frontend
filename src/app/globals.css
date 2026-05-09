@@ -2,15 +2,15 @@
 @import "react-datepicker/dist/react-datepicker.css";
 
 :root {
-  --font-geist-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-geist-sans: "Segoe UI Variable Text", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   --font-geist-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 html.light {
   --background: #f1f5f9;
   --foreground: #0f172a;
-  --foreground-muted: rgba(15, 23, 42, 0.82);
-  --foreground-soft: rgba(15, 23, 42, 0.64);
+  --foreground-muted: rgba(15, 23, 42, 0.88);
+  --foreground-soft: rgba(15, 23, 42, 0.74);
   --accent-text: #0f4fcf;
   --accent-text-strong: #0a63d8;
   --info-text: #0f4fcf;
@@ -22,8 +22,8 @@ html.light {
   --warning-text: #9a5a00;
   --danger-text: #b42318;
 
-  --surface: rgba(255, 255, 255, 0.86);
-  --surface-strong: rgba(255, 255, 255, 0.96);
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: rgba(255, 255, 255, 0.985);
   --surface-hover: rgba(15, 23, 42, 0.08);
 
   --border: rgba(15, 23, 42, 0.14);
@@ -48,8 +48,8 @@ html.light {
 html.dark {
   --background: #020617;
   --foreground: #f8fafc;
-  --foreground-muted: rgba(248, 250, 252, 0.8);
-  --foreground-soft: rgba(248, 250, 252, 0.58);
+  --foreground-muted: rgba(248, 250, 252, 0.9);
+  --foreground-soft: rgba(248, 250, 252, 0.72);
   --accent-text: #58b7ff;
   --accent-text-strong: #7fd0ff;
   --info-text: #58b7ff;
@@ -61,8 +61,8 @@ html.dark {
   --warning-text: #ffbf47;
   --danger-text: #ff7b72;
 
-  --surface: rgba(255, 255, 255, 0.05);
-  --surface-strong: #0f172a;
+  --surface: rgba(15, 23, 42, 0.82);
+  --surface-strong: #111c31;
   --surface-hover: rgba(255, 255, 255, 0.08);
 
   --border: rgba(255, 255, 255, 0.1);
@@ -107,7 +107,7 @@ html.light {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans);
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
