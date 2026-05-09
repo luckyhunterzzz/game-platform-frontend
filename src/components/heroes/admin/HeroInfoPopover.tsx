@@ -65,16 +65,28 @@ export default function HeroInfoPopover({ label, content }: HeroInfoPopoverProps
       }
     };
 
+    const handleScroll = (event: Event) => {
+      const target = event.target as Node | null;
+      if (
+        target &&
+        (triggerRef.current?.contains(target) || popoverRef.current?.contains(target))
+      ) {
+        return;
+      }
+
+      closePopover();
+    };
+
     window.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('keydown', handleEscape);
     window.addEventListener('resize', closePopover);
-    window.addEventListener('scroll', closePopover, true);
+    window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleEscape);
       window.removeEventListener('resize', closePopover);
-      window.removeEventListener('scroll', closePopover, true);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [hasContent, open]);
 
@@ -97,7 +109,7 @@ export default function HeroInfoPopover({ label, content }: HeroInfoPopoverProps
         ? createPortal(
             <div
               ref={popoverRef}
-              className="fixed z-[90] w-72 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl whitespace-pre-wrap"
+              className="fixed z-[90] w-[min(18rem,calc(100vw-2rem))] max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl whitespace-pre-wrap overscroll-contain"
               style={{ top: position.top, left: position.left }}
             >
               {formattedContent}
