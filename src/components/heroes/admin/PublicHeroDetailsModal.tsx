@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import DictionaryModal from './DictionaryModal';
 import DictionaryInlineValue from '../DictionaryInlineValue';
@@ -237,7 +237,7 @@ function HeroAvailabilityInfoCard({
   title: string;
   imageUrl: string;
   tooltipContent: string;
-  statusText: string;
+  statusText: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -427,6 +427,10 @@ export default function PublicHeroDetailsModal({
     locale === 'RU' ? 'Приезжий портной' : 'Visiting Outfitter Info';
   const availableSinceLabel = locale === 'RU' ? 'Доступен с' : 'Available since';
   const availableAfterLabel = locale === 'RU' ? 'Доступен после' : 'Available after';
+  const availableForBaseHeroPrefix = locale === 'RU' ? 'Доступен для' : 'Available for';
+  const baseHeroHighlightLabel = locale === 'RU' ? 'базового героя' : 'base hero';
+  const availableForBaseHeroSinceSuffix = locale === 'RU' ? 'с' : 'since';
+  const availableForBaseHeroAfterSuffix = locale === 'RU' ? 'после' : 'after';
   const heroCoachTooltip =
     locale === 'RU'
       ? 'Это регулярное событие позволяет игрокам прокачивать легендарных героев до 4/90 в обмен на гемы.\nКостюмы нельзя прокачивать с помощью Тренера героев.\nПосле выбора героя Тренер героев покажет, как будет выглядеть ваш герой на уровне 4/90.\nВы можете выбрать для тренировки только героя, который был выпущен более чем за 730 дней до начала события.\nМожно тренировать только одного героя за событие.\n\nПримеры стоимости в гемах:\nПрокачка с 4/85: 18 гемов\nПрокачка с 4/80: 37 гемов\nПрокачка с 3/70 и 4/1: 334 гема\nПрокачка с 2/60 и 3/1: 593 гема\nПрокачка с 1/50 и 2/1: 815 гемов\nПрокачка с 1/1: 1000 гемов\n\nКаждый уровень уменьшает стоимость на 3-4 гема.\n(~3.7 гема за уровень в среднем.)'
@@ -450,7 +454,15 @@ export default function PublicHeroDetailsModal({
   const copiedHeroLinkLabel =
     locale === 'RU' ? '\u0421\u0441\u044b\u043b\u043a\u0430 \u0441\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u0430' : 'Hero link copied';
   const currentHeroIsCostume = heroDetails?.baseHeroId != null;
-  const heroCoachStatusText = heroCoachDateFormatted
+  const heroCoachStatusText = currentHeroIsCostume ? (
+    <>
+      {availableForBaseHeroPrefix}{' '}
+      <strong className="font-semibold text-[var(--foreground)]">{baseHeroHighlightLabel}</strong>{' '}
+      {isDateInPastOrToday(heroDetails?.heroCoachDate) ? availableForBaseHeroSinceSuffix : availableForBaseHeroAfterSuffix}
+      {': '}
+      {heroCoachDateFormatted ?? t.noValue}
+    </>
+  ) : heroCoachDateFormatted
     ? `${isDateInPastOrToday(heroDetails?.heroCoachDate) ? availableSinceLabel : availableAfterLabel}: ${heroCoachDateFormatted}`
     : `${availableAfterLabel}: ${t.noValue}`;
   const visitingOutfitterStatusText = visitingOutfitterDateFormatted
@@ -551,7 +563,7 @@ export default function PublicHeroDetailsModal({
           type="button"
           onClick={() => onOpenRelatedHero(slug)}
           disabled={isCurrent}
-          className={`rounded-full border px-3 py-2 text-sm transition ${
+          className={`rounded-2xl border px-3 py-2 text-sm transition ${
             isCurrent
               ? 'cursor-default border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200'
               : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
@@ -565,7 +577,7 @@ export default function PublicHeroDetailsModal({
     return (
       <span
         key={key}
-        className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)]"
+        className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)]"
       >
         {label}
       </span>

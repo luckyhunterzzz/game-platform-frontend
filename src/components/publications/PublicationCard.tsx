@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import type {
   PublicationItem,
@@ -54,6 +54,12 @@ export default function PublicationCard({
   const { locale, messages } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef({ x: 0, y: 0, active: false });
+  const pinchStateRef = useRef<{ distance: number; scale: number } | null>(null);
 
   const content = publication.content?.trim() ?? '';
   const isLongContent = content.length > PREVIEW_LENGTH;
@@ -76,6 +82,23 @@ export default function PublicationCard({
     ? messages.publicationStatus[publication.status as PublicationStatus]
     : null;
 
+  const viewerLabels =
+    locale === 'ru'
+      ? {
+          openImage: 'Открыть изображение полностью',
+          zoomIn: 'Увеличить',
+          zoomOut: 'Уменьшить',
+          reset: 'Сбросить',
+          close: 'Закрыть',
+        }
+      : {
+          openImage: 'Open full image',
+          zoomIn: 'Zoom in',
+          zoomOut: 'Zoom out',
+          reset: 'Reset',
+          close: 'Close',
+        };
+
   useEffect(() => {
     if (!imagePreviewOpen) {
       return;
@@ -88,6 +111,94 @@ export default function PublicationCard({
       document.body.style.overflow = previousOverflow;
     };
   }, [imagePreviewOpen]);
+
+  const clampOffset = (nextOffset: { x: number; y: number }, nextScale: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport || nextScale <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const maxX = ((nextScale - 1) * viewport.clientWidth) / 2;
+    const maxY = ((nextScale - 1) * viewport.clientHeight) / 2;
+
+    return {
+      x: Math.max(-maxX, Math.min(maxX, nextOffset.x)),
+      y: Math.max(-maxY, Math.min(maxY, nextOffset.y)),
+    };
+  };
+
+  const applyScale = (updater: (prev: number) => number) => {
+    setScale((prev) => {
+      const next = updater(prev);
+      setOffset((currentOffset) => clampOffset(currentOffset, next));
+      return next;
+    });
+  };
+
+  const zoomIn = () => applyScale((prev) => Math.min(prev + 0.25, 3));
+  const zoomOut = () => applyScale((prev) => Math.max(prev - 0.25, 0.75));
+
+  const resetView = () => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+    setIsDragging(false);
+    dragStateRef.current = { x: 0, y: 0, active: false };
+    pinchStateRef.current = null;
+  };
+
+  const closePreview = () => {
+    setImagePreviewOpen(false);
+    resetView();
+  };
+
+  const startDrag = (clientX: number, clientY: number) => {
+    if (scale <= 1) {
+      return;
+    }
+
+    dragStateRef.current = {
+      x: clientX - offset.x,
+      y: clientY - offset.y,
+      active: true,
+    };
+    setIsDragging(true);
+  };
+
+  const moveDrag = (clientX: number, clientY: number) => {
+    if (!dragStateRef.current.active || scale <= 1) {
+      return;
+    }
+
+    setOffset(
+      clampOffset(
+        {
+          x: clientX - dragStateRef.current.x,
+          y: clientY - dragStateRef.current.y,
+        },
+        scale,
+      ),
+    );
+  };
+
+  const endDrag = () => {
+    dragStateRef.current.active = false;
+    setIsDragging(false);
+  };
+
+  const getTouchDistance = (
+    touches: { item: (index: number) => { clientX: number; clientY: number } | null },
+  ) => {
+    const firstTouch = touches.item(0);
+    const secondTouch = touches.item(1);
+
+    if (!firstTouch || !secondTouch) {
+      return 0;
+    }
+
+    const dx = firstTouch.clientX - secondTouch.clientX;
+    const dy = firstTouch.clientY - secondTouch.clientY;
+    return Math.hypot(dx, dy);
+  };
 
   return (
     <>
@@ -128,6 +239,7 @@ export default function PublicationCard({
           <button
             type="button"
             onClick={() => setImagePreviewOpen(true)}
+            aria-label={viewerLabels.openImage}
             className="mb-4 block w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] transition hover:opacity-95"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -170,26 +282,124 @@ export default function PublicationCard({
 
       {imagePreviewOpen && publication.imageUrl && (
         <div
-          className="fixed inset-0 z-[60] bg-black/85 p-4"
-          onClick={() => setImagePreviewOpen(false)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          onClick={closePreview}
         >
-          <div className="flex h-full w-full items-center justify-center">
-            <div className="relative max-h-full max-w-6xl">
+          <div
+            className="relative max-h-[92vh] max-w-[92vw] overflow-auto rounded-[1.5rem] border border-white/10 bg-[var(--surface)] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setImagePreviewOpen(false)}
-                className="absolute right-2 top-2 z-10 rounded-lg border border-white/20 bg-black/50 px-3 py-1 text-sm text-white transition hover:bg-black/70"
+                onClick={zoomOut}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] text-lg text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                aria-label={viewerLabels.zoomOut}
               >
-                X
+                -
               </button>
+              <button
+                type="button"
+                onClick={zoomIn}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] text-lg text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                aria-label={viewerLabels.zoomIn}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={resetView}
+                className="inline-flex h-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                {viewerLabels.reset}
+              </button>
+              <button
+                type="button"
+                onClick={closePreview}
+                className="inline-flex h-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              >
+                {viewerLabels.close}
+              </button>
+            </div>
 
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={publication.imageUrl}
-                alt={publication.title}
-                className="max-h-[90vh] max-w-full rounded-xl object-contain"
-                onClick={(e) => e.stopPropagation()}
-              />
+            <div
+              ref={viewportRef}
+              className="relative overflow-hidden"
+              style={{ width: 'min(92vw, 960px)', height: 'min(78vh, 960px)' }}
+            >
+              <div
+                className="relative h-full w-full origin-center select-none"
+                style={{
+                  transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                  transformOrigin: 'center center',
+                  cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                  touchAction: 'none',
+                  transition: isDragging ? 'none' : 'transform 120ms ease-out',
+                }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  startDrag(event.clientX, event.clientY);
+                }}
+                onMouseMove={(event) => moveDrag(event.clientX, event.clientY)}
+                onMouseUp={endDrag}
+                onMouseLeave={endDrag}
+                onWheel={(event) => {
+                  event.preventDefault();
+                  applyScale((prev) => Math.max(0.75, Math.min(3, prev + (event.deltaY < 0 ? 0.15 : -0.15))));
+                }}
+                onTouchStart={(event) => {
+                  if (event.touches.length === 2) {
+                    pinchStateRef.current = {
+                      distance: getTouchDistance(event.touches),
+                      scale,
+                    };
+                    dragStateRef.current.active = false;
+                    setIsDragging(false);
+                    return;
+                  }
+
+                  if (event.touches.length === 1) {
+                    const touch = event.touches.item(0);
+                    if (touch) {
+                      startDrag(touch.clientX, touch.clientY);
+                    }
+                  }
+                }}
+                onTouchMove={(event) => {
+                  if (event.touches.length === 2 && pinchStateRef.current) {
+                    event.preventDefault();
+                    const distance = getTouchDistance(event.touches);
+                    if (!distance || !pinchStateRef.current.distance) {
+                      return;
+                    }
+
+                    const ratio = distance / pinchStateRef.current.distance;
+                    const nextScale = Math.max(0.75, Math.min(3, pinchStateRef.current.scale * ratio));
+                    setScale(nextScale);
+                    setOffset((currentOffset) => clampOffset(currentOffset, nextScale));
+                    return;
+                  }
+
+                  if (event.touches.length === 1) {
+                    const touch = event.touches.item(0);
+                    if (touch) {
+                      moveDrag(touch.clientX, touch.clientY);
+                    }
+                  }
+                }}
+                onTouchEnd={() => {
+                  pinchStateRef.current = null;
+                  endDrag();
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={publication.imageUrl}
+                  alt={publication.title}
+                  className="h-full w-full rounded-xl object-contain"
+                  draggable={false}
+                />
+              </div>
             </div>
           </div>
         </div>
