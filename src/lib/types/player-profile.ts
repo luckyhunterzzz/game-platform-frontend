@@ -1,4 +1,10 @@
 export type PlayerProfileStatus = 'INCOMPLETE' | 'COMPLETE' | 'SUSPENDED';
+export type HeroPowerGrade =
+  | 'FIRST_ASCENSION'
+  | 'SECOND_ASCENSION'
+  | 'FULLY_ASCENDED'
+  | 'FIRST_LIMIT_BROKEN'
+  | 'SECOND_LIMIT_BROKEN';
 
 export type PlayerProfileResponse = {
   id: string;
@@ -28,6 +34,8 @@ export type PlayerProfileHeroResponse = {
   id: string;
   playerProfileId: string;
   heroId: number;
+  powerGrade: HeroPowerGrade;
+  talentLevel: number;
   createdAt: string;
 };
 
