@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { getHeroPreviewAccentClass } from '@/lib/hero-preview';
 import type {
+  HeroPowerGrade,
   PlayerProfileHeroResponse,
   PlayerProfileResponse,
   PlayerProfileUpdateRequest,
@@ -61,6 +62,8 @@ type PublicHeroPageResponse = {
 type RosterHeroCard = {
   profileHeroId: string;
   heroId: number;
+  powerGrade: HeroPowerGrade;
+  talentLevel: number;
   slug: string;
   name: string;
   rarityStars: number;
@@ -70,6 +73,368 @@ type RosterHeroCard = {
   isCostume: boolean;
   costumeIndex: number | null;
 };
+
+type PlayerProfileHeroPowerGradeUpdateRequest = {
+  powerGrade: HeroPowerGrade;
+};
+
+type PlayerProfileHeroTalentLevelUpdateRequest = {
+  talentLevel: number;
+};
+
+type PowerGradeOption = {
+  value: HeroPowerGrade;
+  label: string;
+  imageUrl: string;
+};
+
+const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
+const POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
+  FIRST_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_first_ascension.webp`,
+  SECOND_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_second_ascension.webp`,
+  FULLY_ASCENDED: `${POWER_GRADE_ASSET_BASE}/power_grade_fully_ascended.webp`,
+  FIRST_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_first_limit_broken.webp`,
+  SECOND_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_second_limit_broken.webp`,
+};
+
+const POWER_GRADE_ORDER: HeroPowerGrade[] = [
+  'FIRST_ASCENSION',
+  'SECOND_ASCENSION',
+  'FULLY_ASCENDED',
+  'FIRST_LIMIT_BROKEN',
+  'SECOND_LIMIT_BROKEN',
+];
+
+const TALENT_LEVEL_IMAGE_URL = '/heroes/talents/talents_level.png';
+
+function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): string {
+  if (locale === 'RU') {
+    switch (powerGrade) {
+      case 'FIRST_ASCENSION':
+        return 'Первая лычка';
+      case 'SECOND_ASCENSION':
+        return 'Вторая лычка';
+      case 'FULLY_ASCENDED':
+        return 'Четыре лычки';
+      case 'FIRST_LIMIT_BROKEN':
+        return 'Первый слом';
+      case 'SECOND_LIMIT_BROKEN':
+        return 'АльфаСлом';
+      default:
+        return 'Лычка';
+    }
+  }
+
+  switch (powerGrade) {
+    case 'FIRST_ASCENSION':
+      return 'First ascension';
+    case 'SECOND_ASCENSION':
+      return 'Second ascension';
+    case 'FULLY_ASCENDED':
+      return 'Fully ascended';
+    case 'FIRST_LIMIT_BROKEN':
+      return 'First limit break';
+    case 'SECOND_LIMIT_BROKEN':
+      return 'Second limit break';
+    default:
+      return 'Power grade';
+  }
+}
+
+function buildPowerGradeOptions(locale: HeroLocale): PowerGradeOption[] {
+  return POWER_GRADE_ORDER.map((value) => ({
+    value,
+    label: getPowerGradeLabel(value, locale),
+    imageUrl: POWER_GRADE_IMAGE_BY_CODE[value],
+  }));
+}
+
+function PowerGradeBadge({
+  powerGrade,
+  label,
+  imageUrl,
+  interactive = false,
+  disabled = false,
+  options = [],
+  onChange,
+  locale,
+}: {
+  powerGrade: HeroPowerGrade;
+  label: string;
+  imageUrl: string;
+  interactive?: boolean;
+  disabled?: boolean;
+  options?: PowerGradeOption[];
+  onChange?: (nextPowerGrade: HeroPowerGrade) => void;
+  locale: HeroLocale;
+}) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(interactive);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const controlLabel = locale === 'RU' ? 'Изменить степень прокачки' : 'Change power grade';
+
+  useEffect(() => {
+    if (!interactive) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHighlight(false);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [interactive, powerGrade]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!popoverRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={popoverRef}
+      className="absolute bottom-[-2px] right-[-2px] z-30 sm:bottom-[-4px] sm:right-[-4px]"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {interactive ? (
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          disabled={disabled}
+          aria-label={controlLabel}
+          title={label}
+          className={`rounded-[5px] border border-white/12 bg-slate-950/88 p-px shadow-xl transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${
+            highlight ? 'animate-pulse ring-1 ring-cyan-300/60' : ''
+          }`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={label} className="h-5 w-5 rounded-[3px] object-contain sm:h-7 sm:w-7" />
+        </button>
+      ) : (
+        <div className="rounded-[5px] border border-white/12 bg-slate-950/88 p-px shadow-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={label} className="h-5 w-5 rounded-[3px] object-contain sm:h-7 sm:w-7" />
+        </div>
+      )}
+
+      {interactive && open ? (
+        <div className="absolute bottom-full right-0 z-50 mb-2 w-48 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm">
+          <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+            {locale === 'RU' ? 'Степень прокачки' : 'Power grade'}
+          </div>
+          <div className="space-y-1">
+            {options.map((option) => {
+              const selected = option.value === powerGrade;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    if (option.value !== powerGrade) {
+                      onChange?.(option.value);
+                    }
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
+                    selected
+                      ? 'bg-cyan-400/12 text-cyan-200'
+                      : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={option.imageUrl} alt={option.label} className="h-8 w-8 rounded-md object-contain" />
+                  <span className="min-w-0 flex-1 leading-tight">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TalentBadge({
+  talentLevel,
+  interactive = false,
+  disabled = false,
+  locale,
+  onChange,
+}: {
+  talentLevel: number;
+  interactive?: boolean;
+  disabled?: boolean;
+  locale: HeroLocale;
+  onChange?: (nextTalentLevel: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draftValue, setDraftValue] = useState<string>(String(talentLevel));
+  const [highlight, setHighlight] = useState(interactive);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const hasVisibleGem = talentLevel > 0 || highlight;
+  const controlLabel = locale === 'RU' ? 'Изменить уровень таланта' : 'Change talent level';
+  const titleLabel =
+    locale === 'RU'
+      ? talentLevel > 0
+        ? `Талант ${talentLevel}`
+        : 'Талант'
+      : talentLevel > 0
+        ? `Talent ${talentLevel}`
+        : 'Talent';
+
+  useEffect(() => {
+    setDraftValue(String(talentLevel));
+  }, [talentLevel]);
+
+  useEffect(() => {
+    if (!interactive) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHighlight(false);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [interactive, talentLevel]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!popoverRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    const focusTimer = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.clearTimeout(focusTimer);
+    };
+  }, [open]);
+
+  const handleApply = () => {
+    const parsed = Number(draftValue.trim());
+    const normalized = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(25, parsed));
+    setOpen(false);
+    setDraftValue(String(normalized));
+    if (normalized !== talentLevel) {
+      onChange?.(normalized);
+    }
+  };
+
+  return (
+    <div
+      ref={popoverRef}
+      className="absolute bottom-[-2px] left-[-2px] z-30 sm:bottom-[-4px] sm:left-[-4px]"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {interactive ? (
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          disabled={disabled}
+          aria-label={controlLabel}
+          title={titleLabel}
+          className={`relative flex h-[22px] w-[22px] items-center justify-center rounded-md transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 sm:h-[30px] sm:w-[30px] ${
+            highlight && talentLevel === 0 ? 'animate-pulse' : ''
+          }`}
+        >
+          {hasVisibleGem ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={TALENT_LEVEL_IMAGE_URL}
+                alt={titleLabel}
+                className="h-full w-full object-contain drop-shadow-[0_6px_10px_rgba(15,23,42,0.65)]"
+              />
+              {talentLevel > 0 ? (
+                <span className="absolute inset-0 flex items-center justify-center px-[3px] text-[9px] font-extrabold leading-none text-slate-950 sm:px-1 sm:text-[11px]">
+                  {talentLevel}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="block h-full w-full rounded-md" />
+          )}
+        </button>
+      ) : talentLevel > 0 ? (
+        <div className="relative flex h-[22px] w-[22px] items-center justify-center rounded-md sm:h-[30px] sm:w-[30px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={TALENT_LEVEL_IMAGE_URL}
+            alt={titleLabel}
+            className="h-full w-full object-contain drop-shadow-[0_6px_10px_rgba(15,23,42,0.65)]"
+          />
+          <span className="absolute inset-0 flex items-center justify-center px-[3px] text-[9px] font-extrabold leading-none text-slate-950 sm:px-1 sm:text-[11px]">
+            {talentLevel}
+          </span>
+        </div>
+      ) : null}
+
+      {interactive && open ? (
+        <div className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+            {locale === 'RU' ? 'Уровень таланта' : 'Talent level'}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              type="number"
+              min={0}
+              max={25}
+              step={1}
+              value={draftValue}
+              onChange={(event) => setDraftValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleApply();
+                }
+              }}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleApply}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+            >
+              {locale === 'RU' ? 'OK' : 'OK'}
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-[var(--foreground-soft)]">
+            {locale === 'RU' ? 'От 0 до 25' : 'From 0 to 25'}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 type WarSlotPickerState = {
   teamIndex: number;
@@ -158,40 +523,78 @@ function countFilledContacts(form: ProfileFormState): number {
 }
 
 function HeroPreviewTile({
+  profileHeroId,
   name,
   previewUrl,
   elementName,
+  powerGrade,
   isCostume,
   costumeIndex,
+  locale,
+  powerGradeOptions,
+  powerGradeUpdating,
+  talentLevel,
+  talentLevelUpdating,
   onClick,
+  onPowerGradeChange,
+  onTalentLevelChange,
   onRemove,
   removeLabel,
 }: {
+  profileHeroId: string;
   name: string;
   previewUrl: string | null;
   elementName: string | null;
+  powerGrade: HeroPowerGrade;
   isCostume?: boolean;
   costumeIndex?: number | null;
+  locale: HeroLocale;
+  powerGradeOptions: PowerGradeOption[];
+  powerGradeUpdating?: boolean;
+  talentLevel: number;
+  talentLevelUpdating?: boolean;
   onClick?: () => void;
+  onPowerGradeChange: (profileHeroId: string, nextPowerGrade: HeroPowerGrade) => void;
+  onTalentLevelChange: (profileHeroId: string, nextTalentLevel: number) => void;
   onRemove?: () => void;
   removeLabel?: string;
 }) {
   const accentClass = getHeroPreviewAccentClass(elementName);
+  const powerGradeLabel = getPowerGradeLabel(powerGrade, locale);
   const content = (
     <>
-      <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewUrl}
-            alt={name}
-            className="h-12 w-12 rounded-[12px] object-cover sm:h-24 sm:w-24"
-          />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 sm:text-xs">
-            ?
-          </div>
-        )}
+      <div className="relative overflow-visible">
+        <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={name}
+              className="h-12 w-12 rounded-[12px] object-cover sm:h-24 sm:w-24"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 sm:text-xs">
+              ?
+            </div>
+          )}
+        </div>
+        <PowerGradeBadge
+          powerGrade={powerGrade}
+          label={powerGradeLabel}
+          imageUrl={POWER_GRADE_IMAGE_BY_CODE[powerGrade]}
+          interactive
+          disabled={powerGradeUpdating}
+          options={powerGradeOptions}
+          onChange={(nextPowerGrade) => onPowerGradeChange(profileHeroId, nextPowerGrade)}
+          locale={locale}
+        />
+        <TalentBadge
+          talentLevel={talentLevel}
+          interactive
+          disabled={talentLevelUpdating}
+          locale={locale}
+          onChange={(nextTalentLevel) => onTalentLevelChange(profileHeroId, nextTalentLevel)}
+        />
       </div>
       <span className="line-clamp-2 min-h-[1.75rem] text-[10px] font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
         {name}
@@ -227,7 +630,7 @@ function HeroPreviewTile({
           onClick={onRemove}
           title={removeLabel}
           aria-label={removeLabel}
-          className="absolute right-1.5 top-1.5 rounded-full border border-red-500/30 bg-[var(--surface-strong)] p-1.5 text-red-400 opacity-100 shadow-lg transition hover:bg-red-500/10 sm:right-2 sm:top-2 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute right-1.5 top-1.5 z-20 rounded-full border border-red-500/30 bg-[var(--surface-strong)] p-1.5 text-red-400 opacity-100 shadow-lg transition hover:bg-red-500/10 sm:right-2 sm:top-2 sm:p-2 sm:opacity-0 sm:group-hover:opacity-100"
         >
           <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         </button>
@@ -261,6 +664,7 @@ function AddHeroTile({
 
 function WarHeroSlot({
   hero,
+  locale,
   label,
   removeLabel,
   compact,
@@ -268,6 +672,7 @@ function WarHeroSlot({
   onRemove,
 }: {
   hero: RosterHeroCard | null;
+  locale: HeroLocale;
   label: string;
   removeLabel: string;
   compact: boolean;
@@ -314,19 +719,31 @@ function WarHeroSlot({
           compact ? 'gap-1 p-1.5 sm:p-2' : 'gap-1.5 p-2 sm:p-3'
         }`}
       >
-        <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
-          {hero.previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={hero.previewUrl}
-              alt={hero.name}
-              className={compact ? 'h-12 w-12 rounded-[12px] object-cover sm:h-16 sm:w-16' : 'h-14 w-14 rounded-[12px] object-cover sm:h-20 sm:w-20'}
-            />
-          ) : (
-            <div className={compact ? 'flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16' : 'flex h-14 w-14 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20'}>
-              ?
-            </div>
-          )}
+        <div className="relative overflow-visible">
+          <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
+            {hero.previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={hero.previewUrl}
+                alt={hero.name}
+                className={compact ? 'h-12 w-12 rounded-[12px] object-cover sm:h-16 sm:w-16' : 'h-14 w-14 rounded-[12px] object-cover sm:h-20 sm:w-20'}
+              />
+            ) : (
+              <div className={compact ? 'flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16' : 'flex h-14 w-14 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20'}>
+                ?
+              </div>
+            )}
+          </div>
+          <PowerGradeBadge
+            powerGrade={hero.powerGrade}
+            label={getPowerGradeLabel(hero.powerGrade, locale)}
+            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+            locale={locale}
+          />
+          <TalentBadge
+            talentLevel={hero.talentLevel}
+            locale={locale}
+          />
         </div>
 
         <span className={compact ? 'line-clamp-2 min-h-[1.4rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.75rem] sm:text-[10px]' : 'line-clamp-2 min-h-[1.5rem] text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[2rem] sm:text-xs'}>
@@ -381,6 +798,8 @@ export default function ProfilePageClient() {
   const [selectorError, setSelectorError] = useState<string | null>(null);
   const [addingHeroId, setAddingHeroId] = useState<number | null>(null);
   const [removingProfileHeroId, setRemovingProfileHeroId] = useState<string | null>(null);
+  const [updatingPowerGradeHeroId, setUpdatingPowerGradeHeroId] = useState<string | null>(null);
+  const [updatingTalentLevelHeroId, setUpdatingTalentLevelHeroId] = useState<string | null>(null);
   const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
   const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>(buildEmptyWarTeams);
   const [loadingWarTeams, setLoadingWarTeams] = useState(false);
@@ -810,6 +1229,8 @@ export default function ProfilePageClient() {
       return {
         profileHeroId: item.id,
         heroId: item.heroId,
+        powerGrade: item.powerGrade,
+        talentLevel: item.talentLevel,
         slug: hero?.slug ?? String(item.heroId),
         name: hero?.name ?? `Hero #${item.heroId}`,
         rarityStars: hero?.rarityStars ?? 0,
@@ -852,6 +1273,7 @@ export default function ProfilePageClient() {
   const rosterHeroCardMap = useMemo(() => {
     return new Map(sortedRosterCards.map((hero) => [hero.profileHeroId, hero]));
   }, [sortedRosterCards]);
+  const powerGradeOptions = useMemo(() => buildPowerGradeOptions(heroLocale), [heroLocale]);
 
   const usedWarHeroIds = useMemo(() => {
     return new Set(
@@ -1170,6 +1592,56 @@ export default function ProfilePageClient() {
       }
     } finally {
       setRemovingProfileHeroId(null);
+    }
+  };
+
+  const handleUpdateHeroPowerGrade = async (profileHeroId: string, nextPowerGrade: HeroPowerGrade) => {
+    setUpdatingPowerGradeHeroId(profileHeroId);
+
+    try {
+      const response = await apiPutJson<
+        PlayerProfileHeroPowerGradeUpdateRequest,
+        PlayerProfileHeroResponse
+      >(`/api/v1/profile/me/heroes/${profileHeroId}/power-grade`, {
+        powerGrade: nextPowerGrade,
+      });
+
+      setProfileHeroes((current) =>
+        current.map((hero) => (hero.id === profileHeroId ? response : hero)),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSaveError(error.message || messages.profile.saveError);
+      } else {
+        setSaveError(messages.profile.saveError);
+      }
+    } finally {
+      setUpdatingPowerGradeHeroId(null);
+    }
+  };
+
+  const handleUpdateHeroTalentLevel = async (profileHeroId: string, nextTalentLevel: number) => {
+    setUpdatingTalentLevelHeroId(profileHeroId);
+
+    try {
+      const response = await apiPutJson<
+        PlayerProfileHeroTalentLevelUpdateRequest,
+        PlayerProfileHeroResponse
+      >(`/api/v1/profile/me/heroes/${profileHeroId}/talent-level`, {
+        talentLevel: nextTalentLevel,
+      });
+
+      setProfileHeroes((current) =>
+        current.map((hero) => (hero.id === profileHeroId ? response : hero)),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSaveError(error.message || messages.profile.saveError);
+      } else {
+        setSaveError(messages.profile.saveError);
+      }
+    } finally {
+      setUpdatingTalentLevelHeroId(null);
     }
   };
 
@@ -1493,16 +1965,25 @@ export default function ProfilePageClient() {
                 {sortedRosterCards.map((hero) => (
                   <HeroPreviewTile
                     key={hero.profileHeroId}
+                    profileHeroId={hero.profileHeroId}
                     name={hero.name}
                     previewUrl={hero.previewUrl}
                     elementName={hero.elementName}
+                    powerGrade={hero.powerGrade}
+                    talentLevel={hero.talentLevel}
                     isCostume={hero.isCostume}
                     costumeIndex={hero.costumeIndex}
+                    locale={heroLocale}
+                    powerGradeOptions={powerGradeOptions}
+                    powerGradeUpdating={updatingPowerGradeHeroId === hero.profileHeroId}
+                    talentLevelUpdating={updatingTalentLevelHeroId === hero.profileHeroId}
                     onClick={
                       hero.slug === String(hero.heroId)
                         ? undefined
                         : () => handleOpenRosterHero(hero.slug)
                     }
+                    onPowerGradeChange={handleUpdateHeroPowerGrade}
+                    onTalentLevelChange={handleUpdateHeroTalentLevel}
                     onRemove={
                       removingProfileHeroId === hero.profileHeroId
                         ? undefined
@@ -1606,6 +2087,7 @@ export default function ProfilePageClient() {
                         <WarHeroSlot
                           key={`${team.teamIndex}-${slot.slot}`}
                           hero={hero}
+                          locale={heroLocale}
                           compact={warCompactMode}
                           label={messages.profile.addHero}
                           removeLabel={messages.profile.removeHero}
@@ -1788,19 +2270,31 @@ export default function ProfilePageClient() {
                         disabled={savingWarTeams}
                         className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
-                          {hero.previewUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={hero.previewUrl}
-                              alt={hero.name}
-                              className="h-16 w-16 rounded-[12px] object-cover sm:h-20 sm:w-20"
-                            />
-                          ) : (
-                            <div className="flex h-16 w-16 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20">
-                              ?
-                            </div>
-                          )}
+                        <div className="relative inline-block overflow-visible">
+                          <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                            {hero.previewUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={hero.previewUrl}
+                                alt={hero.name}
+                                className="h-16 w-16 rounded-[12px] object-cover sm:h-20 sm:w-20"
+                              />
+                            ) : (
+                              <div className="flex h-16 w-16 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20">
+                                ?
+                              </div>
+                            )}
+                          </div>
+                          <PowerGradeBadge
+                            powerGrade={hero.powerGrade}
+                            label={getPowerGradeLabel(hero.powerGrade, heroLocale)}
+                            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+                            locale={heroLocale}
+                          />
+                          <TalentBadge
+                            talentLevel={hero.talentLevel}
+                            locale={heroLocale}
+                          />
                         </div>
 
                         <div className="mt-2 space-y-1">
