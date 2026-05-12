@@ -115,6 +115,366 @@ type PublicHeroDetailsModalProps = {
   onOpenRelatedHero?: (slug: string) => void;
 };
 
+type LimitBreakElementKey = 'nature' | 'ice' | 'fire' | 'dark' | 'holy';
+
+type LimitBreakRequirementItem = {
+  imageUrl: string;
+  label: string;
+  quantity?: number | null;
+};
+
+type LimitBreakRequirementRow = {
+  title: string;
+  subtitle: string;
+  iconUrl: string;
+  items: LimitBreakRequirementItem[];
+};
+
+const LIMIT_BREAK_ASSET_BASE = '/heroes/limit-break';
+const FIRST_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_first_limit_broken.webp`;
+const SECOND_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_second_limit_broken.webp`;
+
+const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]> = {
+  nature: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_nature.png`, label: 'Epic Nature Aether', quantity: 20 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 35 },
+      ],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/chainmail_shirt.png`, label: 'Chainmail Shirt', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/sturdy_shield.png`, label: 'Sturdy Shield', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_nature.png`, label: 'Epic Nature Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 10 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/mysterious_tonic.png`, label: 'Mysterious Tonic', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_nature.png`, label: 'Epic Nature Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 5 },
+      ],
+    },
+  ],
+  ice: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_ice.png`, label: 'Epic Ice Aether', quantity: 20 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 35 },
+      ],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/warm_cape.png`, label: 'Warm Cape', quantity: 1 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_ice.png`, label: 'Epic Ice Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 10 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/ascension_elite_farsight_telescope.png`, label: 'Farsight Telescope', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_ice.png`, label: 'Epic Ice Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 5 },
+      ],
+    },
+  ],
+  fire: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_fire.png`, label: 'Epic Fire Aether', quantity: 20 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 35 },
+      ],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/chainmail_shirt.png`, label: 'Chainmail Shirt', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/hidden_blade.png`, label: 'Hidden Blade', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_fire.png`, label: 'Epic Fire Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 10 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/mystic_rings.png`, label: 'Mystic Rings', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_fire.png`, label: 'Epic Fire Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 5 },
+      ],
+    },
+  ],
+  dark: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_dark.png`, label: 'Epic Dark Aether', quantity: 20 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 35 },
+      ],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/trap_tools.png`, label: 'Trap Tools', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 1 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_dark.png`, label: 'Epic Dark Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 10 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/royal_tabard.png`, label: 'Royal Tabard', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_dark.png`, label: 'Epic Dark Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 5 },
+      ],
+    },
+  ],
+  holy: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_holy.png`, label: 'Epic Holy Aether', quantity: 20 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 35 },
+      ],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/orb_of_magic.png`, label: 'Orb of Magic', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_holy.png`, label: 'Epic Holy Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 10 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/poison_darts.png`, label: 'Poison Darts', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_holy.png`, label: 'Epic Holy Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 5 },
+      ],
+    },
+  ],
+};
+
+const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
+  LimitBreakElementKey,
+  Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]
+> = {
+  nature: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [{ imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 5 }],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/chainmail_shirt.png`, label: 'Chainmail Shirt', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/sturdy_shield.png`, label: 'Sturdy Shield', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 3 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/mysterious_tonic.png`, label: 'Mysterious Tonic', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_nature.png`, label: 'Epic Nature Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 5 },
+      ],
+    },
+  ],
+  ice: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [{ imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 5 }],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/warm_cape.png`, label: 'Warm Cape', quantity: 1 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 3 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/ascension_elite_farsight_telescope.png`, label: 'Farsight Telescope', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_ice.png`, label: 'Epic Ice Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 5 },
+      ],
+    },
+  ],
+  fire: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [{ imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 5 }],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/chainmail_shirt.png`, label: 'Chainmail Shirt', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/hidden_blade.png`, label: 'Hidden Blade', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 3 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/mystic_rings.png`, label: 'Mystic Rings', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_fire.png`, label: 'Epic Fire Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 5 },
+      ],
+    },
+  ],
+  dark: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [{ imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 5 }],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/trap_tools.png`, label: 'Trap Tools', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 1 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 3 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/royal_tabard.png`, label: 'Royal Tabard', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_dark.png`, label: 'Epic Dark Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 5 },
+      ],
+    },
+  ],
+  holy: [
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [{ imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 5 }],
+    },
+    {
+      iconUrl: FIRST_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/orb_of_magic.png`, label: 'Orb of Magic', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 3 },
+      ],
+    },
+    {
+      iconUrl: SECOND_LIMIT_BREAK_ICON,
+      items: [
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/poison_darts.png`, label: 'Poison Darts', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 1 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_holy.png`, label: 'Epic Holy Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 5 },
+      ],
+    },
+  ],
+};
+
 function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallback: string) {
   if (!value) return fallback;
 
@@ -329,6 +689,91 @@ function CopyHeroLinkIcon({ copied }: { copied: boolean }) {
   );
 }
 
+function AccordionChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={`h-5 w-5 text-[var(--foreground-muted)] transition-transform ${open ? 'rotate-180' : 'rotate-0'}`}
+      aria-hidden="true"
+      fill="none"
+    >
+      <path
+        d="M5 7.5 10 12.5 15 7.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function resolveLimitBreakElementKey(value: string | null | undefined): LimitBreakElementKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('nature') || normalized.includes('природ')) {
+    return 'nature';
+  }
+
+  if (normalized.includes('ice') || normalized.includes('лёд') || normalized.includes('лед')) {
+    return 'ice';
+  }
+
+  if (normalized.includes('fire') || normalized.includes('огонь')) {
+    return 'fire';
+  }
+
+  if (normalized.includes('dark') || normalized.includes('тьм')) {
+    return 'dark';
+  }
+
+  if (normalized.includes('holy') || normalized.includes('свят')) {
+    return 'holy';
+  }
+
+  return null;
+}
+
+function LimitBreakRequirementRowCard({
+  row,
+  quantityAriaLabel,
+}: {
+  row: LimitBreakRequirementRow;
+  quantityAriaLabel: (quantity: number) => string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={row.iconUrl} alt={row.title} className="h-14 w-14 rounded-xl object-contain" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[var(--foreground)]">{row.title}</div>
+          <div className="text-xs uppercase tracking-wide text-[var(--foreground-muted)]">{row.subtitle}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        {row.items.map((item) => (
+          <div
+            key={`${row.title}-${row.subtitle}-${item.imageUrl}`}
+            className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2"
+            title={item.label}
+            aria-label={item.quantity ? `${item.label}, ${quantityAriaLabel(item.quantity)}` : item.label}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.imageUrl} alt={item.label} className="h-full w-full object-contain" />
+            {item.quantity ? (
+              <div className="absolute bottom-1 right-1 min-w-[1.5rem] rounded-md bg-black px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-lg">
+                {item.quantity}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PublicHeroDetailsModal({
   open,
   locale,
@@ -346,6 +791,7 @@ export default function PublicHeroDetailsModal({
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
   const [expandedSpecialSkillHeroId, setExpandedSpecialSkillHeroId] = useState<number | null>(null);
+  const [limitBreakOpen, setLimitBreakOpen] = useState(false);
 
   const t = useMemo(
     () =>
@@ -373,6 +819,13 @@ export default function PublicHeroDetailsModal({
             baseArmor: 'Броня',
             baseHp: 'HP',
             computedStats: 'Вычисляемые статы',
+            limitBreakRequirements: 'Стоимость сломов',
+            limitBreakUnavailable: 'Для этой стихии стоимость сломов пока не настроена.',
+            firstLimitBreakTitle: 'Первый слом',
+            secondLimitBreakTitle: 'АльфаСлом',
+            unlockCost: 'Стоимость открытия',
+            totalCost: 'Полная стоимость',
+            quantityLabel: (quantity: number) => `${quantity} шт`,
             computedStatsHint: 'Здесь позже появится отдельный блок с расчетными статами героя.',
             show: 'Показать',
             hide: 'Скрыть',
@@ -407,6 +860,13 @@ export default function PublicHeroDetailsModal({
             baseArmor: 'Armor',
             baseHp: 'HP',
             computedStats: 'Computed stats',
+            limitBreakRequirements: 'Limit Break Requirements',
+            limitBreakUnavailable: 'Limit break requirements are not configured for this element yet.',
+            firstLimitBreakTitle: 'Limit Break 1',
+            secondLimitBreakTitle: 'Alpha Limit Break',
+            unlockCost: 'Unlock cost',
+            totalCost: 'Total cost',
+            quantityLabel: (quantity: number) => `${quantity} pcs`,
             computedStatsHint: 'A separate block with calculated hero stats will appear here later.',
             show: 'Show',
             hide: 'Hide',
@@ -485,6 +945,17 @@ export default function PublicHeroDetailsModal({
     .filter(Boolean)
     .join('\n\n');
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
+  const limitBreakElementKey = resolveLimitBreakElementKey(resolvedElementName);
+  const limitBreakSource = currentHeroIsCostume
+    ? COSTUME_LIMIT_BREAK_REQUIREMENTS
+    : LIMIT_BREAK_REQUIREMENTS;
+  const limitBreakRows = limitBreakElementKey
+    ? limitBreakSource[limitBreakElementKey].map((row, index) => ({
+        ...row,
+        title: index < 2 ? t.firstLimitBreakTitle : t.secondLimitBreakTitle,
+        subtitle: index % 2 === 0 ? t.unlockCost : t.totalCost,
+      }))
+    : [];
 
   const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
 
@@ -837,6 +1308,41 @@ export default function PublicHeroDetailsModal({
                     {t.baseHp}: {heroDetails.baseHp ?? heroCard.baseHp ?? t.noValue}
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <button
+                  type="button"
+                  onClick={() => setLimitBreakOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                  aria-expanded={limitBreakOpen}
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--foreground)]">{t.limitBreakRequirements}</div>
+                    <div className="mt-1 text-sm text-[var(--foreground-soft)]">
+                      {limitBreakOpen ? t.hide : t.show}
+                    </div>
+                  </div>
+                  <AccordionChevronIcon open={limitBreakOpen} />
+                </button>
+
+                {limitBreakOpen ? (
+                  <div className="mt-4 space-y-3">
+                    {limitBreakRows.length > 0 ? (
+                      limitBreakRows.map((row) => (
+                        <LimitBreakRequirementRowCard
+                          key={`${row.title}-${row.subtitle}`}
+                          row={row}
+                          quantityAriaLabel={t.quantityLabel}
+                        />
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                        {t.limitBreakUnavailable}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <HeroStatCalculatorPanel
