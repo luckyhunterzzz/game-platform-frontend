@@ -232,7 +232,7 @@ function PowerGradeBadge({
       )}
 
       {interactive && open ? (
-        <div className="absolute bottom-full right-0 z-50 mb-2 w-48 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm">
+        <div className="fixed bottom-4 left-4 right-4 z-50 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm sm:absolute sm:bottom-full sm:left-auto sm:right-0 sm:mb-2 sm:w-48">
           <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             {locale === 'RU' ? 'Степень прокачки' : 'Power grade'}
           </div>
@@ -398,7 +398,7 @@ function TalentBadge({
       ) : null}
 
       {interactive && open ? (
-        <div className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm">
+        <div className="fixed bottom-4 left-4 right-4 z-50 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm sm:absolute sm:bottom-full sm:left-0 sm:right-auto sm:mb-2 sm:w-44">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             {locale === 'RU' ? 'Уровень таланта' : 'Talent level'}
           </div>
