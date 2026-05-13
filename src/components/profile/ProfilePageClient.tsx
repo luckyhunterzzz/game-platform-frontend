@@ -107,6 +107,37 @@ const POWER_GRADE_ORDER: HeroPowerGrade[] = [
 
 const TALENT_LEVEL_IMAGE_URL = '/heroes/talents/talents_level.png';
 
+const FLOATING_POPOVER_MARGIN = 16;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function buildFloatingPopoverStyle(params: {
+  triggerRect: DOMRect;
+  preferredWidth: number;
+  estimatedHeight: number;
+  align: 'left' | 'right';
+}) {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(params.preferredWidth, viewportWidth - FLOATING_POPOVER_MARGIN * 2);
+  const maxLeft = Math.max(FLOATING_POPOVER_MARGIN, viewportWidth - width - FLOATING_POPOVER_MARGIN);
+  const leftBase =
+    params.align === 'right'
+      ? params.triggerRect.right - width
+      : params.triggerRect.left;
+  const left = clamp(leftBase, FLOATING_POPOVER_MARGIN, maxLeft);
+  const canOpenAbove = params.triggerRect.top >= params.estimatedHeight + FLOATING_POPOVER_MARGIN;
+  const topBase = canOpenAbove
+    ? params.triggerRect.top - params.estimatedHeight - 8
+    : params.triggerRect.bottom + 8;
+  const maxTop = Math.max(FLOATING_POPOVER_MARGIN, viewportHeight - params.estimatedHeight - FLOATING_POPOVER_MARGIN);
+  const top = clamp(topBase, FLOATING_POPOVER_MARGIN, maxTop);
+
+  return { top, left, width };
+}
+
 function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): string {
   if (locale === 'RU') {
     switch (powerGrade) {
@@ -171,6 +202,8 @@ function PowerGradeBadge({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(interactive);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const controlLabel = locale === 'RU' ? 'Изменить степень прокачки' : 'Change power grade';
 
   useEffect(() => {
@@ -192,6 +225,23 @@ function PowerGradeBadge({
       return;
     }
 
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setPopoverStyle(
+        buildFloatingPopoverStyle({
+          triggerRect: triggerRef.current.getBoundingClientRect(),
+          preferredWidth: 192,
+          estimatedHeight: 250,
+          align: 'right',
+        }),
+      );
+    };
+
+    updatePopoverPosition();
+
     const handlePointerDown = (event: MouseEvent) => {
       if (!popoverRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -199,8 +249,12 @@ function PowerGradeBadge({
     };
 
     document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
     };
   }, [open]);
 
@@ -212,6 +266,7 @@ function PowerGradeBadge({
     >
       {interactive ? (
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           disabled={disabled}
@@ -231,8 +286,11 @@ function PowerGradeBadge({
         </div>
       )}
 
-      {interactive && open ? (
-        <div className="fixed bottom-4 left-4 right-4 z-50 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm sm:absolute sm:bottom-full sm:left-auto sm:right-0 sm:mb-2 sm:w-48">
+      {interactive && open && popoverStyle ? (
+        <div
+          className="fixed z-[120] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
+          style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
+        >
           <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             {locale === 'RU' ? 'Степень прокачки' : 'Power grade'}
           </div>
@@ -285,7 +343,9 @@ function TalentBadge({
   const [draftValue, setDraftValue] = useState<string>(String(talentLevel));
   const [highlight, setHighlight] = useState(interactive);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const hasVisibleGem = talentLevel > 0 || highlight;
   const controlLabel = locale === 'RU' ? 'Изменить уровень таланта' : 'Change talent level';
   const titleLabel =
@@ -320,6 +380,23 @@ function TalentBadge({
       return;
     }
 
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setPopoverStyle(
+        buildFloatingPopoverStyle({
+          triggerRect: triggerRef.current.getBoundingClientRect(),
+          preferredWidth: 176,
+          estimatedHeight: 170,
+          align: 'left',
+        }),
+      );
+    };
+
+    updatePopoverPosition();
+
     const handlePointerDown = (event: MouseEvent) => {
       if (!popoverRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -327,6 +404,8 @@ function TalentBadge({
     };
 
     document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
     const focusTimer = window.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -334,6 +413,8 @@ function TalentBadge({
 
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
       window.clearTimeout(focusTimer);
     };
   }, [open]);
@@ -356,6 +437,7 @@ function TalentBadge({
     >
       {interactive ? (
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           disabled={disabled}
@@ -397,8 +479,11 @@ function TalentBadge({
         </div>
       ) : null}
 
-      {interactive && open ? (
-        <div className="fixed bottom-4 left-4 right-4 z-50 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm sm:absolute sm:bottom-full sm:left-0 sm:right-auto sm:mb-2 sm:w-44">
+      {interactive && open && popoverStyle ? (
+        <div
+          className="fixed z-[120] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm"
+          style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
+        >
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             {locale === 'RU' ? 'Уровень таланта' : 'Talent level'}
           </div>
