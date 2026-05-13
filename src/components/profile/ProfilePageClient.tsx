@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, CircleHelp, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
@@ -128,10 +129,11 @@ function buildFloatingPopoverStyle(params: {
       ? params.triggerRect.right - width
       : params.triggerRect.left;
   const left = clamp(leftBase, FLOATING_POPOVER_MARGIN, maxLeft);
-  const canOpenAbove = params.triggerRect.top >= params.estimatedHeight + FLOATING_POPOVER_MARGIN;
-  const topBase = canOpenAbove
-    ? params.triggerRect.top - params.estimatedHeight - 8
-    : params.triggerRect.bottom + 8;
+  const canOpenBelow =
+    params.triggerRect.bottom + 8 + params.estimatedHeight + FLOATING_POPOVER_MARGIN <= viewportHeight;
+  const topBase = canOpenBelow
+    ? params.triggerRect.bottom + 8
+    : params.triggerRect.top - params.estimatedHeight - 8;
   const maxTop = Math.max(FLOATING_POPOVER_MARGIN, viewportHeight - params.estimatedHeight - FLOATING_POPOVER_MARGIN);
   const top = clamp(topBase, FLOATING_POPOVER_MARGIN, maxTop);
 
@@ -202,6 +204,7 @@ function PowerGradeBadge({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(interactive);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverPanelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
   const controlLabel = locale === 'RU' ? 'Изменить степень прокачки' : 'Change power grade';
@@ -243,7 +246,11 @@ function PowerGradeBadge({
     updatePopoverPosition();
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!popoverRef.current?.contains(event.target as Node)) {
+      const targetNode = event.target as Node;
+      if (
+        !popoverRef.current?.contains(targetNode) &&
+        !popoverPanelRef.current?.contains(targetNode)
+      ) {
         setOpen(false);
       }
     };
@@ -286,13 +293,22 @@ function PowerGradeBadge({
         </div>
       )}
 
-      {interactive && open && popoverStyle ? (
+      {interactive && open && popoverStyle && typeof document !== 'undefined' ? createPortal(
         <div
-          className="fixed z-[120] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
+          ref={popoverPanelRef}
+          className="fixed z-[220] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
           style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
         >
-          <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+          <div className="mb-1 flex items-center justify-between gap-2 px-2">
             {locale === 'RU' ? 'Степень прокачки' : 'Power grade'}
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md p-1 text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              aria-label={locale === 'RU' ? 'Р—Р°РєСЂС‹С‚СЊ' : 'Close'}
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
           <div className="space-y-1">
             {options.map((option) => {
@@ -320,7 +336,8 @@ function PowerGradeBadge({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
@@ -343,6 +360,7 @@ function TalentBadge({
   const [draftValue, setDraftValue] = useState<string>(String(talentLevel));
   const [highlight, setHighlight] = useState(interactive);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverPanelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -398,7 +416,11 @@ function TalentBadge({
     updatePopoverPosition();
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!popoverRef.current?.contains(event.target as Node)) {
+      const targetNode = event.target as Node;
+      if (
+        !popoverRef.current?.contains(targetNode) &&
+        !popoverPanelRef.current?.contains(targetNode)
+      ) {
         setOpen(false);
       }
     };
@@ -479,13 +501,24 @@ function TalentBadge({
         </div>
       ) : null}
 
-      {interactive && open && popoverStyle ? (
+      {interactive && open && popoverStyle && typeof document !== 'undefined' ? createPortal(
         <div
-          className="fixed z-[120] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm"
+          ref={popoverPanelRef}
+          className="fixed z-[220] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-2xl backdrop-blur-sm"
           style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
         >
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+          <div className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
             {locale === 'RU' ? 'Уровень таланта' : 'Talent level'}
+          </div>
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md p-1 text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -515,7 +548,8 @@ function TalentBadge({
           <div className="mt-2 text-xs text-[var(--foreground-soft)]">
             {locale === 'RU' ? 'От 0 до 25' : 'From 0 to 25'}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
