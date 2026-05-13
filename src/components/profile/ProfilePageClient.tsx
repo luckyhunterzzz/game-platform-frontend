@@ -35,7 +35,7 @@ type ProfileFormState = {
 type ProfileTab = 'info' | 'heroes' | 'war';
 
 type HeroLocale = 'RU' | 'EN';
-type HeroRosterSortField = 'createdAt' | 'name' | 'rarity';
+type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade';
 type HeroRosterSortOrder = 'asc' | 'desc';
 
 type PublicHeroCatalogItem = {
@@ -105,6 +105,13 @@ const POWER_GRADE_ORDER: HeroPowerGrade[] = [
   'FIRST_LIMIT_BROKEN',
   'SECOND_LIMIT_BROKEN',
 ];
+const POWER_GRADE_SORT_RANK: Record<HeroPowerGrade, number> = {
+  FIRST_ASCENSION: 0,
+  SECOND_ASCENSION: 1,
+  FULLY_ASCENDED: 2,
+  FIRST_LIMIT_BROKEN: 3,
+  SECOND_LIMIT_BROKEN: 4,
+};
 
 const TALENT_LEVEL_IMAGE_URL = '/heroes/talents/talents_level.png';
 
@@ -1372,6 +1379,22 @@ export default function ProfilePageClient() {
         result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
           sensitivity: 'base',
         });
+      } else if (heroSortField === 'element') {
+        result = (left.elementName ?? '').localeCompare(right.elementName ?? '', heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+        if (result === 0) {
+          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+            sensitivity: 'base',
+          });
+        }
+      } else if (heroSortField === 'powerGrade') {
+        result = POWER_GRADE_SORT_RANK[left.powerGrade] - POWER_GRADE_SORT_RANK[right.powerGrade];
+        if (result === 0) {
+          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+            sensitivity: 'base',
+          });
+        }
       } else if (heroSortField === 'rarity') {
         result = left.rarityStars - right.rarityStars;
         if (result === 0) {
@@ -2048,6 +2071,8 @@ export default function ProfilePageClient() {
                     <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
                     <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
                     <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                    <option value="element">{locale === 'ru' ? 'РџРѕ СЃС‚РёС…РёРё' : 'By element'}</option>
+                    <option value="powerGrade">{locale === 'ru' ? 'РџРѕ СѓСЂРѕРІРЅСЋ РІРѕР·РЅРµСЃРµРЅРёСЏ' : 'By ascension level'}</option>
                   </select>
                 </label>
 
