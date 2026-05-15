@@ -1100,10 +1100,14 @@ function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): Hero
   return null;
 }
 
-function resolveLimitBreakItemImageUrl(originalImageUrl: string): string {
+function resolveLimitBreakItemImageUrl(
+  originalImageUrl: string,
+  elementKey?: LimitBreakElementKey | null,
+): string {
   const fileName = originalImageUrl.split('/').pop() ?? originalImageUrl;
 
   const fileMap: Record<string, string> = {
+    'aether_legendary.png': 'aether_legendary.webp',
     'aether_epic_dark.png': 'aether_epic_dark.webp',
     'aether_epic_fire.png': 'aether_epic_fire.webp',
     'aether_epic_holy.png': 'aether_epic_holy.webp',
@@ -1119,8 +1123,14 @@ function resolveLimitBreakItemImageUrl(originalImageUrl: string): string {
     'aether_rare_holy.png': 'aether_rare_holy.webp',
     'aether_rare_ice.png': 'aether_rare_ice.webp',
     'aether_rare_nature.png': 'aether_rare_nature.webp',
-    'battle_manual.png': 'battle_manual_rare.webp',
-    'chainmail_shirt.png': 'chainmail_shirt_rare.webp',
+    'battle_manual.png':
+      elementKey === 'dark' || elementKey === 'holy' || elementKey === 'ice'
+        ? 'dark_holy_ice_battle_manual_rare.webp'
+        : 'battle_manual_rare.webp',
+    'chainmail_shirt.png':
+      elementKey === 'nature' || elementKey === 'fire'
+        ? 'nature_fire_chainmail_shirt_rare.webp'
+        : 'chainmail_shirt_rare.webp',
     'royal_tabard.png': 'dark_royal_tabard_epic.webp',
     'trap_tools.png': 'dark_trap_tools_rare.webp',
     'mystic_rings.png': 'fire_mystic_rings_epic.webp',
@@ -1131,8 +1141,14 @@ function resolveLimitBreakItemImageUrl(originalImageUrl: string): string {
     'warm_cape.png': 'ice_warm_cape_rare.webp',
     'mysterious_tonic.png': 'nature_mysterious_tonic_epic.webp',
     'sturdy_shield.png': 'nature_sturdy_shield_rare.webp',
-    'scabbard.png': 'scabbard_rare.webp',
-    'tall_boots.png': 'tall_boots_rare.webp',
+    'scabbard.png':
+      elementKey === 'fire' || elementKey === 'ice'
+        ? 'fire_ice_scabbard_rare.webp'
+        : 'scabbard_rare.webp',
+    'tall_boots.png':
+      elementKey === 'nature' || elementKey === 'dark' || elementKey === 'holy'
+        ? 'nature_dark_holy_tall_boots_rare.webp'
+        : 'tall_boots_rare.webp',
   };
 
   const resolvedFileName = fileMap[fileName] ?? fileName;
@@ -1365,9 +1381,11 @@ function TroopCard({
 function LimitBreakRequirementRowCard({
   row,
   quantityAriaLabel,
+  elementKey,
 }: {
   row: LimitBreakRequirementRow;
   quantityAriaLabel: (quantity: number) => string;
+  elementKey?: LimitBreakElementKey | null;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
@@ -1382,7 +1400,7 @@ function LimitBreakRequirementRowCard({
 
       <div className="mt-4 flex flex-wrap gap-3">
         {row.items.map((item) => {
-          const resolvedImageUrl = resolveLimitBreakItemImageUrl(item.imageUrl);
+          const resolvedImageUrl = resolveLimitBreakItemImageUrl(item.imageUrl, elementKey);
           const starCount = resolveLimitBreakItemStarCount(resolvedImageUrl);
           const imageClassName = resolveLimitBreakItemImageClassName(resolvedImageUrl);
 
@@ -2016,6 +2034,7 @@ export default function PublicHeroDetailsModal({
                           key={`${row.title}-${row.subtitle}`}
                           row={row}
                           quantityAriaLabel={t.quantityLabel}
+                          elementKey={limitBreakElementKey}
                         />
                       ))
                     ) : (
