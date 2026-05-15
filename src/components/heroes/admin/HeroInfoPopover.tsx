@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
 
 type HeroInfoPopoverProps = {
   label: string;
   content: string;
+  trigger?: ReactNode;
+  triggerClassName?: string;
 };
 
 function formatPopoverContent(content: string) {
@@ -17,7 +20,12 @@ function formatPopoverContent(content: string) {
     .trim();
 }
 
-export default function HeroInfoPopover({ label, content }: HeroInfoPopoverProps) {
+export default function HeroInfoPopover({
+  label,
+  content,
+  trigger = '?',
+  triggerClassName = 'inline-flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15',
+}: HeroInfoPopoverProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -100,10 +108,10 @@ export default function HeroInfoPopover({ label, content }: HeroInfoPopoverProps
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-5 w-5 shrink-0 self-center items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+        className={triggerClassName}
         aria-label={label}
       >
-        ?
+        {trigger}
       </button>
       {open && position
         ? createPortal(

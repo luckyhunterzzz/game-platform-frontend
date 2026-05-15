@@ -6,7 +6,7 @@ import DictionaryModal from './DictionaryModal';
 import DictionaryInlineValue from '../DictionaryInlineValue';
 import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
-import HeroStatCalculatorPanel from './HeroStatCalculatorPanel';
+import HeroStatCalculatorPanel, { type HeroStatTroopOption } from './HeroStatCalculatorPanel';
 import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
 
@@ -130,9 +130,346 @@ type LimitBreakRequirementRow = {
   items: LimitBreakRequirementItem[];
 };
 
+type HeroClassKey =
+  | 'barbarian'
+  | 'cleric'
+  | 'druid'
+  | 'fighter'
+  | 'monk'
+  | 'paladin'
+  | 'ranger'
+  | 'rogue'
+  | 'sorcerer'
+  | 'wizard';
+
+type TroopSpecialtyKey =
+  | 'critical_modifier_legendary_troop'
+  | 'debuff_damage_reduction_legendary_troop'
+  | 'extra_heal_on_heal_legendary_troop'
+  | 'increase_special_damage_legendary_troop'
+  | 'resist_debuffs_legendary_troop'
+  | 'special_damage_reduction_legendary_troop'
+  | 'status_effect_attack_addition_legendary_troop'
+  | 'status_effect_attack_reduction_legendary_troop'
+  | 'status_effect_defense_addition_legendary_troop'
+  | 'status_effect_defense_reduction_legendary_troop';
+
+type TroopMeta = {
+  key: string;
+  nameEn: string;
+  nameRu: string;
+  specialties: TroopSpecialtyKey;
+  classes: [HeroClassKey, HeroClassKey];
+};
+
+type TroopSpecialtyContent = {
+  titleEn: string;
+  titleRu: string;
+  descriptionEn: string;
+  descriptionRu: string;
+};
+
+type TroopBonusSummary = {
+  attack: string;
+  defense: string;
+  health: string;
+  mana: string;
+  classAttackBonus: string;
+  classDefenseBonus: string;
+  classHealthBonus: string;
+  classManaBonus: string;
+  totalAttack: string;
+  totalDefense: string;
+  totalHealth: string;
+  totalMana: string;
+};
+
 const LIMIT_BREAK_ASSET_BASE = '/heroes/limit-break';
 const FIRST_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_first_limit_broken.webp`;
 const SECOND_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_second_limit_broken.webp`;
+const TROOPS_ASSET_BASE = '/heroes/troops';
+const TROOP_SPECIALTY_ASSET_BASE = `${TROOPS_ASSET_BASE}/specialty`;
+const HERO_ELEMENT_ASSET_BASE = '/heroes/elements/elements';
+const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
+const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
+const HERO_STATS_ASSET_BASE = '/heroes/elements/stats';
+const TROOP_STAT_ICON_BY_KEY = {
+  attack: `${HERO_STATS_ASSET_BASE}/stat_atk.webp`,
+  defense: `${HERO_STATS_ASSET_BASE}/stat_defense.webp`,
+  health: `${HERO_STATS_ASSET_BASE}/stat_health.webp`,
+  mana: `${HERO_STATS_ASSET_BASE}/stat_mana_bonus.webp`,
+} as const;
+
+const TROOP_ELEMENT_PREFIX_BY_KEY: Record<LimitBreakElementKey, string> = {
+  nature: 'green',
+  ice: 'blue',
+  fire: 'red',
+  dark: 'purple',
+  holy: 'yellow',
+};
+
+const TROOP_ELEMENT_ICON_BY_KEY: Record<LimitBreakElementKey, string> = {
+  nature: `${HERO_ELEMENT_ASSET_BASE}/herald_green.webp`,
+  ice: `${HERO_ELEMENT_ASSET_BASE}/herald_blue.webp`,
+  fire: `${HERO_ELEMENT_ASSET_BASE}/herald_red.webp`,
+  dark: `${HERO_ELEMENT_ASSET_BASE}/herald_purple.webp`,
+  holy: `${HERO_ELEMENT_ASSET_BASE}/herald_yellow.webp`,
+};
+
+const TROOP_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
+  barbarian: `${HERO_CLASS_ASSET_BASE}/barbarian.png`,
+  cleric: `${HERO_CLASS_ASSET_BASE}/cleric.png`,
+  druid: `${HERO_CLASS_ASSET_BASE}/druid.png`,
+  fighter: `${HERO_CLASS_ASSET_BASE}/fighter.png`,
+  monk: `${HERO_CLASS_ASSET_BASE}/monk.png`,
+  paladin: `${HERO_CLASS_ASSET_BASE}/paladin.png`,
+  ranger: `${HERO_CLASS_ASSET_BASE}/ranger.png`,
+  rogue: `${HERO_CLASS_ASSET_BASE}/rogue.png`,
+  sorcerer: `${HERO_CLASS_ASSET_BASE}/sorcerer.png`,
+  wizard: `${HERO_CLASS_ASSET_BASE}/wizard.png`,
+};
+
+const TROOP_CLASS_LABELS: Record<HeroClassKey, { en: string; ru: string }> = {
+  barbarian: { en: 'Barbarian', ru: 'Варвар' },
+  cleric: { en: 'Cleric', ru: 'Церковник' },
+  druid: { en: 'Druid', ru: 'Друид' },
+  fighter: { en: 'Fighter', ru: 'Боец' },
+  monk: { en: 'Monk', ru: 'Монах' },
+  paladin: { en: 'Paladin', ru: 'Паладин' },
+  ranger: { en: 'Ranger', ru: 'Охотник' },
+  rogue: { en: 'Rogue', ru: 'Ассасин' },
+  sorcerer: { en: 'Sorcerer', ru: 'Колдун' },
+  wizard: { en: 'Wizard', ru: 'Волшебник' },
+};
+
+const TROOP_CATALOG: TroopMeta[] = [
+  {
+    key: 'master_assassin',
+    nameEn: 'Battle Master Assassin',
+    nameRu: 'Боевой мастер ассасинов',
+    specialties: 'status_effect_attack_addition_legendary_troop',
+    classes: ['rogue', 'fighter'],
+  },
+  {
+    key: 'barbarian',
+    nameEn: 'Majestic Minotaur',
+    nameRu: 'Величественный минотавр',
+    specialties: 'status_effect_attack_addition_legendary_troop',
+    classes: ['barbarian', 'druid'],
+  },
+  {
+    key: 'furious_monk',
+    nameEn: 'Furious Monk',
+    nameRu: 'Яростный монах',
+    specialties: 'extra_heal_on_heal_legendary_troop',
+    classes: ['monk', 'barbarian'],
+  },
+  {
+    key: 'cleric',
+    nameEn: 'Unwavering Cleric',
+    nameRu: 'Стойкий церковник',
+    specialties: 'extra_heal_on_heal_legendary_troop',
+    classes: ['cleric', 'fighter'],
+  },
+  {
+    key: 'devoted_knight',
+    nameEn: 'Devoted Knight',
+    nameRu: 'Приверженный рыцарь',
+    specialties: 'debuff_damage_reduction_legendary_troop',
+    classes: ['paladin', 'cleric'],
+  },
+  {
+    key: 'druid',
+    nameEn: 'Enchanted Ent',
+    nameRu: 'Очарованный энт',
+    specialties: 'debuff_damage_reduction_legendary_troop',
+    classes: ['druid', 'barbarian'],
+  },
+  {
+    key: 'hunter_mage',
+    nameEn: 'Hunter Mage',
+    nameRu: 'Охотник-маг',
+    specialties: 'status_effect_defense_reduction_legendary_troop',
+    classes: ['sorcerer', 'ranger'],
+  },
+  {
+    key: 'fighter',
+    nameEn: 'Unstoppable Fighter',
+    nameRu: 'Неудержимый боец',
+    specialties: 'status_effect_defense_reduction_legendary_troop',
+    classes: ['fighter', 'cleric'],
+  },
+  {
+    key: 'divine_cleric',
+    nameEn: 'Divine Cleric',
+    nameRu: 'Божественный церковник',
+    specialties: 'resist_debuffs_legendary_troop',
+    classes: ['cleric', 'paladin'],
+  },
+  {
+    key: 'monk',
+    nameEn: 'Mighty Monk',
+    nameRu: 'Могучий монах',
+    specialties: 'resist_debuffs_legendary_troop',
+    classes: ['monk', 'sorcerer'],
+  },
+  {
+    key: 'paladin',
+    nameEn: 'Elite Knight',
+    nameRu: 'Элитный рыцарь',
+    specialties: 'status_effect_defense_addition_legendary_troop',
+    classes: ['paladin', 'rogue'],
+  },
+  {
+    key: 'tree_spirit',
+    nameEn: 'Enlightened Tree Spirit',
+    nameRu: 'Просвещенный дух деревьев',
+    specialties: 'status_effect_defense_addition_legendary_troop',
+    classes: ['druid', 'wizard'],
+  },
+  {
+    key: 'ranger',
+    nameEn: 'Eternal Hunter',
+    nameRu: 'Вечный охотник',
+    specialties: 'status_effect_attack_reduction_legendary_troop',
+    classes: ['ranger', 'wizard'],
+  },
+  {
+    key: 'swashbuckler',
+    nameEn: 'Swashbuckler Fighter',
+    nameRu: 'Боец-головорез',
+    specialties: 'status_effect_attack_reduction_legendary_troop',
+    classes: ['fighter', 'rogue'],
+  },
+  {
+    key: 'arcane_hunter',
+    nameEn: 'Arcane Hunter',
+    nameRu: 'Тайный охотник',
+    specialties: 'critical_modifier_legendary_troop',
+    classes: ['ranger', 'sorcerer'],
+  },
+  {
+    key: 'rogue',
+    nameEn: 'Unseen Assassin',
+    nameRu: 'Невидимый убийца',
+    specialties: 'critical_modifier_legendary_troop',
+    classes: ['rogue', 'paladin'],
+  },
+  {
+    key: 'sorcerer',
+    nameEn: 'Royal Sorcerer',
+    nameRu: 'Королевский колдун',
+    specialties: 'special_damage_reduction_legendary_troop',
+    classes: ['sorcerer', 'monk'],
+  },
+  {
+    key: 'shaman_wizard',
+    nameEn: 'Shaman Wizard',
+    nameRu: 'Шаман-волшебник',
+    specialties: 'special_damage_reduction_legendary_troop',
+    classes: ['wizard', 'druid'],
+  },
+  {
+    key: 'wizard',
+    nameEn: 'Eldest Wizard',
+    nameRu: 'Старейший маг',
+    specialties: 'increase_special_damage_legendary_troop',
+    classes: ['wizard', 'ranger'],
+  },
+  {
+    key: 'serene_brute',
+    nameEn: 'Serene Brute',
+    nameRu: 'Безмятежный дикарь',
+    specialties: 'increase_special_damage_legendary_troop',
+    classes: ['barbarian', 'monk'],
+  },
+];
+
+const TROOP_SPECIALTY_CONTENT: Record<TroopSpecialtyKey, TroopSpecialtyContent> = {
+  critical_modifier_legendary_troop: {
+    titleEn: 'Critical Modifier',
+    titleRu: 'Критический модификатор',
+    descriptionEn: 'Grants 15% critical chance to the character this troop is equipped on.',
+    descriptionRu: 'Дает +15% шанса критического удара герою, который использует этот отряд.',
+  },
+  debuff_damage_reduction_legendary_troop: {
+    titleEn: 'Status Ailment Damage Reduction',
+    titleRu: 'Уменьшение урона от недуга',
+    descriptionEn: 'Damage caused by status ailments and negative stacks is reduced by 10% for the character this troop is equipped on.',
+    descriptionRu: 'Урон от недугов и негативных накапливаемых эффектов статуса снижается на 10% для героя, который использует этот отряд.',
+  },
+  extra_heal_on_heal_legendary_troop: {
+    titleEn: 'Extra Healing',
+    titleRu: 'Дополнительное исцеление',
+    descriptionEn: 'The character this troop is equipped on receives extra 5% health once every turn if health is recovered.',
+    descriptionRu: 'Герой, который использует этот отряд, получает 5% здоровья дополнительно раз за ход, если его здоровье восстанавливается.',
+  },
+  increase_special_damage_legendary_troop: {
+    titleEn: 'Increased Special Skill Damage',
+    titleRu: 'Увеличение урона от особого навыка',
+    descriptionEn: 'Direct Special Damage done by the character this troop is equipped on is increased by 8%.',
+    descriptionRu: 'Прямой урон от особых навыков, нанесенный героем, который использует этот отряд, увеличивается на 8%.',
+  },
+  resist_debuffs_legendary_troop: {
+    titleEn: 'Resist Status Ailments',
+    titleRu: 'Сопротивление недугам',
+    descriptionEn: 'Character this troop is equipped on has 10% chance to resist status ailments.',
+    descriptionRu: 'Герой, который использует этот отряд, с вероятностью 10% устоит против недугов.',
+  },
+  special_damage_reduction_legendary_troop: {
+    titleEn: 'Special Skill Damage Reduction',
+    titleRu: 'Уменьшение урона от особого навыка',
+    descriptionEn: 'Direct Special Damage taken by the character this troop is equipped on is reduced by 8%.',
+    descriptionRu: 'Прямой урон от особых навыков, полученный героем, который использует этот отряд, снижается на 8%.',
+  },
+  status_effect_attack_addition_legendary_troop: {
+    titleEn: 'Increase Status Effect Attack',
+    titleRu: 'Увеличение эффектов атаки',
+    descriptionEn: 'Attack buffs are 8% more effective for the character this troop is equipped on.',
+    descriptionRu: 'Усиления атаки на 8% эффективнее для героя, который использует этот отряд.',
+  },
+  status_effect_attack_reduction_legendary_troop: {
+    titleEn: 'Attack Ailment Reduction',
+    titleRu: 'Снижение недугов атаки',
+    descriptionEn: 'Attack status ailments are 8% less effective against the character this troop is equipped on.',
+    descriptionRu: 'Ослабления атаки на 8% менее эффективны против героя, который использует этот отряд.',
+  },
+  status_effect_defense_addition_legendary_troop: {
+    titleEn: 'Increase Status Effect Defense',
+    titleRu: 'Увеличение эффектов защиты',
+    descriptionEn: 'Defense buffs are 8% more effective for the character this troop is equipped on.',
+    descriptionRu: 'Усиления защиты на 8% эффективнее для героя, который использует этот отряд.',
+  },
+  status_effect_defense_reduction_legendary_troop: {
+    titleEn: 'Defense Ailment Reduction',
+    titleRu: 'Снижение недугов защиты',
+    descriptionEn: 'Defense status ailments are 8% less effective against the character this troop is equipped on.',
+    descriptionRu: 'Ослабления защиты на 8% менее эффективны против героя, который использует этот отряд.',
+  },
+};
+
+const TROOP_BONUS_SUMMARIES: Record<string, TroopBonusSummary> = {
+  arcane_hunter: { attack: '22%', defense: '25%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '29.3%', totalDefense: '32.5%', totalHealth: '43.8%', totalMana: '11%' },
+  master_assassin: { attack: '22%', defense: '26%', health: '24%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '29.3%', totalDefense: '33.6%', totalHealth: '42.6%', totalMana: '11%' },
+  devoted_knight: { attack: '21%', defense: '26%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '28.3%', totalDefense: '33.6%', totalHealth: '43.8%', totalMana: '11%' },
+  divine_cleric: { attack: '27%', defense: '20%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '34.6%', totalDefense: '27.2%', totalHealth: '43.8%', totalMana: '11%' },
+  wizard: { attack: '22%', defense: '26%', health: '24%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '29.3%', totalDefense: '33.6%', totalHealth: '42.6%', totalMana: '11%' },
+  paladin: { attack: '22%', defense: '25%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '29.3%', totalDefense: '32.5%', totalHealth: '43.8%', totalMana: '11%' },
+  druid: { attack: '23%', defense: '24%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '30.4%', totalDefense: '31.4%', totalHealth: '43.8%', totalMana: '11%' },
+  tree_spirit: { attack: '24%', defense: '23%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '31.4%', totalDefense: '30.4%', totalHealth: '43.8%', totalMana: '11%' },
+  ranger: { attack: '26%', defense: '22%', health: '24%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '33.6%', totalDefense: '29.3%', totalHealth: '42.6%', totalMana: '11%' },
+  furious_monk: { attack: '26%', defense: '21%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '33.6%', totalDefense: '28.3%', totalHealth: '43.8%', totalMana: '11%' },
+  hunter_mage: { attack: '23%', defense: '24%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '30.4%', totalDefense: '31.4%', totalHealth: '43.8%', totalMana: '11%' },
+  barbarian: { attack: '27%', defense: '20%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '34.6%', totalDefense: '27.2%', totalHealth: '43.8%', totalMana: '11%' },
+  monk: { attack: '25%', defense: '22%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '32.5%', totalDefense: '29.3%', totalHealth: '43.8%', totalMana: '11%' },
+  sorcerer: { attack: '21%', defense: '26%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '28.3%', totalDefense: '33.6%', totalHealth: '43.8%', totalMana: '11%' },
+  serene_brute: { attack: '20%', defense: '27%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '27.2%', totalDefense: '34.6%', totalHealth: '43.8%', totalMana: '11%' },
+  shaman_wizard: { attack: '25%', defense: '22%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '32.5%', totalDefense: '29.3%', totalHealth: '43.8%', totalMana: '11%' },
+  swashbuckler: { attack: '26%', defense: '22%', health: '24%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '33.6%', totalDefense: '29.3%', totalHealth: '42.6%', totalMana: '11%' },
+  rogue: { attack: '26%', defense: '21%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '33.6%', totalDefense: '28.3%', totalHealth: '43.8%', totalMana: '11%' },
+  fighter: { attack: '24%', defense: '23%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '31.4%', totalDefense: '30.4%', totalHealth: '43.8%', totalMana: '11%' },
+  cleric: { attack: '20%', defense: '27%', health: '25%', mana: '11%', classAttackBonus: '6%', classDefenseBonus: '6%', classHealthBonus: '15%', classManaBonus: '0%', totalAttack: '27.2%', totalDefense: '34.6%', totalHealth: '43.8%', totalMana: '11%' },
+};
 
 const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]> = {
   nature: [
@@ -734,6 +1071,297 @@ function resolveLimitBreakElementKey(value: string | null | undefined): LimitBre
   return null;
 }
 
+function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('barbarian') || normalized.includes('варвар')) return 'barbarian';
+  if (normalized.includes('cleric') || normalized.includes('церков')) return 'cleric';
+  if (normalized.includes('druid') || normalized.includes('друид')) return 'druid';
+  if (normalized.includes('fighter') || normalized.includes('боец')) return 'fighter';
+  if (normalized.includes('monk') || normalized.includes('монах')) return 'monk';
+  if (normalized.includes('paladin') || normalized.includes('палад')) return 'paladin';
+  if (normalized.includes('ranger') || normalized.includes('охот')) return 'ranger';
+  if (normalized.includes('rogue') || normalized.includes('ассас') || normalized.includes('разбой')) return 'rogue';
+  if (normalized.includes('sorcerer') || normalized.includes('колдун') || normalized.includes('маг')) return 'sorcerer';
+  if (normalized.includes('wizard') || normalized.includes('волшеб')) return 'wizard';
+
+  return null;
+}
+
+function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): HeroClassKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  for (const classKey of Object.keys(TROOP_CLASS_ICON_BY_KEY) as HeroClassKey[]) {
+    if (normalized.includes(`/${classKey}.`) || normalized.includes(`\\${classKey}.`) || normalized.endsWith(`${classKey}.png`)) {
+      return classKey;
+    }
+  }
+
+  return null;
+}
+
+function resolveLimitBreakItemImageUrl(originalImageUrl: string): string {
+  const fileName = originalImageUrl.split('/').pop() ?? originalImageUrl;
+
+  const fileMap: Record<string, string> = {
+    'aether_epic_dark.png': 'aether_epic_dark.webp',
+    'aether_epic_fire.png': 'aether_epic_fire.webp',
+    'aether_epic_holy.png': 'aether_epic_holy.webp',
+    'aether_epic_ice.png': 'aether_epic_ice.webp',
+    'aether_epic_nature.png': 'aether_epic_nature.webp',
+    'aether_legendary_dark.png': 'aether_legendary_dark.webp',
+    'aether_legendary_fire.png': 'aether_legendary_fire.webp',
+    'aether_legendary_holy.png': 'aether_legendary_holy.webp',
+    'aether_legendary_ice.png': 'aether_legendary_ice.webp',
+    'aether_legendary_nature.png': 'aether_legendary_nature.webp',
+    'aether_rare_dark.png': 'aether_rare_dark.webp',
+    'aether_rare_fire.png': 'aether_rare_fire.webp',
+    'aether_rare_holy.png': 'aether_rare_holy.webp',
+    'aether_rare_ice.png': 'aether_rare_ice.webp',
+    'aether_rare_nature.png': 'aether_rare_nature.webp',
+    'battle_manual.png': 'battle_manual_rare.webp',
+    'chainmail_shirt.png': 'chainmail_shirt_rare.webp',
+    'royal_tabard.png': 'dark_royal_tabard_epic.webp',
+    'trap_tools.png': 'dark_trap_tools_rare.webp',
+    'mystic_rings.png': 'fire_mystic_rings_epic.webp',
+    'hidden_blade.png': 'hidden_blade_rare.webp',
+    'orb_of_magic.png': 'holy_orb_of_magic_rare.webp',
+    'poison_darts.png': 'holy_poison_darts_epic.webp',
+    'ascension_elite_farsight_telescope.png': 'ice_farsight_telescope_epic.webp',
+    'warm_cape.png': 'ice_warm_cape_rare.webp',
+    'mysterious_tonic.png': 'nature_mysterious_tonic_epic.webp',
+    'sturdy_shield.png': 'nature_sturdy_shield_rare.webp',
+    'scabbard.png': 'scabbard_rare.webp',
+    'tall_boots.png': 'tall_boots_rare.webp',
+  };
+
+  const resolvedFileName = fileMap[fileName] ?? fileName;
+  return `${LIMIT_BREAK_ASSET_BASE}/${resolvedFileName}`;
+}
+
+function resolveLimitBreakItemStarCount(imageUrl: string): number | null {
+  const normalized = imageUrl.toLocaleLowerCase();
+
+  if (normalized.includes('legendary')) return 5;
+  if (normalized.includes('epic')) return 4;
+  if (normalized.includes('rare')) return 3;
+
+  return null;
+}
+
+function resolveLimitBreakItemImageClassName(imageUrl: string): string {
+  const normalized = imageUrl.toLocaleLowerCase();
+
+  if (!normalized.includes('aether_')) {
+    return 'h-full w-full object-contain';
+  }
+
+  if (normalized.includes('legendary')) {
+    return 'h-full w-full object-contain';
+  }
+
+  if (normalized.includes('epic')) {
+    return 'h-[75%] w-[75%] object-contain';
+  }
+
+  if (normalized.includes('rare')) {
+    return 'h-[50%] w-[50%] object-contain';
+  }
+
+  return 'h-full w-full object-contain';
+}
+
+function buildTroopSpecialtyTooltip(troop: TroopMeta, locale: 'RU' | 'EN'): string {
+  const content = TROOP_SPECIALTY_CONTENT[troop.specialties];
+  const title = locale === 'RU' ? content.titleRu : content.titleEn;
+  const description = locale === 'RU' ? content.descriptionRu : content.descriptionEn;
+
+  return `${title}\n\n${description}`;
+}
+
+function TroopBonusStatCard({
+  iconUrl,
+  label,
+  value,
+}: {
+  iconUrl: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={iconUrl} alt={label} className="mx-auto h-10 w-10 object-contain" />
+      <div className="mt-2 text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">{label}</div>
+      <div className="mt-1 text-base font-bold text-[var(--foreground)]">{value}</div>
+    </div>
+  );
+}
+
+function TroopBonusModal({
+  troop,
+  locale,
+  onClose,
+}: {
+  troop: TroopMeta;
+  locale: 'RU' | 'EN';
+  onClose: () => void;
+}) {
+  const summary = TROOP_BONUS_SUMMARIES[troop.key];
+  const title = locale === 'RU' ? troop.nameRu : troop.nameEn;
+  const troopBonusTitle = locale === 'RU' ? 'Бонусы отряда' : 'Troop bonuses';
+  const baseBonusTitle = locale === 'RU' ? 'Базовый бонус' : 'Base bonus';
+  const classBonusTitle = locale === 'RU' ? 'Доп. бонус для классов' : 'Extra class bonus';
+  const totalBonusTitle = locale === 'RU' ? 'Суммарный бонус' : 'Total bonus';
+  const attackLabel = locale === 'RU' ? 'Атака' : 'Attack';
+  const defenseLabel = locale === 'RU' ? 'Защита' : 'Defense';
+  const healthLabel = locale === 'RU' ? 'Здоровье' : 'Health';
+  const manaLabel = locale === 'RU' ? 'Мана' : 'Mana';
+
+  if (!summary) {
+    return (
+      <DictionaryModal open={true} title={title} closeLabel={locale === 'RU' ? 'Закрыть' : 'Close'} onClose={onClose}>
+        <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
+          {locale === 'RU' ? 'Бонусы этого отряда будут добавлены позже.' : 'Troop bonuses will be added later.'}
+        </div>
+      </DictionaryModal>
+    );
+  }
+
+  return (
+    <DictionaryModal open={true} title={title} closeLabel={locale === 'RU' ? 'Закрыть' : 'Close'} onClose={onClose}>
+      <div className="space-y-5">
+        <div className="text-sm font-semibold text-[var(--foreground)]">{troopBonusTitle}</div>
+
+        <div className="space-y-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{baseBonusTitle}</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.attack} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.defense} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.health} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={manaLabel} value={summary.mana} />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{classBonusTitle}</div>
+          <div className="flex items-center justify-center gap-3">
+            {troop.classes.map((classKey) => (
+              <div
+                key={`${troop.key}-bonus-${classKey}`}
+                className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                  alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                  className="h-full w-full object-contain"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.classAttackBonus} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.classDefenseBonus} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.classHealthBonus} />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{totalBonusTitle}</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.totalAttack} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.totalDefense} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.totalHealth} />
+            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={manaLabel} value={summary.totalMana} />
+          </div>
+        </div>
+      </div>
+    </DictionaryModal>
+  );
+}
+
+function TroopCard({
+  troop,
+  elementKey,
+  locale,
+  onOpenBonus,
+}: {
+  troop: TroopMeta;
+  elementKey: LimitBreakElementKey;
+  locale: 'RU' | 'EN';
+  onOpenBonus: (troop: TroopMeta) => void;
+}) {
+  const troopColorPrefix = TROOP_ELEMENT_PREFIX_BY_KEY[elementKey];
+  const troopImageUrl = `${TROOPS_ASSET_BASE}/${troopColorPrefix}_legendary_${troop.key}.webp`;
+  const troopSpecialtyUrl = `${TROOP_SPECIALTY_ASSET_BASE}/${troop.specialties}.webp`;
+  const troopTitle = locale === 'RU' ? troop.nameRu : troop.nameEn;
+  const troopSpecialtyTooltip = buildTroopSpecialtyTooltip(troop, locale);
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+        title={troopTitle}
+        aria-label={troopTitle}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={troopImageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.84] object-contain" />
+
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-2">
+          <div className="flex flex-col gap-1">
+            {troop.classes.map((classKey) => (
+              <div
+                key={`${troop.key}-${classKey}`}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-slate-950/78 p-1 shadow-lg"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={TROOP_CLASS_ICON_BY_KEY[classKey]} alt={classKey} className="h-full w-full object-contain" />
+              </div>
+            ))}
+          </div>
+
+          <HeroInfoPopover
+            label={locale === 'RU' ? `Специальность ${troopTitle}` : `${troopTitle} specialty`}
+            content={troopSpecialtyTooltip}
+            triggerClassName="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1.5 shadow-lg transition hover:bg-slate-900/90"
+            trigger={
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={troopSpecialtyUrl} alt={troop.specialties} className="h-full w-full object-contain" />
+            }
+          />
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-2">
+          <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-slate-950/78 px-2 py-1 shadow-lg">
+            {Array.from({ length: 5 }).map((_, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={`${troop.key}-star-${index}`} src={HERO_STAR_ASSET} alt="" className="h-3.5 w-3.5 object-contain" />
+            ))}
+          </div>
+
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={TROOP_ELEMENT_ICON_BY_KEY[elementKey]} alt={elementKey} className="h-full w-full object-contain" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 text-sm font-semibold leading-tight text-[var(--foreground)]">{troopTitle}</div>
+        <button
+          type="button"
+          onClick={() => onOpenBonus(troop)}
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+          aria-label={locale === 'RU' ? `Бонусы ${troopTitle}` : `${troopTitle} bonuses`}
+        >
+          ?
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LimitBreakRequirementRowCard({
   row,
   quantityAriaLabel,
@@ -753,22 +1381,41 @@ function LimitBreakRequirementRowCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        {row.items.map((item) => (
-          <div
-            key={`${row.title}-${row.subtitle}-${item.imageUrl}`}
-            className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2"
-            title={item.label}
-            aria-label={item.quantity ? `${item.label}, ${quantityAriaLabel(item.quantity)}` : item.label}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.imageUrl} alt={item.label} className="h-full w-full object-contain" />
-            {item.quantity ? (
-              <div className="absolute bottom-1 right-1 min-w-[1.5rem] rounded-md bg-black px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-lg">
-                {item.quantity}
-              </div>
-            ) : null}
-          </div>
-        ))}
+        {row.items.map((item) => {
+          const resolvedImageUrl = resolveLimitBreakItemImageUrl(item.imageUrl);
+          const starCount = resolveLimitBreakItemStarCount(resolvedImageUrl);
+          const imageClassName = resolveLimitBreakItemImageClassName(resolvedImageUrl);
+
+          return (
+            <div
+              key={`${row.title}-${row.subtitle}-${item.imageUrl}`}
+              className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2"
+              title={item.label}
+              aria-label={item.quantity ? `${item.label}, ${quantityAriaLabel(item.quantity)}` : item.label}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={resolvedImageUrl} alt={item.label} className={imageClassName} />
+              {starCount ? (
+                <div className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-0.5 rounded-md bg-slate-950/72 px-1 py-0.5">
+                  {Array.from({ length: starCount }).map((_, index) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={`${resolvedImageUrl}-star-${index}`}
+                      src={HERO_STAR_ASSET}
+                      alt=""
+                      className="h-2.5 w-2.5 object-contain"
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {item.quantity ? (
+                <div className="absolute right-1 top-1 min-w-[1.5rem] rounded-md bg-black px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-lg">
+                  {item.quantity}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -792,6 +1439,8 @@ export default function PublicHeroDetailsModal({
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
   const [expandedSpecialSkillHeroId, setExpandedSpecialSkillHeroId] = useState<number | null>(null);
   const [limitBreakOpen, setLimitBreakOpen] = useState(false);
+  const [troopsOpen, setTroopsOpen] = useState(false);
+  const [selectedTroopBonus, setSelectedTroopBonus] = useState<TroopMeta | null>(null);
 
   const t = useMemo(
     () =>
@@ -946,6 +1595,15 @@ export default function PublicHeroDetailsModal({
     .join('\n\n');
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
   const limitBreakElementKey = resolveLimitBreakElementKey(resolvedElementName);
+  const troopsTitle = locale === 'RU' ? 'Отряды' : 'Troops';
+  const troopsSubtitle =
+    locale === 'RU'
+      ? 'Легендарные отряды, подходящие для данного героя. Инфа по отрядам указана для 30 уровня.'
+      : 'Legendary troops for this hero. Troop info is shown for level 30.';
+  const troopsUnavailableText =
+    locale === 'RU'
+      ? 'Для этого героя подходящие отряды пока не найдены.'
+      : 'Matching troops are not configured for this hero yet.';
   const limitBreakSource = currentHeroIsCostume
     ? COSTUME_LIMIT_BREAK_REQUIREMENTS
     : LIMIT_BREAK_REQUIREMENTS;
@@ -956,6 +1614,30 @@ export default function PublicHeroDetailsModal({
         subtitle: index % 2 === 0 ? t.unlockCost : t.totalCost,
       }))
     : [];
+  const resolvedHeroClassKey =
+    resolveHeroClassKeyFromImageUrl(heroDetails?.heroClass?.imageUrl) ??
+    resolveHeroClassKey(heroDetails?.heroClass?.name ?? heroCard?.heroClassName ?? null);
+  const matchingTroops =
+    limitBreakElementKey && resolvedHeroClassKey
+      ? TROOP_CATALOG.filter((troop) => troop.classes.includes(resolvedHeroClassKey))
+      : [];
+  const calculatorTroopOptions: HeroStatTroopOption[] = matchingTroops
+    .map((troop) => {
+      const summary = TROOP_BONUS_SUMMARIES[troop.key];
+      if (!summary) {
+        return null;
+      }
+
+      return {
+        key: troop.key,
+        name: locale === 'RU' ? troop.nameRu : troop.nameEn,
+        totalAttackBonusPercent: Number.parseFloat(summary.totalAttack),
+        totalDefenseBonusPercent: Number.parseFloat(summary.totalDefense),
+        totalHealthBonusPercent: Number.parseFloat(summary.totalHealth),
+        totalManaBonusPercent: Number.parseFloat(summary.totalMana),
+      };
+    })
+    .filter((item): item is HeroStatTroopOption => item != null);
 
   const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
 
@@ -1345,6 +2027,48 @@ export default function PublicHeroDetailsModal({
                 ) : null}
               </div>
 
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <button
+                  type="button"
+                  onClick={() => setTroopsOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                  aria-expanded={troopsOpen}
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--foreground)]">{troopsTitle}</div>
+                    <div className="mt-1 text-sm text-[var(--foreground-soft)]">
+                      {troopsSubtitle}
+                    </div>
+                    <div className="mt-1 text-sm text-[var(--foreground-soft)]">
+                      {troopsOpen ? t.hide : t.show}
+                    </div>
+                  </div>
+                  <AccordionChevronIcon open={troopsOpen} />
+                </button>
+
+                {troopsOpen ? (
+                  <div className="mt-4">
+                    {limitBreakElementKey && matchingTroops.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {matchingTroops.map((troop) => (
+                          <TroopCard
+                            key={`${limitBreakElementKey}-${troop.key}`}
+                            troop={troop}
+                            elementKey={limitBreakElementKey}
+                            locale={locale}
+                            onOpenBonus={setSelectedTroopBonus}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                        {troopsUnavailableText}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
               <HeroStatCalculatorPanel
                 locale={locale}
                 heroId={heroDetails.id}
@@ -1360,6 +2084,7 @@ export default function PublicHeroDetailsModal({
                 baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
                 baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
                 costumes={heroDetails.costumes}
+                troopOptions={calculatorTroopOptions}
               />
 
               {releaseDate ? (
@@ -1394,6 +2119,10 @@ export default function PublicHeroDetailsModal({
           />
         </div>
       )}
+
+      {selectedTroopBonus ? (
+        <TroopBonusModal troop={selectedTroopBonus} locale={locale} onClose={() => setSelectedTroopBonus(null)} />
+      ) : null}
     </DictionaryModal>
   );
 }
