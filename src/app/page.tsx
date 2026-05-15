@@ -3,10 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
+
 import { Navbar } from '@/components/Navbar';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import PublicationsSection from '@/components/publications/PublicationsSection';
-
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
@@ -26,6 +26,7 @@ export default function HomePage() {
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
+      { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/red_legendary_master_assassin.webp' },
       { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
@@ -52,15 +53,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col font-sans">
+    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
       {isSidebarOpen && (
         <div className="fixed inset-0 z-40 flex">
           <div className="w-64 border-r border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl backdrop-blur">
-            <h2 className="mb-6 text-xl font-bold text-cyan-400">
-              {messages.home.menuTitle}
-            </h2>
+            <h2 className="mb-6 text-xl font-bold text-cyan-400">{messages.home.menuTitle}</h2>
 
             <ul className="space-y-4">
               <li>
@@ -98,10 +97,7 @@ export default function HomePage() {
             </ul>
           </div>
 
-          <div
-            className="flex-1 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="flex-1 bg-black/40 backdrop-blur-[1px]" onClick={() => setSidebarOpen(false)} />
         </div>
       )}
 
