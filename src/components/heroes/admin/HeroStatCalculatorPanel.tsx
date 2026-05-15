@@ -40,6 +40,15 @@ type HeroStatCalculationResponse = {
   finalStats: HeroStatBlockResponse;
 };
 
+export type HeroStatTroopOption = {
+  key: string;
+  name: string;
+  totalAttackBonusPercent: number;
+  totalDefenseBonusPercent: number;
+  totalHealthBonusPercent: number;
+  totalManaBonusPercent: number;
+};
+
 type HeroStatCalculatorPanelProps = {
   locale: HeroLocale;
   heroId: number;
@@ -51,6 +60,7 @@ type HeroStatCalculatorPanelProps = {
   baseArmor?: number | null;
   baseHp?: number | null;
   costumes?: HeroVariantSummary[];
+  troopOptions?: HeroStatTroopOption[];
 };
 
 const STAGES: EvolutionStageCode[] = ['ASCENSION_4_80', 'ASCENSION_4_85', 'ASCENSION_4_90'];
@@ -75,6 +85,10 @@ function formatCostumeName(name: string, costumeIndex?: number | null) {
   return costumeIndex != null ? `${name} C${costumeIndex}` : name;
 }
 
+function applyPercentBonus(value: number, percent: number) {
+  return Math.round(value * (1 + percent / 100));
+}
+
 export default function HeroStatCalculatorPanel({
   locale,
   heroId,
@@ -86,6 +100,7 @@ export default function HeroStatCalculatorPanel({
   baseArmor,
   baseHp,
   costumes = [],
+  troopOptions = [],
 }: HeroStatCalculatorPanelProps) {
   const { apiJson, apiPostJson } = useApi();
   const [stageCode, setStageCode] = useState<EvolutionStageCode>('ASCENSION_4_80');
@@ -97,6 +112,7 @@ export default function HeroStatCalculatorPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HeroStatCalculationResponse | null>(null);
+  const [selectedTroopKey, setSelectedTroopKey] = useState<string>('');
 
   const t = useMemo(
     () =>
@@ -269,6 +285,14 @@ export default function HeroStatCalculatorPanel({
     armor: baseArmor,
     hp: baseHp,
   };
+  const selectedTroop = troopOptions.find((troop) => troop.key === selectedTroopKey) ?? null;
+  const displayedStats = selectedTroop
+    ? {
+        attack: applyPercentBonus(finalStats.attack, selectedTroop.totalAttackBonusPercent),
+        armor: applyPercentBonus(finalStats.armor, selectedTroop.totalDefenseBonusPercent),
+        hp: applyPercentBonus(finalStats.hp, selectedTroop.totalHealthBonusPercent),
+      }
+    : finalStats;
   const costumeFieldLabel =
     isCostume
       ? locale === 'RU'
@@ -286,10 +310,13 @@ export default function HeroStatCalculatorPanel({
           : 'Current costume'
       : t.noCostume;
 
+  const troopFieldLabel = locale === 'RU' ? 'Отряд' : 'Troop';
+  const noTroopLabel = locale === 'RU' ? 'Без отряда' : 'No troop';
+
   const statCards = [
-    { key: 'attack', icon: '⚔️', label: t.attack, value: finalStats.attack, base: baseAttack },
-    { key: 'armor', icon: '🛡️', label: t.armor, value: finalStats.armor, base: baseArmor },
-    { key: 'hp', icon: '❤️', label: t.hp, value: finalStats.hp, base: baseHp },
+    { key: 'attack', icon: '⚔️', label: t.attack, value: displayedStats.attack, base: baseAttack },
+    { key: 'armor', icon: '🛡️', label: t.armor, value: displayedStats.armor, base: baseArmor },
+    { key: 'hp', icon: '❤️', label: t.hp, value: displayedStats.hp, base: baseHp },
   ] as const;
 
   return (
@@ -343,6 +370,26 @@ export default function HeroStatCalculatorPanel({
             {loadingCostumes ? (
               <span className="text-xs text-[var(--foreground-muted)]">{t.loadingCostumes}</span>
             ) : null}
+          </label>
+        ) : null}
+
+        {troopOptions.length > 0 ? (
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+              {troopFieldLabel}
+            </span>
+            <select
+              value={selectedTroopKey}
+              onChange={(event) => setSelectedTroopKey(event.target.value)}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            >
+              <option value="">{noTroopLabel}</option>
+              {troopOptions.map((troop) => (
+                <option key={troop.key} value={troop.key}>
+                  {troop.name}
+                </option>
+              ))}
+            </select>
           </label>
         ) : null}
 
