@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -25,7 +25,9 @@ export default function EventsPage() {
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
-      { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
+      { label: locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/red_legendary_master_assassin.webp' },
+      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
+      { label: locale === 'ru' ? '\u0421\u0443\u043D\u0434\u0443\u043A\u0438' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
       {
         label: messages.home.navJointPurchases,
@@ -38,16 +40,17 @@ export default function EventsPage() {
       authenticated,
       locale,
       messages.home.navAlliances,
+      messages.home.navEvents,
       messages.home.navHeroes,
       messages.home.navJointPurchases,
       messages.home.navJointPurchasesAuthHint,
     ],
   );
 
-  const pageTitle = locale === 'ru' ? 'События' : 'Events';
+  const pageTitle = locale === 'ru' ? 'РЎРѕР±С‹С‚РёСЏ' : 'Events';
   const pageSubtitle =
     locale === 'ru'
-      ? 'Подборка игровых событий.'
+      ? 'РџРѕРґР±РѕСЂРєР° РёРіСЂРѕРІС‹С… СЃРѕР±С‹С‚РёР№.'
       : 'A collection of game events.';
 
   return (
@@ -169,7 +172,7 @@ export default function EventsPage() {
 
                   <div className="mt-auto">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground-soft)]">
-                      {locale === 'ru' ? 'Событие' : 'Event'}
+                      {locale === 'ru' ? 'РЎРѕР±С‹С‚РёРµ' : 'Event'}
                     </div>
                     <h2 className="mt-2 text-base font-bold leading-tight text-[var(--foreground)] md:text-lg">
                       {title}
@@ -205,3 +208,4 @@ export default function EventsPage() {
     </div>
   );
 }
+

@@ -117,10 +117,10 @@ export const TROOP_CLASS_LABELS: Record<HeroClassKey, { en: string; ru: string }
   fighter: { en: 'Fighter', ru: 'Боец' },
   monk: { en: 'Monk', ru: 'Монах' },
   paladin: { en: 'Paladin', ru: 'Паладин' },
-  ranger: { en: 'Ranger', ru: 'Охотник' },
-  rogue: { en: 'Rogue', ru: 'Ассасин' },
+  ranger: { en: 'Ranger', ru: 'Рейнджер' },
+  rogue: { en: 'Rogue', ru: 'Разбойник' },
   sorcerer: { en: 'Sorcerer', ru: 'Колдун' },
-  wizard: { en: 'Wizard', ru: 'Волшебник' },
+  wizard: { en: 'Wizard', ru: 'Маг' },
 };
 
 export const TROOP_SPECIALTY_LABELS: Record<TroopSpecialtyKey, { en: string; ru: string }> = {

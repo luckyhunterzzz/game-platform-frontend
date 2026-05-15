@@ -24,12 +24,10 @@ export default function AlliancePage() {
 
   const quickLinks: QuickLinkItem[] = [
     { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
+    { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/red_legendary_master_assassin.webp' },
     { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
-    {
-      label: locale === 'ru' ? 'Сундуки' : 'Chests',
-      href: '/chests',
-      imageSrc: '/home-quick-links/guides.png',
-    },
+    { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
+    { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
     {
       label: messages.home.navJointPurchases,
       href: '/joint-purchases',
@@ -83,10 +81,7 @@ export default function AlliancePage() {
             </ul>
           </div>
 
-          <div
-            className="flex-1 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="flex-1 bg-black/40 backdrop-blur-[1px]" onClick={() => setSidebarOpen(false)} />
         </div>
       )}
 
