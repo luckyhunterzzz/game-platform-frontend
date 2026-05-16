@@ -9,22 +9,33 @@ import HeroInfoPopover from '@/components/heroes/admin/HeroInfoPopover';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import {
-  buildTroopEntries,
+  buildEpicTroopEntries,
+  buildLegendaryTroopEntries,
   HERO_STAR_ASSET,
   TROOP_BONUS_SUMMARIES,
   TROOP_CLASS_ICON_BY_KEY,
   TROOP_CLASS_LABELS,
   TROOP_ELEMENT_ICON_BY_KEY,
   TROOP_ELEMENT_LABELS,
+  TROOP_ENHANCEMENT_CONTENT,
+  TROOP_ENHANCEMENT_ICON_BY_KEY,
+  TROOP_ENHANCEMENT_LABELS,
   TROOP_SPECIALTY_CONTENT,
   TROOP_SPECIALTY_ICON_BY_KEY,
   TROOP_SPECIALTY_LABELS,
   TROOP_STAT_ICON_BY_KEY,
+  TROOP_TIER_LABELS,
+  type EpicTroopBonusSummary,
+  type EpicTroopEntry,
   type HeroClassKey,
+  type LegendaryTroopEntry,
   type TroopBonusSummary,
   type TroopElementKey,
+  type TroopEnhancementKey,
   type TroopEntry,
   type TroopSpecialtyKey,
+  type TroopStatKey,
+  type TroopTierKey,
 } from '@/lib/static/troops';
 
 type QuickLinkItem = {
@@ -161,20 +172,62 @@ function TroopBonusStatCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 text-center sm:rounded-2xl sm:p-3">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={iconUrl} alt={label} className="mx-auto h-10 w-10 object-contain" />
-      <div className="mt-2 text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">{label}</div>
-      <div className="mt-1 text-base font-bold text-[var(--foreground)]">{value}</div>
+      <img src={iconUrl} alt={label} className="mx-auto h-7 w-7 object-contain sm:h-10 sm:w-10" />
+      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-[var(--foreground-muted)] sm:mt-2 sm:text-xs">{label}</div>
+      <div className="mt-0.5 text-sm font-bold text-[var(--foreground)] sm:mt-1 sm:text-base">{value}</div>
     </div>
   );
 }
 
-function buildTroopSpecialtyTooltip(troop: TroopEntry, locale: 'ru' | 'en') {
+function TroopImageBadge({
+  imageUrl,
+  title,
+  stars,
+  sizeClassName = 'h-8 w-8',
+}: {
+  imageUrl: string;
+  title: string;
+  stars: number;
+  sizeClassName?: string;
+}) {
+  return (
+    <div className={`relative shrink-0 overflow-hidden rounded-lg ${sizeClassName}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt={title} className="h-full w-full object-contain" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-[1px] bg-gradient-to-t from-black/70 via-black/25 to-transparent px-0.5 py-0.5">
+        {Array.from({ length: stars }).map((_, index) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={`${title}-badge-star-${index}`} src={HERO_STAR_ASSET} alt="" className="h-2.5 w-2.5 object-contain" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getLegendaryTroopTooltipContent(troop: LegendaryTroopEntry, locale: 'ru' | 'en') {
   const content = TROOP_SPECIALTY_CONTENT[troop.specialty];
-  const title = locale === 'ru' ? content.titleRu : content.titleEn;
-  const description = locale === 'ru' ? content.descriptionRu : content.descriptionEn;
-  return `${title}\n\n${description}`;
+  return `${locale === 'ru' ? content.titleRu : content.titleEn}\n\n${locale === 'ru' ? content.descriptionRu : content.descriptionEn}`;
+}
+
+function getEpicStatOrder(summary: EpicTroopBonusSummary): TroopStatKey[] {
+  const preferredOrder: TroopStatKey[] = ['attack', 'defense', 'health', 'healing', 'mana', 'critical', 'bypass'];
+  return preferredOrder.filter((key) => summary[key] != null);
+}
+
+function getStatLabel(statKey: TroopStatKey, locale: 'ru' | 'en') {
+  const labels: Record<TroopStatKey, { en: string; ru: string }> = {
+    attack: { en: 'Attack', ru: 'Атака' },
+    defense: { en: 'Defense', ru: 'Защита' },
+    health: { en: 'Health', ru: 'Здоровье' },
+    mana: { en: 'Mana', ru: 'Мана' },
+    healing: { en: 'Healing', ru: 'Исцеление' },
+    critical: { en: 'Critical', ru: 'Крит' },
+    bypass: { en: 'Bypass', ru: 'Байпас' },
+  };
+
+  return locale === 'ru' ? labels[statKey].ru : labels[statKey].en;
 }
 
 function TroopBonusModal({
@@ -186,76 +239,139 @@ function TroopBonusModal({
   locale: 'ru' | 'en';
   onClose: () => void;
 }) {
-  const summary: TroopBonusSummary | undefined = TROOP_BONUS_SUMMARIES[troop.key];
   const title = locale === 'ru' ? troop.nameRu : troop.nameEn;
   const closeLabel = locale === 'ru' ? 'Закрыть' : 'Close';
+  const [highlightEnhancements, setHighlightEnhancements] = useState(troop.tier === 'epic');
 
-  if (!summary) {
+  useEffect(() => {
+    if (troop.tier !== 'epic') {
+      return;
+    }
+
+    setHighlightEnhancements(true);
+    const timeoutId = window.setTimeout(() => setHighlightEnhancements(false), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [troop]);
+
+  if (troop.tier === 'legendary') {
+    const summary: TroopBonusSummary | undefined = TROOP_BONUS_SUMMARIES[troop.key];
+
+    if (!summary) {
+      return (
+        <DictionaryModal open={true} title={title} closeLabel={closeLabel} onClose={onClose}>
+          <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
+            {locale === 'ru' ? 'Бонусы этого отряда будут добавлены позже.' : 'Troop bonuses will be added later.'}
+          </div>
+        </DictionaryModal>
+      );
+    }
+
     return (
       <DictionaryModal open={true} title={title} closeLabel={closeLabel} onClose={onClose}>
-        <div className="rounded-2xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">
-          {locale === 'ru' ? 'Бонусы этого отряда будут добавлены позже.' : 'Troop bonuses will be added later.'}
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+              {locale === 'ru' ? 'Базовый бонус' : 'Base bonus'}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={getStatLabel('attack', locale)} value={summary.attack} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={getStatLabel('defense', locale)} value={summary.defense} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={getStatLabel('health', locale)} value={summary.health} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={getStatLabel('mana', locale)} value={summary.mana} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+              {locale === 'ru' ? 'Доп. бонус для классов' : 'Extra class bonus'}
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              {troop.classes.map((classKey) => (
+                <div
+                  key={`${troop.key}-bonus-${classKey}`}
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                    alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={getStatLabel('attack', locale)} value={summary.classAttackBonus} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={getStatLabel('defense', locale)} value={summary.classDefenseBonus} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={getStatLabel('health', locale)} value={summary.classHealthBonus} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
+              {locale === 'ru' ? 'Суммарный бонус' : 'Total bonus'}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={getStatLabel('attack', locale)} value={summary.totalAttack} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={getStatLabel('defense', locale)} value={summary.totalDefense} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={getStatLabel('health', locale)} value={summary.totalHealth} />
+              <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={getStatLabel('mana', locale)} value={summary.totalMana} />
+            </div>
+          </div>
         </div>
       </DictionaryModal>
     );
   }
 
-  const attackLabel = locale === 'ru' ? 'Атака' : 'Attack';
-  const defenseLabel = locale === 'ru' ? 'Защита' : 'Defense';
-  const healthLabel = locale === 'ru' ? 'Здоровье' : 'Health';
-  const manaLabel = locale === 'ru' ? 'Мана' : 'Mana';
+  const statOrder = getEpicStatOrder(troop.summary);
 
   return (
     <DictionaryModal open={true} title={title} closeLabel={closeLabel} onClose={onClose}>
       <div className="space-y-5">
         <div className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
-            {locale === 'ru' ? 'Базовый бонус' : 'Base bonus'}
+            {locale === 'ru' ? 'Усиления' : 'Enhancements'}
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.attack} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.defense} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.health} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={manaLabel} value={summary.mana} />
-          </div>
-        </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {troop.enhancements.map((enhancementKey) => {
+              const label =
+                locale === 'ru'
+                  ? TROOP_ENHANCEMENT_LABELS[enhancementKey].ru
+                  : TROOP_ENHANCEMENT_LABELS[enhancementKey].en;
+              const content = TROOP_ENHANCEMENT_CONTENT[enhancementKey];
+              const tooltipContent = `${locale === 'ru' ? content.titleRu : content.titleEn}\n\n${locale === 'ru' ? content.descriptionRu : content.descriptionEn}`;
 
-        <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
-            {locale === 'ru' ? 'Доп. бонус для классов' : 'Extra class bonus'}
-          </div>
-          <div className="flex items-center justify-center gap-3">
-            {troop.classes.map((classKey) => (
-              <div
-                key={`${troop.key}-bonus-${classKey}`}
-                className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={TROOP_CLASS_ICON_BY_KEY[classKey]}
-                  alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                  className="h-full w-full object-contain"
+              return (
+                <HeroInfoPopover
+                  key={`${troop.key}-${enhancementKey}`}
+                  label={label}
+                  content={tooltipContent}
+                  trigger={
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={TROOP_STAT_ICON_BY_KEY[enhancementKey]} alt={label} className="h-full w-full object-contain" />
+                  }
+                  triggerClassName={`flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 transition hover:bg-[var(--surface-hover)] ${
+                    highlightEnhancements ? 'animate-pulse shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_0_22px_rgba(34,211,238,0.22)]' : ''
+                  }`}
                 />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.classAttackBonus} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.classDefenseBonus} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.classHealthBonus} />
+              );
+            })}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
-            {locale === 'ru' ? 'Суммарный бонус' : 'Total bonus'}
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.totalAttack} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.totalDefense} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.totalHealth} />
-            <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.mana} label={manaLabel} value={summary.totalMana} />
-          </div>
+        <div className="text-sm text-[var(--foreground-soft)]">
+          {locale === 'ru' ? 'Бонусы эпического отряда' : 'Epic troop bonuses'}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {statOrder.map((statKey) => (
+            <TroopBonusStatCard
+              key={`${troop.key}-${statKey}`}
+              iconUrl={TROOP_STAT_ICON_BY_KEY[statKey]}
+              label={getStatLabel(statKey, locale)}
+              value={troop.summary[statKey] ?? ''}
+            />
+          ))}
         </div>
       </div>
     </DictionaryModal>
@@ -272,51 +388,80 @@ function TroopPreviewCard({
   onOpenBonus: (troop: TroopEntry) => void;
 }) {
   const troopTitle = locale === 'ru' ? troop.nameRu : troop.nameEn;
-  const specialtyLabel = locale === 'ru' ? TROOP_SPECIALTY_LABELS[troop.specialty].ru : TROOP_SPECIALTY_LABELS[troop.specialty].en;
+  const topRightLabel =
+    troop.tier === 'legendary'
+      ? locale === 'ru'
+        ? TROOP_SPECIALTY_LABELS[troop.specialty].ru
+        : TROOP_SPECIALTY_LABELS[troop.specialty].en
+      : '';
 
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]" title={troopTitle} aria-label={troopTitle}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={troop.imageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.72] object-contain" />
+    <article className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+      <div
+        className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+        title={troopTitle}
+        aria-label={troopTitle}
+      >
+        <button
+          type="button"
+          onClick={() => onOpenBonus(troop)}
+          className="block w-full"
+          aria-label={locale === 'ru' ? `Открыть бонусы ${troopTitle}` : `Open ${troopTitle} bonuses`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={troop.imageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.58] object-contain" />
+        </button>
 
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-2">
-          <div className="flex flex-col gap-1">
-            {troop.classes.map((classKey) => (
-              <div
-                key={`${troop.key}-${troop.elementKey}-${classKey}`}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-slate-950/78 p-1 shadow-lg"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={TROOP_CLASS_ICON_BY_KEY[classKey]}
-                  alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                  className="h-full w-full object-contain"
-                />
-              </div>
-            ))}
-          </div>
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-1.5">
+          {troop.tier === 'legendary' ? (
+            <div className="flex flex-col gap-1">
+              {troop.classes.map((classKey) => (
+                <div
+                  key={`${troop.key}-${troop.elementKey}-${classKey}`}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-slate-950/78 p-1 shadow-lg"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                    alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div />
+          )}
 
-          <HeroInfoPopover
-            label={specialtyLabel}
-            content={buildTroopSpecialtyTooltip(troop, locale)}
-            trigger={
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={troop.specialtyImageUrl} alt={specialtyLabel} className="h-full w-full object-contain" />
-            }
-            triggerClassName="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1.5 shadow-lg transition hover:bg-slate-900/88"
-          />
+          {troop.tier === 'legendary' ? (
+            <HeroInfoPopover
+              label={topRightLabel}
+              content={getLegendaryTroopTooltipContent(troop, locale)}
+              trigger={
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={troop.specialtyImageUrl} alt={topRightLabel} className="h-full w-full object-contain" />
+              }
+              triggerClassName="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg transition hover:bg-slate-900/88"
+            />
+          ) : (
+            <div />
+          )}
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-2">
-          <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-slate-950/78 px-2 py-1 shadow-lg">
-            {Array.from({ length: 5 }).map((_, index) => (
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-1.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/15 bg-slate-950/78 px-1.5 py-0.5 shadow-lg">
+            {Array.from({ length: troop.stars }).map((_, index) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={`${troop.key}-${troop.elementKey}-star-${index}`} src={HERO_STAR_ASSET} alt="" className="h-3.5 w-3.5 object-contain" />
+              <img
+                key={`${troop.key}-${troop.elementKey}-star-${index}`}
+                src={HERO_STAR_ASSET}
+                alt=""
+                className="h-3 w-3 object-contain"
+              />
             ))}
           </div>
 
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={troop.elementImageUrl}
@@ -327,12 +472,12 @@ function TroopPreviewCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-start gap-2">
-        <div className="min-w-0 flex-1 text-sm font-semibold leading-tight text-[var(--foreground)]">{troopTitle}</div>
+      <div className="mt-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1 text-xs font-semibold leading-tight text-[var(--foreground)] sm:text-[13px]">{troopTitle}</div>
         <button
           type="button"
           onClick={() => onOpenBonus(troop)}
-          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+          className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/10 text-[10px] font-semibold text-cyan-200 transition hover:bg-cyan-400/15 sm:h-5 sm:w-5 sm:text-[11px]"
           aria-label={locale === 'ru' ? `Бонусы отряда ${troopTitle}` : `Troop bonuses for ${troopTitle}`}
         >
           ?
@@ -344,9 +489,11 @@ function TroopPreviewCard({
 
 export default function TroopsPageClient() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<TroopTierKey>('legendary');
   const [selectedElement, setSelectedElement] = useState<TroopElementKey | 'ALL'>('ALL');
   const [selectedClass, setSelectedClass] = useState<HeroClassKey | 'ALL'>('ALL');
   const [selectedSpecialty, setSelectedSpecialty] = useState<TroopSpecialtyKey | 'ALL'>('ALL');
+  const [selectedEnhancement, setSelectedEnhancement] = useState<TroopEnhancementKey | 'ALL'>('ALL');
   const [selectedTroopBonus, setSelectedTroopBonus] = useState<TroopEntry | null>(null);
 
   const { authenticated } = useAuth();
@@ -355,7 +502,7 @@ export default function TroopsPageClient() {
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
-      { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/red_legendary_master_assassin.webp' },
+      { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
       { label: locale === 'ru' ? 'События' : 'Events', href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: locale === 'ru' ? 'Альянсы' : 'Alliances', href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
@@ -375,24 +522,35 @@ export default function TroopsPageClient() {
     ],
   );
 
-  const troops = useMemo(() => buildTroopEntries(), []);
-  const filteredTroops = useMemo(() => {
-    return troops.filter((troop) => {
+  const legendaryTroops = useMemo(() => buildLegendaryTroopEntries(), []);
+  const epicTroops = useMemo(() => buildEpicTroopEntries(), []);
+
+  const visibleTroops = useMemo(() => {
+    if (selectedTier === 'legendary') {
+      return legendaryTroops.filter((troop) => {
+        if (selectedElement !== 'ALL' && troop.elementKey !== selectedElement) {
+          return false;
+        }
+        if (selectedClass !== 'ALL' && !troop.classes.includes(selectedClass)) {
+          return false;
+        }
+        if (selectedSpecialty !== 'ALL' && troop.specialty !== selectedSpecialty) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    return epicTroops.filter((troop) => {
       if (selectedElement !== 'ALL' && troop.elementKey !== selectedElement) {
         return false;
       }
-
-      if (selectedClass !== 'ALL' && !troop.classes.includes(selectedClass)) {
+      if (selectedEnhancement !== 'ALL' && !troop.enhancements.includes(selectedEnhancement)) {
         return false;
       }
-
-      if (selectedSpecialty !== 'ALL' && troop.specialty !== selectedSpecialty) {
-        return false;
-      }
-
       return true;
     });
-  }, [selectedClass, selectedElement, selectedSpecialty, troops]);
+  }, [epicTroops, legendaryTroops, selectedClass, selectedElement, selectedEnhancement, selectedSpecialty, selectedTier]);
 
   const elementOptions = useMemo<FilterOption<TroopElementKey>[]>(
     () => [
@@ -430,11 +588,27 @@ export default function TroopsPageClient() {
     [locale],
   );
 
+  const enhancementOptions = useMemo<FilterOption<TroopEnhancementKey>[]>(
+    () => [
+      { value: 'ALL', label: locale === 'ru' ? 'Все усиления' : 'All enhancements' },
+      ...(Object.keys(TROOP_ENHANCEMENT_LABELS) as TroopEnhancementKey[]).map((enhancementKey) => ({
+        value: enhancementKey,
+        label: locale === 'ru' ? TROOP_ENHANCEMENT_LABELS[enhancementKey].ru : TROOP_ENHANCEMENT_LABELS[enhancementKey].en,
+        iconUrl: TROOP_ENHANCEMENT_ICON_BY_KEY[enhancementKey],
+      })),
+    ],
+    [locale],
+  );
+
   const pageTitle = locale === 'ru' ? 'Отряды' : 'Troops';
   const pageSubtitle =
-    locale === 'ru'
-      ? 'Все легендарные отряды в одном месте. Фильтруйте по стихии, классу и усилению.'
-      : 'All legendary troops in one place. Filter by element, class and enhancement.';
+    selectedTier === 'legendary'
+      ? locale === 'ru'
+        ? 'Все легендарные отряды в одном месте. Фильтруйте по стихии, классу и усилению.'
+        : 'All legendary troops in one place. Filter by element, class and enhancement.'
+      : locale === 'ru'
+        ? 'Все эпические отряды в одном месте. Фильтруйте по стихии и усилению.'
+        : 'All epic troops in one place. Filter by element and enhancement.';
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
@@ -462,6 +636,15 @@ export default function TroopsPageClient() {
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.menuPageTwo}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/troops"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {locale === 'ru' ? 'Отряды' : 'Troops'}
                 </Link>
               </li>
               <li>
@@ -514,36 +697,75 @@ export default function TroopsPageClient() {
           <div className="mb-8 rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:p-8">
             <h1 className="text-3xl font-black tracking-tight text-[var(--foreground)] md:text-5xl">{pageTitle}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--foreground-soft)] md:text-base">{pageSubtitle}</p>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              {(Object.keys(TROOP_TIER_LABELS) as TroopTierKey[]).map((tierKey) => (
+                <button
+                  key={tierKey}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTier(tierKey);
+                    setSelectedClass('ALL');
+                    setSelectedSpecialty('ALL');
+                    setSelectedEnhancement('ALL');
+                  }}
+                  className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                    selectedTier === tierKey
+                      ? 'border-cyan-300/60 bg-cyan-400/12 text-cyan-100'
+                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {locale === 'ru' ? TROOP_TIER_LABELS[tierKey].ru : TROOP_TIER_LABELS[tierKey].en}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-1 gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 md:grid-cols-3 md:p-5">
+          <div className={`mb-6 grid grid-cols-1 gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 md:p-5 ${selectedTier === 'legendary' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             <FilterDropdown
               label={locale === 'ru' ? 'Стихия' : 'Element'}
               value={selectedElement}
               options={elementOptions}
               onChange={setSelectedElement}
             />
-            <FilterDropdown
-              label={locale === 'ru' ? 'Класс' : 'Class'}
-              value={selectedClass}
-              options={classOptions}
-              onChange={setSelectedClass}
-            />
-            <FilterDropdown
-              label={locale === 'ru' ? 'Усиление' : 'Enhancement'}
-              value={selectedSpecialty}
-              options={specialtyOptions}
-              onChange={setSelectedSpecialty}
-            />
+
+            {selectedTier === 'legendary' ? (
+              <>
+                <FilterDropdown
+                  label={locale === 'ru' ? 'Класс' : 'Class'}
+                  value={selectedClass}
+                  options={classOptions}
+                  onChange={setSelectedClass}
+                />
+                <FilterDropdown
+                  label={locale === 'ru' ? 'Усиление' : 'Enhancement'}
+                  value={selectedSpecialty}
+                  options={specialtyOptions}
+                  onChange={setSelectedSpecialty}
+                />
+              </>
+            ) : (
+              <FilterDropdown
+                label={locale === 'ru' ? 'Усиление' : 'Enhancement'}
+                value={selectedEnhancement}
+                options={enhancementOptions}
+                onChange={setSelectedEnhancement}
+              />
+            )}
           </div>
 
           <div className="mb-4 text-sm text-[var(--foreground-soft)]">
-            {locale === 'ru' ? `Найдено отрядов: ${filteredTroops.length}` : `Troops found: ${filteredTroops.length}`}
+            {locale === 'ru' ? `Найдено отрядов: ${visibleTroops.length}` : `Troops found: ${visibleTroops.length}`}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {filteredTroops.map((troop) => (
-              <TroopPreviewCard key={`${troop.elementKey}-${troop.key}`} troop={troop} locale={locale} onOpenBonus={setSelectedTroopBonus} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {visibleTroops.map((troop) => (
+              <TroopPreviewCard
+                key={`${troop.tier}-${troop.elementKey}-${troop.key}`}
+                troop={troop}
+                locale={locale}
+                onOpenBonus={setSelectedTroopBonus}
+              />
             ))}
           </div>
         </section>
@@ -555,3 +777,4 @@ export default function TroopsPageClient() {
     </div>
   );
 }
+

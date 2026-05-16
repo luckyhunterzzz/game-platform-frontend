@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, useApi } from '@/lib/use-api';
 
 type HeroLocale = 'RU' | 'EN';
@@ -43,6 +43,8 @@ type HeroStatCalculationResponse = {
 export type HeroStatTroopOption = {
   key: string;
   name: string;
+  imageUrl: string;
+  stars: number;
   totalAttackBonusPercent: number;
   totalDefenseBonusPercent: number;
   totalHealthBonusPercent: number;
@@ -62,6 +64,8 @@ type HeroStatCalculatorPanelProps = {
   costumes?: HeroVariantSummary[];
   troopOptions?: HeroStatTroopOption[];
 };
+
+const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
 
 const STAGES: EvolutionStageCode[] = ['ASCENSION_4_80', 'ASCENSION_4_85', 'ASCENSION_4_90'];
 
@@ -89,6 +93,48 @@ function applyPercentBonus(value: number, percent: number) {
   return Math.round(value * (1 + percent / 100));
 }
 
+function TroopSelectChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={`h-4 w-4 text-[var(--foreground-muted)] transition-transform ${open ? 'rotate-180' : ''}`}
+      aria-hidden="true"
+      fill="none"
+    >
+      <path
+        d="M5 7.5 10 12.5 15 7.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TroopOptionThumb({
+  imageUrl,
+  name,
+  stars,
+}: {
+  imageUrl: string;
+  name: string;
+  stars: number;
+}) {
+  return (
+    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt={name} className="h-full w-full object-contain" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-0.5 py-0.5">
+        {Array.from({ length: stars }).map((_, index) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={`${name}-thumb-star-${index}`} src={HERO_STAR_ASSET} alt="" className="h-1 w-1 object-contain" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HeroStatCalculatorPanel({
   locale,
   heroId,
@@ -113,6 +159,8 @@ export default function HeroStatCalculatorPanel({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HeroStatCalculationResponse | null>(null);
   const [selectedTroopKey, setSelectedTroopKey] = useState<string>('');
+  const [troopDropdownOpen, setTroopDropdownOpen] = useState(false);
+  const troopDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const t = useMemo(
     () =>
@@ -272,6 +320,34 @@ export default function HeroStatCalculatorPanel({
     };
   }, [apiPostJson, baseArmor, baseAttack, baseHp, calculateEndpoint, emblemPathType, heroId, includeMasterEmblems, selectedCostumeHeroId, stageCode]);
 
+  useEffect(() => {
+    if (!troopDropdownOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (troopDropdownRef.current?.contains(target)) {
+        return;
+      }
+      setTroopDropdownOpen(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setTroopDropdownOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [troopDropdownOpen]);
+
   if (baseAttack == null || baseArmor == null || baseHp == null) {
     return (
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--foreground-soft)]">
@@ -296,8 +372,8 @@ export default function HeroStatCalculatorPanel({
   const costumeFieldLabel =
     isCostume
       ? locale === 'RU'
-        ? 'Целевой костюм'
-        : 'Target costume'
+        ? 'Имеющийся костюм'
+        : 'Available costume'
       : t.costume;
   const currentCostumeLabel =
     isCostume
@@ -312,6 +388,7 @@ export default function HeroStatCalculatorPanel({
 
   const troopFieldLabel = locale === 'RU' ? 'Отряд' : 'Troop';
   const noTroopLabel = locale === 'RU' ? 'Без отряда' : 'No troop';
+  const selectedTroopLabel = selectedTroop ? selectedTroop.name : noTroopLabel;
 
   const statCards = [
     { key: 'attack', icon: '⚔️', label: t.attack, value: displayedStats.attack, base: baseAttack },
@@ -374,23 +451,65 @@ export default function HeroStatCalculatorPanel({
         ) : null}
 
         {troopOptions.length > 0 ? (
-          <label className="flex flex-col gap-2">
+          <div ref={troopDropdownRef} className="relative flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">
               {troopFieldLabel}
             </span>
-            <select
-              value={selectedTroopKey}
-              onChange={(event) => setSelectedTroopKey(event.target.value)}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            <button
+              type="button"
+              onClick={() => setTroopDropdownOpen((prev) => !prev)}
+              className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
             >
-              <option value="">{noTroopLabel}</option>
-              {troopOptions.map((troop) => (
-                <option key={troop.key} value={troop.key}>
-                  {troop.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              <span className="flex min-w-0 items-center gap-3">
+                {selectedTroop ? (
+                  <TroopOptionThumb imageUrl={selectedTroop.imageUrl} name={selectedTroop.name} stars={selectedTroop.stars} />
+                ) : (
+                  <span className="inline-flex h-8 w-8 shrink-0 rounded-lg border border-dashed border-[var(--border)]" />
+                )}
+                <span className="min-w-0 truncate">{selectedTroopLabel}</span>
+              </span>
+              <TroopSelectChevron open={troopDropdownOpen} />
+            </button>
+
+            {troopDropdownOpen ? (
+              <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTroopKey('');
+                    setTroopDropdownOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                    !selectedTroopKey
+                      ? 'bg-cyan-400/12 text-cyan-200'
+                      : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <span className="inline-flex h-8 w-8 shrink-0 rounded-lg border border-dashed border-[var(--border)]" />
+                  <span className="min-w-0 flex-1 truncate">{noTroopLabel}</span>
+                </button>
+
+                {troopOptions.map((troop) => (
+                  <button
+                    key={troop.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTroopKey(troop.key);
+                      setTroopDropdownOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      troop.key === selectedTroopKey
+                        ? 'bg-cyan-400/12 text-cyan-200'
+                        : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    <TroopOptionThumb imageUrl={troop.imageUrl} name={troop.name} stars={troop.stars} />
+                    <span className="min-w-0 flex-1 truncate">{troop.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <div>
@@ -476,3 +595,5 @@ export default function HeroStatCalculatorPanel({
     </div>
   );
 }
+
+
