@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import DictionaryModal from './DictionaryModal';
@@ -9,6 +10,7 @@ import HeroInfoPopover from './HeroInfoPopover';
 import HeroStatCalculatorPanel, { type HeroStatTroopOption } from './HeroStatCalculatorPanel';
 import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
+import { buildEpicTroopEntries } from '@/lib/static/troops';
 
 export type PublicHeroCardItem = {
   id: number;
@@ -187,7 +189,7 @@ type TroopBonusSummary = {
 const LIMIT_BREAK_ASSET_BASE = '/heroes/limit-break';
 const FIRST_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_first_limit_broken.webp`;
 const SECOND_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_second_limit_broken.webp`;
-const TROOPS_ASSET_BASE = '/heroes/troops';
+const TROOPS_ASSET_BASE = '/heroes/troops/legendary';
 const TROOP_SPECIALTY_ASSET_BASE = `${TROOPS_ASSET_BASE}/specialty`;
 const HERO_ELEMENT_ASSET_BASE = '/heroes/elements/elements';
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
@@ -1205,11 +1207,11 @@ function TroopBonusStatCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 text-center sm:rounded-2xl sm:p-3">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={iconUrl} alt={label} className="mx-auto h-10 w-10 object-contain" />
-      <div className="mt-2 text-xs font-medium uppercase tracking-wide text-[var(--foreground-muted)]">{label}</div>
-      <div className="mt-1 text-base font-bold text-[var(--foreground)]">{value}</div>
+      <img src={iconUrl} alt={label} className="mx-auto h-7 w-7 object-contain sm:h-10 sm:w-10" />
+      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-[var(--foreground-muted)] sm:mt-2 sm:text-xs">{label}</div>
+      <div className="mt-0.5 text-sm font-bold text-[var(--foreground)] sm:mt-1 sm:text-base">{value}</div>
     </div>
   );
 }
@@ -1276,7 +1278,7 @@ function TroopBonusModal({
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.attack} label={attackLabel} value={summary.classAttackBonus} />
             <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.defense} label={defenseLabel} value={summary.classDefenseBonus} />
             <TroopBonusStatCard iconUrl={TROOP_STAT_ICON_BY_KEY.health} label={healthLabel} value={summary.classHealthBonus} />
@@ -1321,10 +1323,17 @@ function TroopCard({
         title={troopTitle}
         aria-label={troopTitle}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={troopImageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.84] object-contain" />
+        <button
+          type="button"
+          onClick={() => onOpenBonus(troop)}
+          className="block w-full"
+          aria-label={locale === 'RU' ? `Открыть бонусы ${troopTitle}` : `Open ${troopTitle} bonuses`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={troopImageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.84] object-contain" />
+        </button>
 
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-2">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-2">
           <div className="flex flex-col gap-1">
             {troop.classes.map((classKey) => (
               <div
@@ -1340,7 +1349,7 @@ function TroopCard({
           <HeroInfoPopover
             label={locale === 'RU' ? `Специальность ${troopTitle}` : `${troopTitle} specialty`}
             content={troopSpecialtyTooltip}
-            triggerClassName="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1.5 shadow-lg transition hover:bg-slate-900/90"
+            triggerClassName="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1.5 shadow-lg transition hover:bg-slate-900/90"
             trigger={
               // eslint-disable-next-line @next/next/no-img-element
               <img src={troopSpecialtyUrl} alt={troop.specialties} className="h-full w-full object-contain" />
@@ -1348,7 +1357,7 @@ function TroopCard({
           />
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-2">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-2">
           <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-slate-950/78 px-2 py-1 shadow-lg">
             {Array.from({ length: 5 }).map((_, index) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -1614,10 +1623,6 @@ export default function PublicHeroDetailsModal({
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
   const limitBreakElementKey = resolveLimitBreakElementKey(resolvedElementName);
   const troopsTitle = locale === 'RU' ? 'Отряды' : 'Troops';
-  const troopsSubtitle =
-    locale === 'RU'
-      ? 'Легендарные отряды, подходящие для данного героя. Инфа по отрядам указана для 30 уровня.'
-      : 'Legendary troops for this hero. Troop info is shown for level 30.';
   const troopsUnavailableText =
     locale === 'RU'
       ? 'Для этого героя подходящие отряды пока не найдены.'
@@ -1639,6 +1644,9 @@ export default function PublicHeroDetailsModal({
     limitBreakElementKey && resolvedHeroClassKey
       ? TROOP_CATALOG.filter((troop) => troop.classes.includes(resolvedHeroClassKey))
       : [];
+  const matchingEpicTroops = limitBreakElementKey
+    ? buildEpicTroopEntries().filter((troop) => troop.elementKey === limitBreakElementKey)
+    : [];
   const calculatorTroopOptions: HeroStatTroopOption[] = matchingTroops
     .map((troop) => {
       const summary = TROOP_BONUS_SUMMARIES[troop.key];
@@ -1649,12 +1657,26 @@ export default function PublicHeroDetailsModal({
       return {
         key: troop.key,
         name: locale === 'RU' ? troop.nameRu : troop.nameEn,
+        imageUrl: `${TROOPS_ASSET_BASE}/${TROOP_ELEMENT_PREFIX_BY_KEY[limitBreakElementKey!]}_legendary_${troop.key}.webp`,
+        stars: 5,
         totalAttackBonusPercent: Number.parseFloat(summary.totalAttack),
         totalDefenseBonusPercent: Number.parseFloat(summary.totalDefense),
         totalHealthBonusPercent: Number.parseFloat(summary.totalHealth),
         totalManaBonusPercent: Number.parseFloat(summary.totalMana),
       };
     })
+    .concat(
+      matchingEpicTroops.map((troop) => ({
+        key: `epic-${troop.key}`,
+        name: locale === 'RU' ? troop.nameRu : troop.nameEn,
+        imageUrl: troop.imageUrl,
+        stars: 4,
+        totalAttackBonusPercent: Number.parseFloat(troop.summary.attack ?? '0'),
+        totalDefenseBonusPercent: Number.parseFloat(troop.summary.defense ?? '0'),
+        totalHealthBonusPercent: Number.parseFloat(troop.summary.health ?? '0'),
+        totalManaBonusPercent: Number.parseFloat(troop.summary.mana ?? '0'),
+      })),
+    )
     .filter((item): item is HeroStatTroopOption => item != null);
 
   const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
@@ -2056,7 +2078,7 @@ export default function PublicHeroDetailsModal({
                   <div>
                     <div className="text-sm font-semibold text-[var(--foreground)]">{troopsTitle}</div>
                     <div className="mt-1 text-sm text-[var(--foreground-soft)]">
-                      {troopsSubtitle}
+                      {locale === 'RU' ? 'Легендарные отряды, подходящие для данного героя.' : 'Legendary troops for this hero.'}
                     </div>
                     <div className="mt-1 text-sm text-[var(--foreground-soft)]">
                       {troopsOpen ? t.hide : t.show}
@@ -2067,8 +2089,14 @@ export default function PublicHeroDetailsModal({
 
                 {troopsOpen ? (
                   <div className="mt-4">
+                    <Link
+                      href="/troops"
+                      className="mb-3 inline-flex text-sm font-semibold text-cyan-300 underline decoration-cyan-400/70 underline-offset-4 transition hover:text-cyan-200"
+                    >
+                      {locale === 'RU' ? 'Показать все отряды' : 'Show all troops'}
+                    </Link>
                     {limitBreakElementKey && matchingTroops.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-2 gap-3">
                         {matchingTroops.map((troop) => (
                           <TroopCard
                             key={`${limitBreakElementKey}-${troop.key}`}
@@ -2145,3 +2173,4 @@ export default function PublicHeroDetailsModal({
     </DictionaryModal>
   );
 }
+

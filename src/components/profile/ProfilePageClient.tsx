@@ -312,7 +312,7 @@ function PowerGradeBadge({
               type="button"
               onClick={() => setOpen(false)}
               className="rounded-md p-1 text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-              aria-label={locale === 'RU' ? 'Р—Р°РєСЂС‹С‚СЊ' : 'Close'}
+              aria-label={locale === 'RU' ? 'Закрыть' : 'Close'}
             >
               <X className="h-4 w-4" />
             </button>
@@ -2071,8 +2071,8 @@ export default function ProfilePageClient() {
                     <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
                     <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
                     <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
-                    <option value="element">{locale === 'ru' ? 'РџРѕ СЃС‚РёС…РёРё' : 'By element'}</option>
-                    <option value="powerGrade">{locale === 'ru' ? 'РџРѕ СѓСЂРѕРІРЅСЋ РІРѕР·РЅРµСЃРµРЅРёСЏ' : 'By ascension level'}</option>
+                    <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
+                    <option value="powerGrade">{locale === 'ru' ? 'По уровню вознесения' : 'By ascension level'}</option>
                   </select>
                 </label>
 

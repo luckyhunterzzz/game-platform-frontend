@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 export default function HeroesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { authenticated } = useAuth();
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
 
   const navigateHome = () => {
     setSidebarOpen(false);
@@ -46,6 +46,15 @@ export default function HeroesPage() {
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.menuPageTwo}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/troops"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops'}
                 </Link>
               </li>
               <li>
