@@ -14,7 +14,7 @@ const SHOW_PURCHASE_HELP_BANNER = false;
 
 export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
   const { authenticated, loading, login } = useAuth();
 
   const navigateHome = () => {
@@ -55,6 +55,15 @@ export default function JointPurchasesPage() {
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.menuPageTwo}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/troops"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops'}
                 </Link>
               </li>
               <li>
