@@ -50,6 +50,45 @@ type FilterOption<T extends string> = {
   iconUrl?: string;
 };
 
+function useNearViewport<T extends HTMLElement>(rootMargin = '320px') {
+  const ref = useRef<T | null>(null);
+  const [isNearViewport, setIsNearViewport] = useState(false);
+
+  useEffect(() => {
+    if (isNearViewport) {
+      return;
+    }
+
+    const node = ref.current;
+    if (!node) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsNearViewport(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) {
+          return;
+        }
+
+        setIsNearViewport(true);
+        observer.disconnect();
+      },
+      { rootMargin },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [isNearViewport, rootMargin]);
+
+  return { ref, isNearViewport };
+}
+
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -360,6 +399,7 @@ function TroopPreviewCard({
   locale: 'ru' | 'en';
   onOpenBonus: (troop: TroopEntry) => void;
 }) {
+  const { ref, isNearViewport } = useNearViewport<HTMLElement>();
   const troopTitle = locale === 'ru' ? troop.nameRu : troop.nameEn;
   const topRightLabel =
     troop.tier === 'legendary'
@@ -369,7 +409,10 @@ function TroopPreviewCard({
       : '';
 
   return (
-    <article className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+    <article
+      ref={ref}
+      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)]"
+    >
       <div
         className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
         title={troopTitle}
@@ -381,8 +424,20 @@ function TroopPreviewCard({
           className="block w-full"
           aria-label={locale === 'ru' ? `Открыть бонусы ${troopTitle}` : `Open ${troopTitle} bonuses`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={troop.imageUrl} alt={troopTitle} className="aspect-square w-full scale-[0.58] object-contain" />
+          {isNearViewport ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={troop.imageUrl}
+                alt={troopTitle}
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full scale-[0.58] object-contain"
+              />
+            </>
+          ) : (
+            <div className="aspect-square w-full" aria-hidden="true" />
+          )}
         </button>
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-1.5">
@@ -393,12 +448,18 @@ function TroopPreviewCard({
                   key={`${troop.key}-${troop.elementKey}-${classKey}`}
                   className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/15 bg-slate-950/78 p-1 shadow-lg"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={TROOP_CLASS_ICON_BY_KEY[classKey]}
-                    alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                    className="h-full w-full object-contain"
-                  />
+                  {isNearViewport ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                        alt={locale === 'ru' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-contain"
+                      />
+                    </>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -411,8 +472,20 @@ function TroopPreviewCard({
               label={topRightLabel}
               content={getLegendaryTroopTooltipContent(troop, locale)}
               trigger={
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={troop.specialtyImageUrl} alt={topRightLabel} className="h-full w-full object-contain" />
+                isNearViewport ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={troop.specialtyImageUrl}
+                      alt={topRightLabel}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-contain"
+                    />
+                  </>
+                ) : (
+                  <span className="block h-full w-full" aria-hidden="true" />
+                )
               }
               triggerClassName="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg transition hover:bg-slate-900/88"
             />
@@ -424,23 +497,39 @@ function TroopPreviewCard({
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-1.5">
           <div className="flex items-center gap-0.5 rounded-lg border border-white/15 bg-slate-950/78 px-1.5 py-0.5 shadow-lg">
             {Array.from({ length: troop.stars }).map((_, index) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={`${troop.key}-${troop.elementKey}-star-${index}`}
-                src={HERO_STAR_ASSET}
-                alt=""
-                className="h-3 w-3 object-contain"
-              />
+              isNearViewport ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${troop.key}-${troop.elementKey}-star-${index}`}
+                  src={HERO_STAR_ASSET}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-3 w-3 object-contain"
+                />
+              ) : (
+                <span
+                  key={`${troop.key}-${troop.elementKey}-star-placeholder-${index}`}
+                  className="block h-3 w-3"
+                  aria-hidden="true"
+                />
+              )
             ))}
           </div>
 
           <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={troop.elementImageUrl}
-              alt={locale === 'ru' ? TROOP_ELEMENT_LABELS[troop.elementKey].ru : TROOP_ELEMENT_LABELS[troop.elementKey].en}
-              className="h-full w-full object-contain"
-            />
+            {isNearViewport ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={troop.elementImageUrl}
+                  alt={locale === 'ru' ? TROOP_ELEMENT_LABELS[troop.elementKey].ru : TROOP_ELEMENT_LABELS[troop.elementKey].en}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-contain"
+                />
+              </>
+            ) : null}
           </div>
         </div>
       </div>
