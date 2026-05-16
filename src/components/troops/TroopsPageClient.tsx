@@ -26,7 +26,6 @@ import {
   TROOP_STAT_ICON_BY_KEY,
   TROOP_TIER_LABELS,
   type EpicTroopBonusSummary,
-  type EpicTroopEntry,
   type HeroClassKey,
   type LegendaryTroopEntry,
   type TroopBonusSummary,
@@ -181,31 +180,6 @@ function TroopBonusStatCard({
   );
 }
 
-function TroopImageBadge({
-  imageUrl,
-  title,
-  stars,
-  sizeClassName = 'h-8 w-8',
-}: {
-  imageUrl: string;
-  title: string;
-  stars: number;
-  sizeClassName?: string;
-}) {
-  return (
-    <div className={`relative shrink-0 overflow-hidden rounded-lg ${sizeClassName}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt={title} className="h-full w-full object-contain" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center gap-[1px] bg-gradient-to-t from-black/70 via-black/25 to-transparent px-0.5 py-0.5">
-        {Array.from({ length: stars }).map((_, index) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={`${title}-badge-star-${index}`} src={HERO_STAR_ASSET} alt="" className="h-2.5 w-2.5 object-contain" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function getLegendaryTroopTooltipContent(troop: LegendaryTroopEntry, locale: 'ru' | 'en') {
   const content = TROOP_SPECIALTY_CONTENT[troop.specialty];
   return `${locale === 'ru' ? content.titleRu : content.titleEn}\n\n${locale === 'ru' ? content.descriptionRu : content.descriptionEn}`;
@@ -248,10 +222,9 @@ function TroopBonusModal({
       return;
     }
 
-    setHighlightEnhancements(true);
     const timeoutId = window.setTimeout(() => setHighlightEnhancements(false), 3000);
     return () => window.clearTimeout(timeoutId);
-  }, [troop]);
+  }, [troop.tier]);
 
   if (troop.tier === 'legendary') {
     const summary: TroopBonusSummary | undefined = TROOP_BONUS_SUMMARIES[troop.key];
@@ -772,7 +745,12 @@ export default function TroopsPageClient() {
       </main>
 
       {selectedTroopBonus ? (
-        <TroopBonusModal troop={selectedTroopBonus} locale={locale} onClose={() => setSelectedTroopBonus(null)} />
+        <TroopBonusModal
+          key={`${selectedTroopBonus.tier}-${selectedTroopBonus.elementKey}-${selectedTroopBonus.key}`}
+          troop={selectedTroopBonus}
+          locale={locale}
+          onClose={() => setSelectedTroopBonus(null)}
+        />
       ) : null}
     </div>
   );
