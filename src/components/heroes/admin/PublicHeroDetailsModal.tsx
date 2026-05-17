@@ -255,11 +255,6 @@ type ManaOptimizationLegendaryTroopData = {
   levels: ManaOptimizationLevelBonus[];
 };
 
-type ManaOptimizationEpicTroopData = {
-  troopKey: string;
-  levels: ManaOptimizationLevelBonus[];
-};
-
 const LIMIT_BREAK_ASSET_BASE = '/heroes/limit-break';
 const FIRST_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_first_limit_broken.webp`;
 const SECOND_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_second_limit_broken.webp`;

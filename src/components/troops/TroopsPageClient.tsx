@@ -52,7 +52,9 @@ type FilterOption<T extends string> = {
 
 function useNearViewport<T extends HTMLElement>(rootMargin = '320px') {
   const ref = useRef<T | null>(null);
-  const [isNearViewport, setIsNearViewport] = useState(false);
+  const [hasIntersected, setHasIntersected] = useState(false);
+  const supportsIntersectionObserver = typeof window !== 'undefined' && typeof window.IntersectionObserver !== 'undefined';
+  const isNearViewport = hasIntersected || !supportsIntersectionObserver;
 
   useEffect(() => {
     if (isNearViewport) {
@@ -64,18 +66,13 @@ function useNearViewport<T extends HTMLElement>(rootMargin = '320px') {
       return;
     }
 
-    if (typeof IntersectionObserver === 'undefined') {
-      setIsNearViewport(true);
-      return;
-    }
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) {
           return;
         }
 
-        setIsNearViewport(true);
+        setHasIntersected(true);
         observer.disconnect();
       },
       { rootMargin },
