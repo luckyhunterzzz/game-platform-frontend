@@ -89,6 +89,23 @@ function useNearViewport<T extends HTMLElement>(rootMargin = '320px') {
   return { ref, isNearViewport };
 }
 
+function getTroopElementFrameClass(elementKey: TroopElementKey): string {
+  switch (elementKey) {
+    case 'fire':
+      return 'border-red-400/45 shadow-[0_0_0_1px_rgba(248,113,113,0.18)]';
+    case 'ice':
+      return 'border-sky-400/45 shadow-[0_0_0_1px_rgba(56,189,248,0.18)]';
+    case 'nature':
+      return 'border-emerald-400/45 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]';
+    case 'dark':
+      return 'border-fuchsia-400/45 shadow-[0_0_0_1px_rgba(232,121,249,0.18)]';
+    case 'holy':
+      return 'border-amber-300/55 shadow-[0_0_0_1px_rgba(252,211,77,0.2)]';
+    default:
+      return 'border-[var(--border)]';
+  }
+}
+
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -401,6 +418,7 @@ function TroopPreviewCard({
 }) {
   const { ref, isNearViewport } = useNearViewport<HTMLElement>();
   const troopTitle = locale === 'ru' ? troop.nameRu : troop.nameEn;
+  const frameClass = getTroopElementFrameClass(troop.elementKey);
   const topRightLabel =
     troop.tier === 'legendary'
       ? locale === 'ru'
@@ -411,10 +429,10 @@ function TroopPreviewCard({
   return (
     <article
       ref={ref}
-      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)]"
+      className={`rounded-xl border bg-[var(--surface-strong)] p-2 shadow-[0_12px_28px_rgba(0,0,0,0.14)] ${frameClass}`}
     >
       <div
-        className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+        className={`relative overflow-hidden rounded-2xl border bg-[var(--surface)] ${frameClass}`}
         title={troopTitle}
         aria-label={troopTitle}
       >

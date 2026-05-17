@@ -12,6 +12,8 @@ import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
 import { buildEpicTroopEntries } from '@/lib/static/troops';
 
+const MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT = 2;
+
 export type PublicHeroCardItem = {
   id: number;
   slug: string;
@@ -186,6 +188,78 @@ type TroopBonusSummary = {
   totalMana: string;
 };
 
+type ManaOptimizationSpeedKey =
+  | 'very_fast'
+  | 'fast'
+  | 'average'
+  | 'slow'
+  | 'very_slow'
+  | 'changing_tides'
+  | 'charge'
+  | 'dancer'
+  | 'magic'
+  | 'slayer'
+  | 'styx';
+
+type ManaOptimizationTroopType = 'legendary_5' | 'epic_mana_15' | 'epic_mana_20';
+
+type ManaOptimizationScenario = {
+  id: string;
+  speed: ManaOptimizationSpeedKey;
+  fromTiles: string;
+  toTiles: string;
+  requiredManaBonus: number;
+  stageLabelEn?: string;
+  stageLabelRu?: string;
+};
+
+type ManaOptimizationSupportChip = {
+  iconUrl?: string;
+  text: string;
+};
+
+type ManaOptimizationLine = {
+  key: string;
+  minLevel: number;
+  supportChips: ManaOptimizationSupportChip[];
+  fallbackText?: string | null;
+};
+
+type ManaOptimizationTroopCardItem = {
+  key: string;
+  name: string;
+  imageUrl: string | null;
+  classKeys?: HeroClassKey[];
+};
+
+type ManaOptimizationOption = {
+  key: string;
+  troopType: ManaOptimizationTroopType;
+  troopItems: ManaOptimizationTroopCardItem[];
+  stars: 4 | 5;
+  lines: ManaOptimizationLine[];
+  elementKey?: LimitBreakElementKey | null;
+};
+
+type ManaOptimizationScenarioView = ManaOptimizationScenario & {
+  options: ManaOptimizationOption[];
+};
+
+type ManaOptimizationLevelBonus = {
+  level: number;
+  manaBonus: number;
+};
+
+type ManaOptimizationLegendaryTroopData = {
+  troopKey: string;
+  levels: ManaOptimizationLevelBonus[];
+};
+
+type ManaOptimizationEpicTroopData = {
+  troopKey: string;
+  levels: ManaOptimizationLevelBonus[];
+};
+
 const LIMIT_BREAK_ASSET_BASE = '/heroes/limit-break';
 const FIRST_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_first_limit_broken.webp`;
 const SECOND_LIMIT_BREAK_ICON = `${LIMIT_BREAK_ASSET_BASE}/power_grade_second_limit_broken.webp`;
@@ -243,6 +317,254 @@ const TROOP_CLASS_LABELS: Record<HeroClassKey, { en: string; ru: string }> = {
   sorcerer: { en: 'Sorcerer', ru: 'Колдун' },
   wizard: { en: 'Wizard', ru: 'Волшебник' },
 };
+
+const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
+const MANA_TALENT_PLUS_TWO_CLASSES = new Set<HeroClassKey>([
+  'cleric',
+  'wizard',
+  'paladin',
+  'barbarian',
+  'fighter',
+  'rogue',
+  'ranger',
+]);
+const MANA_TALENT_PLUS_FOUR_CLASSES = new Set<HeroClassKey>(['sorcerer', 'monk', 'druid']);
+
+const MANA_OPTIMIZATION_SCENARIOS: ManaOptimizationScenario[] = [
+  { id: 'very-fast-6_5-to-6', speed: 'very_fast', fromTiles: '6.5', toTiles: '6', requiredManaBonus: 7 },
+  { id: 'fast-8-to-7', speed: 'fast', fromTiles: '8', toTiles: '7', requiredManaBonus: 15 },
+  { id: 'average-10-to-9', speed: 'average', fromTiles: '10', toTiles: '9', requiredManaBonus: 13 },
+  { id: 'average-10-to-8', speed: 'average', fromTiles: '10', toTiles: '8', requiredManaBonus: 26 },
+  { id: 'slow-12-to-11', speed: 'slow', fromTiles: '12', toTiles: '11', requiredManaBonus: 11 },
+  { id: 'slow-12-to-10', speed: 'slow', fromTiles: '12', toTiles: '10', requiredManaBonus: 20 },
+  { id: 'very-slow-13_5-to-13', speed: 'very_slow', fromTiles: '13.5', toTiles: '13', requiredManaBonus: 4 },
+  { id: 'very-slow-13_5-to-12', speed: 'very_slow', fromTiles: '13.5', toTiles: '12', requiredManaBonus: 13 },
+  { id: 'very-slow-13_5-to-11', speed: 'very_slow', fromTiles: '13.5', toTiles: '11', requiredManaBonus: 23 },
+  {
+    id: 'changing-tides-wave-1-8-to-7',
+    speed: 'changing_tides',
+    fromTiles: '8',
+    toTiles: '7',
+    requiredManaBonus: 15,
+    stageLabelEn: 'Wave 1',
+    stageLabelRu: '\u0412\u043e\u043b\u043d\u0430 1',
+  },
+  {
+    id: 'changing-tides-wave-1-8-to-6',
+    speed: 'changing_tides',
+    fromTiles: '8',
+    toTiles: '6',
+    requiredManaBonus: 34,
+    stageLabelEn: 'Wave 1',
+    stageLabelRu: '\u0412\u043e\u043b\u043d\u0430 1',
+  },
+  {
+    id: 'changing-tides-wave-2-10-to-9',
+    speed: 'changing_tides',
+    fromTiles: '10',
+    toTiles: '9',
+    requiredManaBonus: 12,
+    stageLabelEn: 'Wave 2',
+    stageLabelRu: '\u0412\u043e\u043b\u043d\u0430 2',
+  },
+  {
+    id: 'changing-tides-wave-2-10-to-8',
+    speed: 'changing_tides',
+    fromTiles: '10',
+    toTiles: '8',
+    requiredManaBonus: 25,
+    stageLabelEn: 'Wave 2',
+    stageLabelRu: '\u0412\u043e\u043b\u043d\u0430 2',
+  },
+  {
+    id: 'charge-1-4_9-to-4',
+    speed: 'charge',
+    fromTiles: '4.9',
+    toTiles: '4',
+    requiredManaBonus: 23,
+    stageLabelEn: 'Charge 1',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 1',
+  },
+  {
+    id: 'charge-2-9_8-to-9',
+    speed: 'charge',
+    fromTiles: '9.8',
+    toTiles: '9',
+    requiredManaBonus: 9,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'charge-2-9_8-to-8',
+    speed: 'charge',
+    fromTiles: '9.8',
+    toTiles: '8',
+    requiredManaBonus: 23,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'charge-3-14_7-to-14',
+    speed: 'charge',
+    fromTiles: '14.7',
+    toTiles: '14',
+    requiredManaBonus: 6,
+    stageLabelEn: 'Charge 3',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 3',
+  },
+  {
+    id: 'charge-3-14_7-to-13',
+    speed: 'charge',
+    fromTiles: '14.7',
+    toTiles: '13',
+    requiredManaBonus: 14,
+    stageLabelEn: 'Charge 3',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 3',
+  },
+  {
+    id: 'charge-3-14_7-to-12',
+    speed: 'charge',
+    fromTiles: '14.7',
+    toTiles: '12',
+    requiredManaBonus: 23,
+    stageLabelEn: 'Charge 3',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 3',
+  },
+  { id: 'dancer-7-to-6', speed: 'dancer', fromTiles: '7', toTiles: '6', requiredManaBonus: 17 },
+  {
+    id: 'magic-1-5_5-to-5',
+    speed: 'magic',
+    fromTiles: '5.5',
+    toTiles: '5',
+    requiredManaBonus: 11,
+    stageLabelEn: 'Charge 1',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 1',
+  },
+  {
+    id: 'magic-2-12_3-to-12',
+    speed: 'magic',
+    fromTiles: '12.3',
+    toTiles: '12',
+    requiredManaBonus: 3,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'magic-2-12_3-to-11',
+    speed: 'magic',
+    fromTiles: '12.3',
+    toTiles: '11',
+    requiredManaBonus: 12,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'magic-2-12_3-to-10',
+    speed: 'magic',
+    fromTiles: '12.3',
+    toTiles: '10',
+    requiredManaBonus: 23,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  { id: 'slayer-11-to-10', speed: 'slayer', fromTiles: '11', toTiles: '10', requiredManaBonus: 10 },
+  { id: 'slayer-11-to-9', speed: 'slayer', fromTiles: '11', toTiles: '9', requiredManaBonus: 23 },
+  {
+    id: 'styx-1-6-to-5',
+    speed: 'styx',
+    fromTiles: '6',
+    toTiles: '5',
+    requiredManaBonus: 20,
+    stageLabelEn: 'Charge 1',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 1',
+  },
+  {
+    id: 'styx-2-9-to-8',
+    speed: 'styx',
+    fromTiles: '9',
+    toTiles: '8',
+    requiredManaBonus: 13,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'styx-2-9-to-7',
+    speed: 'styx',
+    fromTiles: '9',
+    toTiles: '7',
+    requiredManaBonus: 29,
+    stageLabelEn: 'Charge 2',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 2',
+  },
+  {
+    id: 'styx-3-12-to-11',
+    speed: 'styx',
+    fromTiles: '12',
+    toTiles: '11',
+    requiredManaBonus: 10,
+    stageLabelEn: 'Charge 3',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 3',
+  },
+  {
+    id: 'styx-3-12-to-10',
+    speed: 'styx',
+    fromTiles: '12',
+    toTiles: '10',
+    requiredManaBonus: 20,
+    stageLabelEn: 'Charge 3',
+    stageLabelRu: '\u0417\u0430\u0440\u044f\u0434 3',
+  },
+];
+
+const LEGENDARY_MANA_LEVELS_BY_TROOP_KEY: Record<string, ManaOptimizationLegendaryTroopData> = {
+  fighter: { troopKey: 'fighter', levels: [{ level: 1, manaBonus: 5 }, { level: 10, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  cleric: { troopKey: 'cleric', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  barbarian: { troopKey: 'barbarian', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  druid: { troopKey: 'druid', levels: [{ level: 1, manaBonus: 5 }, { level: 10, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  monk: { troopKey: 'monk', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  sorcerer: { troopKey: 'sorcerer', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  ranger: { troopKey: 'ranger', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  wizard: { troopKey: 'wizard', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  rogue: { troopKey: 'rogue', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  paladin: { troopKey: 'paladin', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  arcane_hunter: { troopKey: 'arcane_hunter', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  master_assassin: { troopKey: 'master_assassin', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  devoted_knight: { troopKey: 'devoted_knight', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  divine_cleric: { troopKey: 'divine_cleric', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  tree_spirit: { troopKey: 'tree_spirit', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  furious_monk: { troopKey: 'furious_monk', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  hunter_mage: { troopKey: 'hunter_mage', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 29, manaBonus: 11 }] },
+  serene_brute: { troopKey: 'serene_brute', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  shaman_wizard: { troopKey: 'shaman_wizard', levels: [{ level: 1, manaBonus: 5 }, { level: 9, manaBonus: 7 }, { level: 19, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+  swashbuckler: { troopKey: 'swashbuckler', levels: [{ level: 1, manaBonus: 5 }, { level: 10, manaBonus: 7 }, { level: 20, manaBonus: 9 }, { level: 28, manaBonus: 11 }] },
+};
+
+const EPIC_MANA_15_LEVELS: ManaOptimizationLevelBonus[] = [
+  { level: 1, manaBonus: 5 },
+  { level: 5, manaBonus: 7 },
+  { level: 11, manaBonus: 9 },
+  { level: 17, manaBonus: 11 },
+  { level: 23, manaBonus: 13 },
+  { level: 29, manaBonus: 15 },
+];
+
+const EPIC_MANA_20_LEVELS: ManaOptimizationLevelBonus[] = [
+  { level: 1, manaBonus: 5 },
+  { level: 5, manaBonus: 8 },
+  { level: 11, manaBonus: 11 },
+  { level: 17, manaBonus: 14 },
+  { level: 23, manaBonus: 17 },
+  { level: 29, manaBonus: 20 },
+];
+
+const EPIC_MANA_20_CYCLOPS_LEVELS: ManaOptimizationLevelBonus[] = [
+  { level: 1, manaBonus: 5 },
+  { level: 5, manaBonus: 8 },
+  { level: 12, manaBonus: 11 },
+  { level: 16, manaBonus: 14 },
+  { level: 23, manaBonus: 17 },
+  { level: 27, manaBonus: 20 },
+];
 
 const TROOP_CATALOG: TroopMeta[] = [
   {
@@ -1102,6 +1424,122 @@ function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): Hero
   return null;
 }
 
+function resolveManaSpeedKey(value: string | null | undefined): ManaOptimizationSpeedKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  if (
+    normalized.includes('changing tides') ||
+    normalized.includes('changingtides') ||
+    normalized.includes('\u0432\u043e\u043b\u043d')
+  ) {
+    return 'changing_tides';
+  }
+
+  if (normalized.includes('charge') || normalized.includes('\u0437\u0430\u0440\u044f\u0434')) {
+    return 'charge';
+  }
+
+  if (normalized.includes('dancer') || normalized.includes('\u0442\u0430\u043d\u0446')) {
+    return 'dancer';
+  }
+
+  if (normalized.includes('magic') || normalized.includes('\u043c\u0430\u0433')) {
+    return 'magic';
+  }
+
+  if (normalized.includes('slayer') || normalized.includes('\u0441\u043b\u0435\u0439')) {
+    return 'slayer';
+  }
+
+  if (normalized.includes('styx') || normalized.includes('\u0441\u0442\u0438\u043a\u0441')) {
+    return 'styx';
+  }
+
+  if (
+    normalized.includes('very slow') ||
+    normalized.includes('veryslow') ||
+    normalized.includes('\u043e\u0447\u0435\u043d\u044c \u043c\u0435\u0434\u043b')
+  ) {
+    return 'very_slow';
+  }
+
+  if (
+    normalized.includes('very fast') ||
+    normalized.includes('veryfast') ||
+    normalized.includes('очень быстр')
+  ) {
+    return 'very_fast';
+  }
+
+  if (normalized.includes('fast') || normalized.includes('быстр')) {
+    return 'fast';
+  }
+
+  if (
+    normalized.includes('average') ||
+    normalized.includes('medium') ||
+    normalized.includes('avg') ||
+    normalized.includes('средн')
+  ) {
+    return 'average';
+  }
+
+  if (normalized.includes('slow') || normalized.includes('медлен')) {
+    return 'slow';
+  }
+
+  return null;
+}
+
+function getManaTalentBonus(classKey: HeroClassKey | null): 0 | 2 | 4 {
+  if (!classKey) {
+    return 0;
+  }
+
+  if (MANA_TALENT_PLUS_FOUR_CLASSES.has(classKey)) {
+    return 4;
+  }
+
+  if (MANA_TALENT_PLUS_TWO_CLASSES.has(classKey)) {
+    return 2;
+  }
+
+  return 0;
+}
+
+function getTroopElementFrameClass(elementKey: LimitBreakElementKey | null | undefined): string {
+  switch (elementKey) {
+    case 'fire':
+      return 'border-red-400/45 shadow-[0_0_0_1px_rgba(248,113,113,0.18)]';
+    case 'ice':
+      return 'border-sky-400/45 shadow-[0_0_0_1px_rgba(56,189,248,0.18)]';
+    case 'nature':
+      return 'border-emerald-400/45 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]';
+    case 'dark':
+      return 'border-fuchsia-400/45 shadow-[0_0_0_1px_rgba(232,121,249,0.18)]';
+    case 'holy':
+      return 'border-amber-300/55 shadow-[0_0_0_1px_rgba(252,211,77,0.2)]';
+    default:
+      return 'border-[var(--border)]';
+  }
+}
+
+function findMinimumTroopLevelForManaThreshold(
+  levels: ManaOptimizationLevelBonus[],
+  requiredManaBonus: number,
+  passiveManaBonus: number,
+): number | null {
+  const neededFromTroop = Math.max(requiredManaBonus - passiveManaBonus, 0);
+
+  for (const item of levels) {
+    if (item.manaBonus >= neededFromTroop) {
+      return item.level;
+    }
+  }
+
+  return null;
+}
+
 function resolveLimitBreakItemImageUrl(
   originalImageUrl: string,
   elementKey?: LimitBreakElementKey | null,
@@ -1319,7 +1757,7 @@ function TroopCard({
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
       <div
-        className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+        className={`relative overflow-hidden rounded-2xl border bg-[var(--surface)] ${getTroopElementFrameClass(elementKey)}`}
         title={troopTitle}
         aria-label={troopTitle}
       >
@@ -1384,6 +1822,163 @@ function TroopCard({
         </button>
       </div>
     </div>
+  );
+}
+
+function ManaOptimizationOptionCard({
+  option,
+  locale,
+}: {
+  option: ManaOptimizationOption;
+  locale: 'RU' | 'EN';
+}) {
+  const [expandedTroops, setExpandedTroops] = useState(false);
+  const shouldCollapseTroops = option.troopItems.length > MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT;
+  const visibleTroops = shouldCollapseTroops && !expandedTroops
+    ? option.troopItems.slice(0, MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT)
+    : option.troopItems;
+  const frameClass = getTroopElementFrameClass(option.elementKey);
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+      <div className="space-y-4">
+        <div className={`grid gap-3 ${visibleTroops.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {visibleTroops.map((troop) => (
+            <div key={troop.key} className={`rounded-2xl border bg-[var(--surface)] p-3 ${frameClass}`}>
+              <div className="flex items-start gap-3">
+                <div className="flex w-20 shrink-0 flex-col items-center">
+                  <div className={`flex h-20 w-20 items-center justify-center rounded-2xl border bg-[var(--surface-strong)] p-2 ${frameClass}`}>
+                    {troop.imageUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={troop.imageUrl} alt={troop.name} className="h-full w-full object-contain" />
+                      </>
+                    ) : (
+                      <div className="text-center text-[11px] text-[var(--foreground-soft)]">{troop.name}</div>
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center gap-0.5">
+                    {Array.from({ length: option.stars }).map((_, index) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={`${troop.key}-star-${index}`}
+                        src={HERO_STAR_ASSET}
+                        alt=""
+                        className="h-3.5 w-3.5 object-contain"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-[var(--foreground)]">{troop.name}</div>
+                  {troop.classKeys?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {troop.classKeys.map((classKey) => (
+                        <div
+                          key={`${troop.key}-${classKey}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-1"
+                          title={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                            alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {shouldCollapseTroops ? (
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => setExpandedTroops((prev) => !prev)}
+              className="inline-flex items-center rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+            >
+              {expandedTroops
+                ? locale === 'RU'
+                  ? 'Скрыть'
+                  : 'Hide'
+                : locale === 'RU'
+                  ? 'Показать ещё'
+                  : 'Show more'}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {option.lines.map((line) => (
+            <div key={line.key} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-bold text-cyan-200">
+                  {locale === 'RU' ? `Уровень ${line.minLevel}+` : `Level ${line.minLevel}+`}
+                </span>
+                {line.supportChips.length > 0 ? (
+                  <>
+                    <span className="text-[var(--foreground-soft)]">(</span>
+                    {line.supportChips.map((chip, index) => (
+                      <span key={`${line.key}-chip-${index}`} className="inline-flex items-center gap-1.5 text-[var(--foreground)]">
+                        {chip.iconUrl ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={chip.iconUrl} alt="" className="h-4 w-4 object-contain" />
+                          </>
+                        ) : null}
+                        <span className="text-xs sm:text-sm">{chip.text}</span>
+                      </span>
+                    ))}
+                    <span className="text-[var(--foreground-soft)]">)</span>
+                  </>
+                ) : line.fallbackText ? (
+                  <span className="text-sm text-[var(--foreground-soft)]">({line.fallbackText})</span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManaOptimizationDetailsModal({
+  open,
+  locale,
+  title,
+  subtitle,
+  options,
+  closeLabel,
+  onClose,
+}: {
+  open: boolean;
+  locale: 'RU' | 'EN';
+  title: string;
+  subtitle: string;
+  options: ManaOptimizationOption[];
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  return (
+    <DictionaryModal open={open} title={title} closeLabel={closeLabel} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]">
+          {subtitle}
+        </div>
+        <div className="space-y-3">
+          {options.map((option) => (
+            <ManaOptimizationOptionCard key={option.key} option={option} locale={locale} />
+          ))}
+        </div>
+      </div>
+    </DictionaryModal>
   );
 }
 
@@ -1468,6 +2063,7 @@ export default function PublicHeroDetailsModal({
   const [limitBreakOpen, setLimitBreakOpen] = useState(false);
   const [troopsOpen, setTroopsOpen] = useState(false);
   const [selectedTroopBonus, setSelectedTroopBonus] = useState<TroopMeta | null>(null);
+  const [selectedManaStrategyId, setSelectedManaStrategyId] = useState<string | null>(null);
 
   const t = useMemo(
     () =>
@@ -1494,6 +2090,27 @@ export default function PublicHeroDetailsModal({
             baseAttack: 'Атака',
             baseArmor: 'Броня',
             baseHp: 'HP',
+            manaOptimization: '\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B',
+            manaOptimizationHint:
+              '\u0414\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u0441\u043D\u0438\u0436\u0435\u043D\u0438\u044F \u0447\u0438\u0441\u043B\u0430 \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043B\u044F \u044D\u0442\u043E\u0433\u043E \u0433\u0435\u0440\u043E\u044F.',
+            manaOptimizationModalHint:
+              '\u041D\u0438\u0436\u0435 \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E\u0434\u0445\u043E\u0434\u044F\u0449\u0438\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u043F\u043E \u0443\u0440\u043E\u0432\u043D\u044E \u0432\u043E\u0439\u0441\u043A, \u0442\u0430\u043B\u0430\u043D\u0442\u0443 \u043A\u043B\u0430\u0441\u0441\u0430 \u0438 \u0431\u043E\u043D\u0443\u0441\u0443 \u043A\u043E\u0441\u0442\u044E\u043C\u0430.',
+            manaOptimizationLine: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+              stageLabel
+                ? `${stageLabel}: \u043E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`
+                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`,
+            manaOptimizationTitle: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+              stageLabel
+                ? `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${stageLabel}, ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`
+                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`,
+            manaOptimizationOpenPath:
+              '\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B',
+            troopOnly: '\u0422\u043E\u043B\u044C\u043A\u043E \u0431\u043E\u043D\u0443\u0441 \u043E\u0442 \u0432\u043E\u0439\u0441\u043A\u0430',
+            classTalentBonus: (bonus: 2 | 4) => `\u0422\u0430\u043B\u0430\u043D\u0442 \u043A\u043B\u0430\u0441\u0441\u0430 +${bonus}% \u043A \u043C\u0430\u043D\u0435`,
+            costumeManaBonus: (bonus: number) => `\u041A\u043E\u0441\u0442\u044E\u043C +${bonus}% \u043A \u043C\u0430\u043D\u0435`,
+            legendaryManaTroop: '\u041B\u0435\u0433\u0435\u043D\u0434\u0430\u0440\u043D\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E',
+            epicManaTroop15: '\u042D\u043F\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E (+15% \u043A \u043C\u0430\u043D\u0435)',
+            epicManaTroop20: '\u042D\u043F\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E (+20% \u043A \u043C\u0430\u043D\u0435)',
             computedStats: 'Вычисляемые статы',
             limitBreakRequirements: 'Стоимость сломов',
             limitBreakUnavailable: 'Для этой стихии стоимость сломов пока не настроена.',
@@ -1535,6 +2152,25 @@ export default function PublicHeroDetailsModal({
             baseAttack: 'Attack',
             baseArmor: 'Armor',
             baseHp: 'HP',
+            manaOptimization: 'Mana Optimization Strategy',
+            manaOptimizationHint: 'Available tile breakpoints for this hero.',
+            manaOptimizationModalHint:
+              'Below are the matching troop level paths for this hero, including class talent and costume mana bonuses.',
+            manaOptimizationLine: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+              stageLabel
+                ? `${stageLabel}: optimize from ${fromTiles} tiles to ${toTiles} tiles`
+                : `Optimize from ${fromTiles} tiles to ${toTiles} tiles`,
+            manaOptimizationTitle: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+              stageLabel
+                ? `Mana Optimization Strategy: ${stageLabel}, ${fromTiles} tiles -> ${toTiles} tiles`
+                : `Mana Optimization Strategy: ${fromTiles} tiles -> ${toTiles} tiles`,
+            manaOptimizationOpenPath: 'Open matching paths',
+            troopOnly: 'Troop bonus only',
+            classTalentBonus: (bonus: 2 | 4) => `Class talent +${bonus}% mana`,
+            costumeManaBonus: (bonus: number) => `Costume +${bonus}% mana`,
+            legendaryManaTroop: 'Legendary troop',
+            epicManaTroop15: 'Epic troop (+15% mana)',
+            epicManaTroop20: 'Epic troop (+20% mana)',
             computedStats: 'Computed stats',
             limitBreakRequirements: 'Limit Break Requirements',
             limitBreakUnavailable: 'Limit break requirements are not configured for this element yet.',
@@ -1640,6 +2276,7 @@ export default function PublicHeroDetailsModal({
   const resolvedHeroClassKey =
     resolveHeroClassKeyFromImageUrl(heroDetails?.heroClass?.imageUrl) ??
     resolveHeroClassKey(heroDetails?.heroClass?.name ?? heroCard?.heroClassName ?? null);
+  const legendaryManaTroops = limitBreakElementKey ? TROOP_CATALOG : [];
   const matchingTroops =
     limitBreakElementKey && resolvedHeroClassKey
       ? TROOP_CATALOG.filter((troop) => troop.classes.includes(resolvedHeroClassKey))
@@ -1647,6 +2284,245 @@ export default function PublicHeroDetailsModal({
   const matchingEpicTroops = limitBreakElementKey
     ? buildEpicTroopEntries().filter((troop) => troop.elementKey === limitBreakElementKey)
     : [];
+  const resolvedManaSpeedKey = resolveManaSpeedKey(heroDetails?.manaSpeed?.name ?? heroCard?.manaSpeedName ?? null);
+  const manaTalentBonus = getManaTalentBonus(resolvedHeroClassKey);
+  const costumeManaBonus = currentHeroIsCostume ? Number(heroDetails?.costumeBonusJson?.mana ?? 0) : 0;
+  const costumeManaBonusLabel = t.costumeManaBonus(costumeManaBonus);
+  const manaOptimizationStrategies: ManaOptimizationScenarioView[] = resolvedManaSpeedKey
+    ? MANA_OPTIMIZATION_SCENARIOS.filter((scenario) => scenario.speed === resolvedManaSpeedKey)
+        .map((scenario) => {
+          const options: ManaOptimizationOption[] = [];
+          const legendaryGroups = new Map<string, ManaOptimizationOption>();
+          const epicGroups = new Map<string, ManaOptimizationOption>();
+          const resolvedTalentBonus = manaTalentBonus === 2 || manaTalentBonus === 4 ? manaTalentBonus : null;
+          const buildVariants = () => [
+            ...(currentHeroIsCostume
+              ? [
+                  {
+                    key: 'costume',
+                    passiveManaBonus: costumeManaBonus,
+                    supportChips: [{ iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel }] as ManaOptimizationSupportChip[],
+                    fallbackText: null,
+                  },
+                  ...(resolvedTalentBonus != null && resolvedHeroClassKey
+                    ? [{
+                        key: 'costume-talent',
+                        passiveManaBonus: costumeManaBonus + resolvedTalentBonus,
+                        supportChips: [
+                          { iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel },
+                          { iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) },
+                        ] as ManaOptimizationSupportChip[],
+                        fallbackText: null,
+                      }]
+                    : []),
+                ]
+              : [
+                  {
+                    key: 'base',
+                    passiveManaBonus: 0,
+                    supportChips: [] as ManaOptimizationSupportChip[],
+                    fallbackText: t.troopOnly,
+                  },
+                  ...(resolvedTalentBonus != null && resolvedHeroClassKey
+                    ? [{
+                        key: 'talent',
+                        passiveManaBonus: resolvedTalentBonus,
+                        supportChips: [{ iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) }] as ManaOptimizationSupportChip[],
+                        fallbackText: null,
+                      }]
+                    : []),
+                ]),
+          ];
+
+          for (const troop of legendaryManaTroops) {
+            const manaData = LEGENDARY_MANA_LEVELS_BY_TROOP_KEY[troop.key];
+            if (!manaData || !limitBreakElementKey) {
+              continue;
+            }
+            const variants = buildVariants();
+            const lines: ManaOptimizationLine[] = [];
+
+            for (const variant of variants) {
+              const minLevel = findMinimumTroopLevelForManaThreshold(
+                manaData.levels,
+                scenario.requiredManaBonus,
+                variant.passiveManaBonus,
+              );
+
+              if (minLevel == null) {
+                continue;
+              }
+
+              lines.push({
+                key: `${troop.key}-${variant.key}`,
+                minLevel,
+                supportChips: variant.supportChips,
+                fallbackText: variant.fallbackText,
+              });
+            }
+
+            if (lines.length === 0) {
+              continue;
+            }
+
+            lines.sort((left, right) => left.minLevel - right.minLevel);
+            const signature = JSON.stringify(
+              lines.map((line) => ({
+                minLevel: line.minLevel,
+                support: line.supportChips.map((chip) => chip.text),
+                fallbackText: line.fallbackText ?? null,
+              })),
+            );
+            const groupKey = `legendary-${signature}`;
+            const troopItem: ManaOptimizationTroopCardItem = {
+              key: troop.key,
+              name: locale === 'RU' ? troop.nameRu : troop.nameEn,
+              imageUrl: `${TROOPS_ASSET_BASE}/${TROOP_ELEMENT_PREFIX_BY_KEY[limitBreakElementKey]}_legendary_${troop.key}.webp`,
+              classKeys: troop.classes,
+            };
+
+            if (legendaryGroups.has(groupKey)) {
+              const existing = legendaryGroups.get(groupKey)!;
+              existing.troopItems.push(troopItem);
+              existing.troopItems.sort((left, right) => {
+                const leftProfile = resolvedHeroClassKey != null && left.classKeys?.includes(resolvedHeroClassKey) ? 1 : 0;
+                const rightProfile = resolvedHeroClassKey != null && right.classKeys?.includes(resolvedHeroClassKey) ? 1 : 0;
+                if (leftProfile !== rightProfile) {
+                  return rightProfile - leftProfile;
+                }
+                return left.name.localeCompare(right.name, locale === 'RU' ? 'ru' : 'en');
+              });
+            } else {
+              legendaryGroups.set(groupKey, {
+                key: `${scenario.id}-${groupKey}`,
+                troopType: 'legendary_5',
+                troopItems: [troopItem],
+                stars: 5,
+                lines,
+                elementKey: limitBreakElementKey,
+              });
+            }
+          }
+
+          const epicCandidates: Array<{
+            troopType: 'epic_mana_20' | 'epic_mana_15';
+            troopName: string;
+            imageUrl: string | null;
+            levels: ManaOptimizationLevelBonus[];
+            troopKey: string;
+          }> = [];
+
+          for (const troop of matchingEpicTroops) {
+            if (!troop.enhancements.includes('mana')) {
+              continue;
+            }
+
+            if (troop.summary.mana === '20%') {
+              epicCandidates.push({
+                troopType: 'epic_mana_20',
+                troopKey: troop.key,
+                troopName: locale === 'RU' ? troop.nameRu : troop.nameEn,
+                imageUrl: troop.imageUrl,
+                levels: troop.key.toLowerCase().includes('cyclopes') ? EPIC_MANA_20_CYCLOPS_LEVELS : EPIC_MANA_20_LEVELS,
+              });
+            }
+
+            if (troop.summary.mana === '15%') {
+              epicCandidates.push({
+                troopType: 'epic_mana_15',
+                troopKey: troop.key,
+                troopName: locale === 'RU' ? troop.nameRu : troop.nameEn,
+                imageUrl: troop.imageUrl,
+                levels: EPIC_MANA_15_LEVELS,
+              });
+            }
+          }
+          const epicVariants = epicCandidates;
+
+          for (const epicTroop of epicVariants) {
+            const variants = buildVariants();
+            const lines: ManaOptimizationLine[] = [];
+
+            for (const variant of variants) {
+              const minLevel = findMinimumTroopLevelForManaThreshold(
+                epicTroop.levels,
+                scenario.requiredManaBonus,
+                variant.passiveManaBonus,
+              );
+
+              if (minLevel == null) {
+                continue;
+              }
+
+              lines.push({
+                key: `${epicTroop.troopKey}-${variant.key}`,
+                minLevel,
+                supportChips: variant.supportChips,
+                fallbackText: variant.fallbackText,
+              });
+            }
+
+            if (lines.length === 0) {
+              continue;
+            }
+
+            lines.sort((left, right) => left.minLevel - right.minLevel);
+            epicGroups.set(`${scenario.id}-${epicTroop.troopType}-${epicTroop.troopKey}`, {
+              key: `${scenario.id}-${epicTroop.troopType}-${epicTroop.troopKey}`,
+              troopType: epicTroop.troopType,
+              troopItems: [
+                {
+                  key: epicTroop.troopKey,
+                  name: epicTroop.troopName,
+                  imageUrl: epicTroop.imageUrl,
+                },
+              ],
+              stars: 4,
+              lines,
+              elementKey: limitBreakElementKey,
+            });
+          }
+
+          options.push(...Array.from(legendaryGroups.values()), ...Array.from(epicGroups.values()));
+
+          options.sort((left, right) => {
+            if (left.troopType !== right.troopType) {
+              const order: Record<ManaOptimizationTroopType, number> = {
+                legendary_5: 0,
+                epic_mana_20: 1,
+                epic_mana_15: 2,
+              };
+              return order[left.troopType] - order[right.troopType];
+            }
+
+            if (left.troopType === 'legendary_5' && right.troopType === 'legendary_5' && resolvedHeroClassKey) {
+              const leftProfile = left.troopItems.some((item) => item.classKeys?.includes(resolvedHeroClassKey)) ? 1 : 0;
+              const rightProfile = right.troopItems.some((item) => item.classKeys?.includes(resolvedHeroClassKey)) ? 1 : 0;
+              if (leftProfile !== rightProfile) {
+                return rightProfile - leftProfile;
+              }
+            }
+
+            const byTroop = (left.troopItems[0]?.name ?? '').localeCompare(
+              right.troopItems[0]?.name ?? '',
+              locale === 'RU' ? 'ru' : 'en',
+            );
+            if (byTroop !== 0) {
+              return byTroop;
+            }
+
+            return (left.lines[0]?.minLevel ?? 0) - (right.lines[0]?.minLevel ?? 0);
+          });
+
+          return {
+            ...scenario,
+            options,
+          };
+        })
+        .filter((scenario) => scenario.options.length > 0)
+    : [];
+  const selectedManaStrategy =
+    manaOptimizationStrategies.find((scenario) => scenario.id === selectedManaStrategyId) ?? null;
   const calculatorTroopOptions: HeroStatTroopOption[] = matchingTroops
     .map((troop) => {
       const summary = TROOP_BONUS_SUMMARIES[troop.key];
@@ -2017,20 +2893,36 @@ export default function PublicHeroDetailsModal({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.baseStats}</div>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseAttack}: {heroDetails.baseAttack ?? heroCard.baseAttack ?? t.noValue}
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseArmor}: {heroDetails.baseArmor ?? heroCard.baseArmor ?? t.noValue}
-                  </div>
-                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-sm text-[var(--foreground)]">
-                    {t.baseHp}: {heroDetails.baseHp ?? heroCard.baseHp ?? t.noValue}
+              {manaOptimizationStrategies.length > 0 ? (
+                <div className="animate-[pulse_3.2s_ease-in-out_infinite] rounded-2xl border border-amber-300/35 bg-[var(--surface)] p-5 shadow-[0_0_0_1px_rgba(252,211,77,0.14),0_0_28px_rgba(251,191,36,0.12)]">
+                  <div className="text-sm font-semibold text-[var(--foreground)]">{t.manaOptimization}</div>
+                  <div className="mt-1 text-sm text-[var(--foreground-soft)]">{t.manaOptimizationHint}</div>
+                  <div className="mt-4 space-y-3">
+                    {manaOptimizationStrategies.map((strategy) => (
+                      <button
+                        key={strategy.id}
+                        type="button"
+                        onClick={() => setSelectedManaStrategyId(strategy.id)}
+                        className="flex w-full items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left transition hover:bg-[var(--surface-hover)]"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-[var(--foreground)]">
+                            {t.manaOptimizationLine(
+                              strategy.fromTiles,
+                              strategy.toTiles,
+                              locale === 'RU' ? strategy.stageLabelRu : strategy.stageLabelEn,
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-[var(--foreground-soft)]">
+                            {t.manaOptimizationOpenPath}
+                          </div>
+                        </div>
+                        <AccordionChevronIcon open={false} />
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <button
@@ -2169,6 +3061,22 @@ export default function PublicHeroDetailsModal({
 
       {selectedTroopBonus ? (
         <TroopBonusModal troop={selectedTroopBonus} locale={locale} onClose={() => setSelectedTroopBonus(null)} />
+      ) : null}
+
+      {selectedManaStrategy ? (
+        <ManaOptimizationDetailsModal
+          open={true}
+          locale={locale}
+          title={t.manaOptimizationTitle(
+            selectedManaStrategy.fromTiles,
+            selectedManaStrategy.toTiles,
+            locale === 'RU' ? selectedManaStrategy.stageLabelRu : selectedManaStrategy.stageLabelEn,
+          )}
+          subtitle={t.manaOptimizationModalHint}
+          options={selectedManaStrategy.options}
+          closeLabel={t.close}
+          onClose={() => setSelectedManaStrategyId(null)}
+        />
       ) : null}
     </DictionaryModal>
   );
