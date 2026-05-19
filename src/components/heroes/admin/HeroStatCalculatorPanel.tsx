@@ -49,6 +49,7 @@ export type HeroStatTroopOption = {
   totalDefenseBonusPercent: number;
   totalHealthBonusPercent: number;
   totalManaBonusPercent: number;
+  classKeys?: string[];
 };
 
 type HeroStatCalculatorPanelProps = {
@@ -66,6 +67,19 @@ type HeroStatCalculatorPanelProps = {
 };
 
 const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
+const TROOP_CLASS_ICON_BASE = '/heroes/elements/classes';
+const TROOP_CLASS_ICON_BY_KEY: Record<string, string> = {
+  barbarian: `${TROOP_CLASS_ICON_BASE}/barbarian.png`,
+  cleric: `${TROOP_CLASS_ICON_BASE}/cleric.png`,
+  druid: `${TROOP_CLASS_ICON_BASE}/druid.png`,
+  fighter: `${TROOP_CLASS_ICON_BASE}/fighter.png`,
+  monk: `${TROOP_CLASS_ICON_BASE}/monk.png`,
+  paladin: `${TROOP_CLASS_ICON_BASE}/paladin.png`,
+  ranger: `${TROOP_CLASS_ICON_BASE}/ranger.png`,
+  rogue: `${TROOP_CLASS_ICON_BASE}/rogue.png`,
+  sorcerer: `${TROOP_CLASS_ICON_BASE}/sorcerer.png`,
+  wizard: `${TROOP_CLASS_ICON_BASE}/wizard.png`,
+};
 
 const STAGES: EvolutionStageCode[] = ['ASCENSION_4_80', 'ASCENSION_4_85', 'ASCENSION_4_90'];
 
@@ -466,7 +480,22 @@ export default function HeroStatCalculatorPanel({
                 ) : (
                   <span className="inline-flex h-8 w-8 shrink-0 rounded-lg border border-dashed border-[var(--border)]" />
                 )}
-                <span className="min-w-0 truncate">{selectedTroopLabel}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {selectedTroop?.classKeys?.length ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      {selectedTroop.classKeys.map((classKey) => (
+                        <span
+                          key={`${selectedTroop.key}-${classKey}`}
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={TROOP_CLASS_ICON_BY_KEY[classKey]} alt="" className="h-full w-full object-contain" />
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  <span className="min-w-0 truncate">{selectedTroopLabel}</span>
+                </span>
               </span>
               <TroopSelectChevron open={troopDropdownOpen} />
             </button>
@@ -504,7 +533,22 @@ export default function HeroStatCalculatorPanel({
                     }`}
                   >
                     <TroopOptionThumb imageUrl={troop.imageUrl} name={troop.name} stars={troop.stars} />
-                    <span className="min-w-0 flex-1 truncate">{troop.name}</span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      {troop.classKeys?.length ? (
+                        <span className="flex shrink-0 items-center gap-1">
+                          {troop.classKeys.map((classKey) => (
+                            <span
+                              key={`${troop.key}-${classKey}`}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] p-0.5"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={TROOP_CLASS_ICON_BY_KEY[classKey]} alt="" className="h-full w-full object-contain" />
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 truncate">{troop.name}</span>
+                    </span>
                   </button>
                 ))}
               </div>
