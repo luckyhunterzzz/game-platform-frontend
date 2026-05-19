@@ -221,6 +221,7 @@ type ManaOptimizationSupportChip = {
 type ManaOptimizationLine = {
   key: string;
   minLevel: number;
+  troopManaBonusPercent: number;
   supportChips: ManaOptimizationSupportChip[];
   fallbackText?: string | null;
 };
@@ -1535,6 +1536,10 @@ function findMinimumTroopLevelForManaThreshold(
   return null;
 }
 
+function findManaBonusForTroopLevel(levels: ManaOptimizationLevelBonus[], level: number): number {
+  return levels.find((item) => item.level === level)?.manaBonus ?? 0;
+}
+
 function resolveLimitBreakItemImageUrl(
   originalImageUrl: string,
   elementKey?: LimitBreakElementKey | null,
@@ -1833,6 +1838,8 @@ function ManaOptimizationOptionCard({
     ? option.troopItems.slice(0, MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT)
     : option.troopItems;
   const frameClass = getTroopElementFrameClass(option.elementKey);
+  const manaBonusLabel = (bonus: number) =>
+    locale === 'RU' ? `+${bonus}% от войска` : `+${bonus}% from troop`;
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
@@ -1866,25 +1873,27 @@ function ManaOptimizationOptionCard({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-[var(--foreground)]">{troop.name}</div>
-                  {troop.classKeys?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {troop.classKeys.map((classKey) => (
-                        <div
-                          key={`${troop.key}-${classKey}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-1"
-                          title={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={TROOP_CLASS_ICON_BY_KEY[classKey]}
-                            alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                            className="h-full w-full object-contain"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {troop.classKeys?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {troop.classKeys.map((classKey) => (
+                          <div
+                            key={`${troop.key}-${classKey}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-1"
+                            title={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                              alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="min-w-0 text-sm font-semibold text-[var(--foreground)]">{troop.name}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1916,6 +1925,7 @@ function ManaOptimizationOptionCard({
                 <span className="font-bold text-cyan-200">
                   {locale === 'RU' ? `Уровень ${line.minLevel}+` : `Level ${line.minLevel}+`}
                 </span>
+                <span className="text-sm text-[var(--foreground-soft)]">({manaBonusLabel(line.troopManaBonusPercent)})</span>
                 {line.supportChips.length > 0 ? (
                   <>
                     <span className="text-[var(--foreground-soft)]">(</span>
@@ -2351,6 +2361,7 @@ export default function PublicHeroDetailsModal({
               lines.push({
                 key: `${troop.key}-${variant.key}`,
                 minLevel,
+                troopManaBonusPercent: findManaBonusForTroopLevel(manaData.levels, minLevel),
                 supportChips: variant.supportChips,
                 fallbackText: variant.fallbackText,
               });
@@ -2452,6 +2463,7 @@ export default function PublicHeroDetailsModal({
               lines.push({
                 key: `${epicTroop.troopKey}-${variant.key}`,
                 minLevel,
+                troopManaBonusPercent: findManaBonusForTroopLevel(epicTroop.levels, minLevel),
                 supportChips: variant.supportChips,
                 fallbackText: variant.fallbackText,
               });
@@ -2518,24 +2530,29 @@ export default function PublicHeroDetailsModal({
     : [];
   const selectedManaStrategy =
     manaOptimizationStrategies.find((scenario) => scenario.id === selectedManaStrategyId) ?? null;
-  const calculatorTroopOptions: HeroStatTroopOption[] = matchingTroops
-    .map((troop) => {
+  const legendaryCalculatorTroopOptions = legendaryManaTroops
+    .map((troop): HeroStatTroopOption | null => {
       const summary = TROOP_BONUS_SUMMARIES[troop.key];
       if (!summary) {
         return null;
       }
+      const isProfileTroop =
+        resolvedHeroClassKey != null && troop.classes.includes(resolvedHeroClassKey);
 
       return {
         key: troop.key,
         name: locale === 'RU' ? troop.nameRu : troop.nameEn,
         imageUrl: `${TROOPS_ASSET_BASE}/${TROOP_ELEMENT_PREFIX_BY_KEY[limitBreakElementKey!]}_legendary_${troop.key}.webp`,
         stars: 5,
-        totalAttackBonusPercent: Number.parseFloat(summary.totalAttack),
-        totalDefenseBonusPercent: Number.parseFloat(summary.totalDefense),
-        totalHealthBonusPercent: Number.parseFloat(summary.totalHealth),
-        totalManaBonusPercent: Number.parseFloat(summary.totalMana),
+        totalAttackBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalAttack : summary.attack),
+        totalDefenseBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalDefense : summary.defense),
+        totalHealthBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalHealth : summary.health),
+        totalManaBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalMana : summary.mana),
+        classKeys: troop.classes,
       };
     })
+    .filter((item): item is HeroStatTroopOption => item !== null);
+  const calculatorTroopOptions: HeroStatTroopOption[] = legendaryCalculatorTroopOptions
     .concat(
       matchingEpicTroops.map((troop) => ({
         key: `epic-${troop.key}`,
@@ -2546,9 +2563,9 @@ export default function PublicHeroDetailsModal({
         totalDefenseBonusPercent: Number.parseFloat(troop.summary.defense ?? '0'),
         totalHealthBonusPercent: Number.parseFloat(troop.summary.health ?? '0'),
         totalManaBonusPercent: Number.parseFloat(troop.summary.mana ?? '0'),
+        classKeys: [],
       })),
-    )
-    .filter((item): item is HeroStatTroopOption => item != null);
+    );
 
   const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
 
