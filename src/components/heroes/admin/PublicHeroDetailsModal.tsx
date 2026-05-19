@@ -221,6 +221,7 @@ type ManaOptimizationSupportChip = {
 type ManaOptimizationLine = {
   key: string;
   minLevel: number;
+  troopManaBonusPercent: number;
   supportChips: ManaOptimizationSupportChip[];
   fallbackText?: string | null;
 };
@@ -243,6 +244,18 @@ type ManaOptimizationOption = {
 
 type ManaOptimizationScenarioView = ManaOptimizationScenario & {
   options: ManaOptimizationOption[];
+};
+
+type FamilyManaVariant = {
+  bonusPercent: number;
+  membersRequired: number;
+  conditional?: boolean;
+  customConditionKey?: 'bards_solo' | 'lunar_rabbit_pair';
+};
+
+type FamilyManaConfig = {
+  defaultBonusPercent?: number;
+  variants: FamilyManaVariant[];
 };
 
 type ManaOptimizationLevelBonus = {
@@ -1535,6 +1548,125 @@ function findMinimumTroopLevelForManaThreshold(
   return null;
 }
 
+function findManaBonusForTroopLevel(levels: ManaOptimizationLevelBonus[], level: number): number {
+  return levels.find((item) => item.level === level)?.manaBonus ?? 0;
+}
+
+function normalizeFamilyIdentifier(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function resolveFamilyManaConfig(
+  familyName: string | null | undefined,
+  heroSlug: string | null | undefined,
+): FamilyManaConfig | null {
+  const normalizedFamily = normalizeFamilyIdentifier(familyName);
+  const normalizedSlug = (heroSlug ?? '').trim().toLowerCase();
+
+  if (
+    normalizedFamily.includes('the institute') ||
+    normalizedFamily.includes('институт')
+  ) {
+    return {
+      defaultBonusPercent: 5,
+      variants: [
+        { bonusPercent: 9, membersRequired: 2 },
+        { bonusPercent: 13, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('wonderland') ||
+    normalizedFamily.includes('страна чудес')
+  ) {
+    return {
+      variants: [
+        { bonusPercent: 2, membersRequired: 2, conditional: true },
+        { bonusPercent: 4, membersRequired: 3, conditional: true },
+        { bonusPercent: 7, membersRequired: 4, conditional: true },
+        { bonusPercent: 12, membersRequired: 5, conditional: true },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('pirates') ||
+    normalizedFamily.includes('пираты')
+  ) {
+    return {
+      variants: [
+        { bonusPercent: 2, membersRequired: 2, conditional: true },
+        { bonusPercent: 4, membersRequired: 3, conditional: true },
+        { bonusPercent: 7, membersRequired: 4, conditional: true },
+        { bonusPercent: 12, membersRequired: 5, conditional: true },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('sakura') ||
+    normalizedFamily.includes('сакура')
+  ) {
+    return {
+      defaultBonusPercent: 3,
+      variants: [
+        { bonusPercent: 6, membersRequired: 2 },
+        { bonusPercent: 9, membersRequired: 3 },
+        { bonusPercent: 11, membersRequired: 4 },
+        { bonusPercent: 13, membersRequired: 5 },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('morlovia') ||
+    normalizedFamily.includes('морловия')
+  ) {
+    return {
+      defaultBonusPercent: 3,
+      variants: [
+        { bonusPercent: 6, membersRequired: 2 },
+        { bonusPercent: 9, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('legends 2017') ||
+    normalizedFamily.includes('легенды 2017')
+  ) {
+    return {
+      defaultBonusPercent: 5,
+      variants: [
+        { bonusPercent: 10, membersRequired: 2 },
+        { bonusPercent: 15, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (
+    normalizedFamily.includes('bard') ||
+    normalizedFamily.includes('бард')
+  ) {
+    return {
+      variants: [
+        { bonusPercent: 5, membersRequired: 1, conditional: true, customConditionKey: 'bards_solo' },
+      ],
+    };
+  }
+
+  if (normalizedSlug === 'xiaotu' || normalizedSlug === 'xiaotu-c1') {
+    return {
+      variants: [
+        { bonusPercent: 5, membersRequired: 2, conditional: true, customConditionKey: 'lunar_rabbit_pair' },
+      ],
+    };
+  }
+
+  return null;
+}
+
 function resolveLimitBreakItemImageUrl(
   originalImageUrl: string,
   elementKey?: LimitBreakElementKey | null,
@@ -1833,6 +1965,8 @@ function ManaOptimizationOptionCard({
     ? option.troopItems.slice(0, MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT)
     : option.troopItems;
   const frameClass = getTroopElementFrameClass(option.elementKey);
+  const manaBonusLabel = (bonus: number) =>
+    locale === 'RU' ? `+${bonus}% от войска` : `+${bonus}% from troop`;
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
@@ -1866,25 +2000,27 @@ function ManaOptimizationOptionCard({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-[var(--foreground)]">{troop.name}</div>
-                  {troop.classKeys?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {troop.classKeys.map((classKey) => (
-                        <div
-                          key={`${troop.key}-${classKey}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-1"
-                          title={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={TROOP_CLASS_ICON_BY_KEY[classKey]}
-                            alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
-                            className="h-full w-full object-contain"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {troop.classKeys?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {troop.classKeys.map((classKey) => (
+                          <div
+                            key={`${troop.key}-${classKey}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] p-1"
+                            title={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={TROOP_CLASS_ICON_BY_KEY[classKey]}
+                              alt={locale === 'RU' ? TROOP_CLASS_LABELS[classKey].ru : TROOP_CLASS_LABELS[classKey].en}
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="min-w-0 text-sm font-semibold text-[var(--foreground)]">{troop.name}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1916,6 +2052,7 @@ function ManaOptimizationOptionCard({
                 <span className="font-bold text-cyan-200">
                   {locale === 'RU' ? `Уровень ${line.minLevel}+` : `Level ${line.minLevel}+`}
                 </span>
+                <span className="text-sm text-[var(--foreground-soft)]">({manaBonusLabel(line.troopManaBonusPercent)})</span>
                 {line.supportChips.length > 0 ? (
                   <>
                     <span className="text-[var(--foreground-soft)]">(</span>
@@ -2103,6 +2240,15 @@ export default function PublicHeroDetailsModal({
             troopOnly: '\u0422\u043E\u043B\u044C\u043A\u043E \u0431\u043E\u043D\u0443\u0441 \u043E\u0442 \u0432\u043E\u0439\u0441\u043A\u0430',
             classTalentBonus: (bonus: 2 | 4) => `\u0422\u0430\u043B\u0430\u043D\u0442 \u043A\u043B\u0430\u0441\u0441\u0430 +${bonus}% \u043A \u043C\u0430\u043D\u0435`,
             costumeManaBonus: (bonus: number) => `\u041A\u043E\u0441\u0442\u044E\u043C +${bonus}% \u043A \u043C\u0430\u043D\u0435`,
+            familyManaBonus: (familyName: string, bonus: number) => `${familyName} +${bonus}% \u043A \u043C\u0430\u043D\u0435`,
+            familyConditionMembers: (familyName: string, bonus: number, members: number) =>
+              `${familyName} +${bonus}% \u043A \u043C\u0430\u043D\u0435 (${members} \u0433\u0435\u0440. \u0441\u0435\u043C\u044C\u0438)`,
+            familyConditionUniqueMembers: (familyName: string, bonus: number, members: number) =>
+              `${familyName} +${bonus}% \u043A \u043C\u0430\u043D\u0435 (${members} \u0443\u043D\u0438\u043A. \u0433\u0435\u0440. \u0441\u0435\u043C\u044C\u0438)`,
+            bardsSoloCondition: (bonus: number) =>
+              `\u0411\u0430\u0440\u0434\u044B +${bonus}% \u043A \u043C\u0430\u043D\u0435 (\u0433\u0435\u0440\u043E\u0439 \u2014 \u0435\u0434\u0438\u043D\u0441\u0442\u0432. \u0432 \u0441\u0432\u043E\u0435\u0439 \u0441\u0435\u043C\u044C\u0435)`,
+            lunarRabbitCondition: (bonus: number) =>
+              `Lunar Year Rabbit +${bonus}% \u043A \u043C\u0430\u043D\u0435 (\u043D\u0443\u0436\u0435\u043D \u0435\u0449\u0435 1 Lunar Year \u0433\u0435\u0440\u043E\u0439)`,
             legendaryManaTroop: '\u041B\u0435\u0433\u0435\u043D\u0434\u0430\u0440\u043D\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E',
             epicManaTroop15: '\u042D\u043F\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E (+15% \u043A \u043C\u0430\u043D\u0435)',
             epicManaTroop20: '\u042D\u043F\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0432\u043E\u0439\u0441\u043A\u043E (+20% \u043A \u043C\u0430\u043D\u0435)',
@@ -2163,6 +2309,15 @@ export default function PublicHeroDetailsModal({
             troopOnly: 'Troop bonus only',
             classTalentBonus: (bonus: 2 | 4) => `Class talent +${bonus}% mana`,
             costumeManaBonus: (bonus: number) => `Costume +${bonus}% mana`,
+            familyManaBonus: (familyName: string, bonus: number) => `${familyName} +${bonus}% mana`,
+            familyConditionMembers: (familyName: string, bonus: number, members: number) =>
+              `${familyName} +${bonus}% mana (${members} family heroes)`,
+            familyConditionUniqueMembers: (familyName: string, bonus: number, members: number) =>
+              `${familyName} +${bonus}% mana (${members} unique family heroes)`,
+            bardsSoloCondition: (bonus: number) =>
+              `Bards +${bonus}% mana (only hero of their family on the team)`,
+            lunarRabbitCondition: (bonus: number) =>
+              `Lunar Year Rabbit +${bonus}% mana (requires 1 more Lunar Year hero)`,
             legendaryManaTroop: 'Legendary troop',
             epicManaTroop15: 'Epic troop (+15% mana)',
             epicManaTroop20: 'Epic troop (+20% mana)',
@@ -2283,6 +2438,10 @@ export default function PublicHeroDetailsModal({
   const manaTalentBonus = getManaTalentBonus(resolvedHeroClassKey);
   const costumeManaBonus = currentHeroIsCostume ? Number(heroDetails?.costumeBonusJson?.mana ?? 0) : 0;
   const costumeManaBonusLabel = t.costumeManaBonus(costumeManaBonus);
+  const resolvedFamilyName = heroDetails?.family?.name ?? heroCard?.familyName ?? null;
+  const resolvedFamilyImageUrl = heroDetails?.family?.imageUrl ?? null;
+  const familyManaConfig = resolveFamilyManaConfig(resolvedFamilyName, currentHeroSlug);
+  const defaultFamilyManaBonus = familyManaConfig?.defaultBonusPercent ?? 0;
   const manaOptimizationStrategies: ManaOptimizationScenarioView[] = resolvedManaSpeedKey
     ? MANA_OPTIMIZATION_SCENARIOS.filter((scenario) => scenario.speed === resolvedManaSpeedKey)
         .map((scenario) => {
@@ -2290,44 +2449,107 @@ export default function PublicHeroDetailsModal({
           const legendaryGroups = new Map<string, ManaOptimizationOption>();
           const epicGroups = new Map<string, ManaOptimizationOption>();
           const resolvedTalentBonus = manaTalentBonus === 2 || manaTalentBonus === 4 ? manaTalentBonus : null;
-          const buildVariants = () => [
+          const buildVariants = () => {
+            const baseFamilyChip =
+              resolvedFamilyName && defaultFamilyManaBonus > 0
+                ? [{ iconUrl: resolvedFamilyImageUrl ?? undefined, text: t.familyManaBonus(resolvedFamilyName, defaultFamilyManaBonus) }] as ManaOptimizationSupportChip[]
+                : [] as ManaOptimizationSupportChip[];
+            const conditionalFamilyVariants = (familyManaConfig?.variants ?? []).map((variant) => {
+              const familyText =
+                variant.customConditionKey === 'bards_solo'
+                  ? t.bardsSoloCondition(variant.bonusPercent)
+                  : variant.customConditionKey === 'lunar_rabbit_pair'
+                    ? t.lunarRabbitCondition(variant.bonusPercent)
+                    : resolvedFamilyName
+                      ? (normalizeFamilyIdentifier(resolvedFamilyName).includes('pirates') || normalizeFamilyIdentifier(resolvedFamilyName).includes('пираты')
+                        ? t.familyConditionUniqueMembers(resolvedFamilyName, variant.bonusPercent, variant.membersRequired)
+                        : t.familyConditionMembers(resolvedFamilyName, variant.bonusPercent, variant.membersRequired))
+                      : `+${variant.bonusPercent}% mana`;
+
+              return {
+                key: `family-${variant.bonusPercent}-${variant.membersRequired}-${variant.customConditionKey ?? 'default'}`,
+                passiveManaBonus: defaultFamilyManaBonus + variant.bonusPercent,
+                supportChips: [
+                  ...baseFamilyChip,
+                  { iconUrl: resolvedFamilyImageUrl ?? undefined, text: familyText },
+                ] as ManaOptimizationSupportChip[],
+                fallbackText: null,
+              };
+            });
+
+            return [
             ...(currentHeroIsCostume
               ? [
                   {
                     key: 'costume',
-                    passiveManaBonus: costumeManaBonus,
-                    supportChips: [{ iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel }] as ManaOptimizationSupportChip[],
+                    passiveManaBonus: costumeManaBonus + defaultFamilyManaBonus,
+                    supportChips: [...baseFamilyChip, { iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel }] as ManaOptimizationSupportChip[],
                     fallbackText: null,
                   },
                   ...(resolvedTalentBonus != null && resolvedHeroClassKey
                     ? [{
                         key: 'costume-talent',
-                        passiveManaBonus: costumeManaBonus + resolvedTalentBonus,
+                        passiveManaBonus: costumeManaBonus + resolvedTalentBonus + defaultFamilyManaBonus,
                         supportChips: [
+                          ...baseFamilyChip,
                           { iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel },
                           { iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) },
                         ] as ManaOptimizationSupportChip[],
                         fallbackText: null,
                       }]
                     : []),
+                  ...conditionalFamilyVariants.map((variant) => ({
+                    ...variant,
+                    key: `costume-${variant.key}`,
+                    passiveManaBonus: variant.passiveManaBonus + costumeManaBonus,
+                    supportChips: [...variant.supportChips, { iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel }] as ManaOptimizationSupportChip[],
+                  })),
+                  ...(resolvedTalentBonus != null && resolvedHeroClassKey
+                    ? conditionalFamilyVariants.map((variant) => ({
+                        ...variant,
+                        key: `costume-talent-${variant.key}`,
+                        passiveManaBonus: variant.passiveManaBonus + costumeManaBonus + resolvedTalentBonus,
+                        supportChips: [
+                          ...variant.supportChips,
+                          { iconUrl: COSTUME_ICON_URL, text: costumeManaBonusLabel },
+                          { iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) },
+                        ] as ManaOptimizationSupportChip[],
+                      }))
+                    : []),
                 ]
               : [
                   {
                     key: 'base',
-                    passiveManaBonus: 0,
-                    supportChips: [] as ManaOptimizationSupportChip[],
+                    passiveManaBonus: defaultFamilyManaBonus,
+                    supportChips: baseFamilyChip,
                     fallbackText: t.troopOnly,
                   },
                   ...(resolvedTalentBonus != null && resolvedHeroClassKey
                     ? [{
                         key: 'talent',
-                        passiveManaBonus: resolvedTalentBonus,
-                        supportChips: [{ iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) }] as ManaOptimizationSupportChip[],
+                        passiveManaBonus: resolvedTalentBonus + defaultFamilyManaBonus,
+                        supportChips: [
+                          ...baseFamilyChip,
+                          { iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) },
+                        ] as ManaOptimizationSupportChip[],
                         fallbackText: null,
                       }]
                     : []),
+                  ...conditionalFamilyVariants,
+                  ...(resolvedTalentBonus != null && resolvedHeroClassKey
+                    ? conditionalFamilyVariants.map((variant) => ({
+                        ...variant,
+                        key: `talent-${variant.key}`,
+                        passiveManaBonus: variant.passiveManaBonus + resolvedTalentBonus,
+                        supportChips: [
+                          ...variant.supportChips,
+                          { iconUrl: TROOP_CLASS_ICON_BY_KEY[resolvedHeroClassKey], text: t.classTalentBonus(resolvedTalentBonus) },
+                        ] as ManaOptimizationSupportChip[],
+                      }))
+                    : []),
                 ]),
-          ];
+            ];
+          };
 
           for (const troop of legendaryManaTroops) {
             const manaData = LEGENDARY_MANA_LEVELS_BY_TROOP_KEY[troop.key];
@@ -2351,6 +2573,7 @@ export default function PublicHeroDetailsModal({
               lines.push({
                 key: `${troop.key}-${variant.key}`,
                 minLevel,
+                troopManaBonusPercent: findManaBonusForTroopLevel(manaData.levels, minLevel),
                 supportChips: variant.supportChips,
                 fallbackText: variant.fallbackText,
               });
@@ -2452,6 +2675,7 @@ export default function PublicHeroDetailsModal({
               lines.push({
                 key: `${epicTroop.troopKey}-${variant.key}`,
                 minLevel,
+                troopManaBonusPercent: findManaBonusForTroopLevel(epicTroop.levels, minLevel),
                 supportChips: variant.supportChips,
                 fallbackText: variant.fallbackText,
               });
@@ -2518,24 +2742,29 @@ export default function PublicHeroDetailsModal({
     : [];
   const selectedManaStrategy =
     manaOptimizationStrategies.find((scenario) => scenario.id === selectedManaStrategyId) ?? null;
-  const calculatorTroopOptions: HeroStatTroopOption[] = matchingTroops
-    .map((troop) => {
+  const legendaryCalculatorTroopOptions = legendaryManaTroops
+    .map((troop): HeroStatTroopOption | null => {
       const summary = TROOP_BONUS_SUMMARIES[troop.key];
       if (!summary) {
         return null;
       }
+      const isProfileTroop =
+        resolvedHeroClassKey != null && troop.classes.includes(resolvedHeroClassKey);
 
       return {
         key: troop.key,
         name: locale === 'RU' ? troop.nameRu : troop.nameEn,
         imageUrl: `${TROOPS_ASSET_BASE}/${TROOP_ELEMENT_PREFIX_BY_KEY[limitBreakElementKey!]}_legendary_${troop.key}.webp`,
         stars: 5,
-        totalAttackBonusPercent: Number.parseFloat(summary.totalAttack),
-        totalDefenseBonusPercent: Number.parseFloat(summary.totalDefense),
-        totalHealthBonusPercent: Number.parseFloat(summary.totalHealth),
-        totalManaBonusPercent: Number.parseFloat(summary.totalMana),
+        totalAttackBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalAttack : summary.attack),
+        totalDefenseBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalDefense : summary.defense),
+        totalHealthBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalHealth : summary.health),
+        totalManaBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalMana : summary.mana),
+        classKeys: troop.classes,
       };
     })
+    .filter((item): item is HeroStatTroopOption => item !== null);
+  const calculatorTroopOptions: HeroStatTroopOption[] = legendaryCalculatorTroopOptions
     .concat(
       matchingEpicTroops.map((troop) => ({
         key: `epic-${troop.key}`,
@@ -2546,9 +2775,9 @@ export default function PublicHeroDetailsModal({
         totalDefenseBonusPercent: Number.parseFloat(troop.summary.defense ?? '0'),
         totalHealthBonusPercent: Number.parseFloat(troop.summary.health ?? '0'),
         totalManaBonusPercent: Number.parseFloat(troop.summary.mana ?? '0'),
+        classKeys: [],
       })),
-    )
-    .filter((item): item is HeroStatTroopOption => item != null);
+    );
 
   const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
 
