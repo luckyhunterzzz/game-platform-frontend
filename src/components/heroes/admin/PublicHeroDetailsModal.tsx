@@ -2054,8 +2054,8 @@ function ManaOptimizationOptionCard({
                 </span>
                 <span className="text-sm text-[var(--foreground-soft)]">({manaBonusLabel(line.troopManaBonusPercent)})</span>
                 {line.supportChips.length > 0 ? (
-                  <>
-                    <span className="text-[var(--foreground-soft)]">(</span>
+                  <span className="inline-flex flex-wrap items-center gap-1.5 text-[var(--foreground-soft)]">
+                    <span>(</span>
                     {line.supportChips.map((chip, index) => (
                       <span key={`${line.key}-chip-${index}`} className="inline-flex items-center gap-1.5 text-[var(--foreground)]">
                         {chip.iconUrl ? (
@@ -2067,8 +2067,8 @@ function ManaOptimizationOptionCard({
                         <span className="text-xs sm:text-sm">{chip.text}</span>
                       </span>
                     ))}
-                    <span className="text-[var(--foreground-soft)]">)</span>
-                  </>
+                    <span>)</span>
+                  </span>
                 ) : line.fallbackText ? (
                   <span className="text-sm text-[var(--foreground-soft)]">({line.fallbackText})</span>
                 ) : null}
@@ -2468,11 +2468,8 @@ export default function PublicHeroDetailsModal({
 
               return {
                 key: `family-${variant.bonusPercent}-${variant.membersRequired}-${variant.customConditionKey ?? 'default'}`,
-                passiveManaBonus: defaultFamilyManaBonus + variant.bonusPercent,
-                supportChips: [
-                  ...baseFamilyChip,
-                  { iconUrl: resolvedFamilyImageUrl ?? undefined, text: familyText },
-                ] as ManaOptimizationSupportChip[],
+                passiveManaBonus: variant.bonusPercent,
+                supportChips: [{ iconUrl: resolvedFamilyImageUrl ?? undefined, text: familyText }] as ManaOptimizationSupportChip[],
                 fallbackText: null,
               };
             });
