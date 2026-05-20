@@ -77,6 +77,8 @@ export type LegendaryTroopEntry = LegendaryTroopTemplate & {
   imageUrl: string;
   elementImageUrl: string;
   specialtyImageUrl: string;
+  hasEpicConversion: boolean;
+  epicConversionImageUrl: string;
 };
 
 export type EpicTroopEntry = EpicTroopTemplate & {
@@ -92,6 +94,7 @@ export const TROOPS_ASSET_BASE = '/heroes/troops';
 export const LEGENDARY_TROOPS_ASSET_BASE = `${TROOPS_ASSET_BASE}/legendary`;
 export const EPIC_TROOPS_ASSET_BASE = `${TROOPS_ASSET_BASE}/epic`;
 export const TROOP_SPECIALTY_ASSET_BASE = `${LEGENDARY_TROOPS_ASSET_BASE}/specialty`;
+export const TROOP_EPIC_CONVERSION_IMAGE_URL = `${TROOP_SPECIALTY_ASSET_BASE}/troop_barrack_lv_1.webp`;
 export const HERO_ELEMENT_ASSET_BASE = '/heroes/elements/elements';
 export const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 export const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
@@ -138,6 +141,19 @@ export const TROOP_SPECIALTY_ICON_BY_KEY: Record<TroopSpecialtyKey, string> = {
   status_effect_defense_addition_legendary_troop: `${TROOP_SPECIALTY_ASSET_BASE}/status_effect_defense_addition_legendary_troop.webp`,
   status_effect_defense_reduction_legendary_troop: `${TROOP_SPECIALTY_ASSET_BASE}/status_effect_defense_reduction_legendary_troop.webp`,
 };
+
+const LEGENDARY_TROOP_EPIC_CONVERSION_CLASS_PAIRS = new Set([
+  'barbarian:druid',
+  'cleric:fighter',
+  'druid:barbarian',
+  'fighter:cleric',
+  'monk:sorcerer',
+  'paladin:rogue',
+  'ranger:wizard',
+  'rogue:paladin',
+  'sorcerer:monk',
+  'wizard:ranger',
+]);
 
 export const TROOP_STAT_ICON_BY_KEY: Record<TroopStatKey, string> = {
   attack: `${TROOP_STATS_ASSET_BASE}/stat_atk.webp`,
@@ -378,6 +394,8 @@ export function buildLegendaryTroopEntries(): LegendaryTroopEntry[] {
       imageUrl: `${LEGENDARY_TROOPS_ASSET_BASE}/${TROOP_ELEMENT_PREFIX_BY_KEY[elementKey]}_legendary_${troop.key}.webp`,
       elementImageUrl: TROOP_ELEMENT_ICON_BY_KEY[elementKey],
       specialtyImageUrl: TROOP_SPECIALTY_ICON_BY_KEY[troop.specialty],
+      hasEpicConversion: LEGENDARY_TROOP_EPIC_CONVERSION_CLASS_PAIRS.has(`${troop.classes[0]}:${troop.classes[1]}`),
+      epicConversionImageUrl: TROOP_EPIC_CONVERSION_IMAGE_URL,
     })),
   );
 }

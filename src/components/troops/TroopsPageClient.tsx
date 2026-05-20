@@ -238,6 +238,14 @@ function getLegendaryTroopTooltipContent(troop: LegendaryTroopEntry, locale: 'ru
   return `${locale === 'ru' ? content.titleRu : content.titleEn}\n\n${locale === 'ru' ? content.descriptionRu : content.descriptionEn}`;
 }
 
+function getEpicConversionTooltipContent(locale: 'ru' | 'en') {
+  if (locale === 'ru') {
+    return 'Преобразование эпических отрядов\n\nЭпический отряд можно преобразовать в этот легендарный отряд.';
+  }
+
+  return 'Epic troop conversion\n\nThe epic troop can be converted to this Legendary troop in the Barracks';
+}
+
 function getEpicStatOrder(summary: EpicTroopBonusSummary): TroopStatKey[] {
   const preferredOrder: TroopStatKey[] = ['attack', 'defense', 'health', 'healing', 'mana', 'critical', 'bypass'];
   return preferredOrder.filter((key) => summary[key] != null);
@@ -483,27 +491,52 @@ function TroopPreviewCard({
           )}
 
           {troop.tier === 'legendary' ? (
-            <HeroInfoPopover
-              label={topRightLabel}
-              content={getLegendaryTroopTooltipContent(troop, locale)}
-              trigger={
-                isNearViewport ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={troop.specialtyImageUrl}
-                      alt={topRightLabel}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-contain"
-                    />
-                  </>
-                ) : (
-                  <span className="block h-full w-full" aria-hidden="true" />
-                )
-              }
-              triggerClassName="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg transition hover:bg-slate-900/88"
-            />
+            <div className="flex flex-col items-end gap-1">
+              <HeroInfoPopover
+                label={topRightLabel}
+                content={getLegendaryTroopTooltipContent(troop, locale)}
+                trigger={
+                  isNearViewport ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={troop.specialtyImageUrl}
+                        alt={topRightLabel}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-contain"
+                      />
+                    </>
+                  ) : (
+                    <span className="block h-full w-full" aria-hidden="true" />
+                  )
+                }
+                triggerClassName="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg transition hover:bg-slate-900/88"
+              />
+              {troop.hasEpicConversion ? (
+                <HeroInfoPopover
+                  label={locale === 'ru' ? 'Преобразование эпических отрядов' : 'Epic troop conversion'}
+                  content={getEpicConversionTooltipContent(locale)}
+                  trigger={
+                    isNearViewport ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={troop.epicConversionImageUrl}
+                          alt={locale === 'ru' ? 'Преобразование эпических отрядов' : 'Epic troop conversion'}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-contain"
+                        />
+                      </>
+                    ) : (
+                      <span className="block h-full w-full" aria-hidden="true" />
+                    )
+                  }
+                  triggerClassName="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15 bg-slate-950/78 p-1 shadow-lg transition hover:bg-slate-900/88"
+                />
+              ) : null}
+            </div>
           ) : (
             <div />
           )}

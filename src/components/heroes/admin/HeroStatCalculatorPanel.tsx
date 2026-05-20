@@ -50,6 +50,7 @@ export type HeroStatTroopOption = {
   totalHealthBonusPercent: number;
   totalManaBonusPercent: number;
   classKeys?: string[];
+  isProfile?: boolean;
 };
 
 type HeroStatCalculatorPanelProps = {
@@ -472,7 +473,11 @@ export default function HeroStatCalculatorPanel({
             <button
               type="button"
               onClick={() => setTroopDropdownOpen((prev) => !prev)}
-              className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+              className={`flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] ${
+                selectedTroop?.isProfile
+                  ? 'border-cyan-400/40 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(34,211,238,0.3),0_0_18px_rgba(34,211,238,0.14)]'
+                  : 'border-[var(--border)] bg-[var(--surface-strong)]'
+              }`}
             >
               <span className="flex min-w-0 items-center gap-3">
                 {selectedTroop ? (
@@ -529,7 +534,9 @@ export default function HeroStatCalculatorPanel({
                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
                       troop.key === selectedTroopKey
                         ? 'bg-cyan-400/12 text-cyan-200'
-                        : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                        : troop.isProfile
+                          ? 'bg-cyan-400/8 text-[var(--foreground)] shadow-[0_0_0_1px_rgba(34,211,238,0.18)] hover:bg-cyan-400/12'
+                          : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                     }`}
                   >
                     <TroopOptionThumb imageUrl={troop.imageUrl} name={troop.name} stars={troop.stars} />
