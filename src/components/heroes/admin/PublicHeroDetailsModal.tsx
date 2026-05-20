@@ -339,11 +339,11 @@ const MANA_TALENT_PLUS_TWO_CLASSES = new Set<HeroClassKey>([
 const MANA_TALENT_PLUS_FOUR_CLASSES = new Set<HeroClassKey>(['sorcerer', 'monk', 'druid']);
 
 const MANA_OPTIMIZATION_SCENARIOS: ManaOptimizationScenario[] = [
-  { id: 'very-fast-6_5-to-6', speed: 'very_fast', fromTiles: '6.5', toTiles: '6', requiredManaBonus: 7 },
+  { id: 'very-fast-6_5-to-6', speed: 'very_fast', fromTiles: '6.5', toTiles: '6', requiredManaBonus: 9 },
   { id: 'fast-8-to-7', speed: 'fast', fromTiles: '8', toTiles: '7', requiredManaBonus: 15 },
-  { id: 'average-10-to-9', speed: 'average', fromTiles: '10', toTiles: '9', requiredManaBonus: 13 },
-  { id: 'average-10-to-8', speed: 'average', fromTiles: '10', toTiles: '8', requiredManaBonus: 26 },
-  { id: 'slow-12-to-11', speed: 'slow', fromTiles: '12', toTiles: '11', requiredManaBonus: 11 },
+  { id: 'average-10-to-9', speed: 'average', fromTiles: '10', toTiles: '9', requiredManaBonus: 12 },
+  { id: 'average-10-to-8', speed: 'average', fromTiles: '10', toTiles: '8', requiredManaBonus: 25 },
+  { id: 'slow-12-to-11', speed: 'slow', fromTiles: '12', toTiles: '11', requiredManaBonus: 10 },
   { id: 'slow-12-to-10', speed: 'slow', fromTiles: '12', toTiles: '10', requiredManaBonus: 20 },
   { id: 'very-slow-13_5-to-13', speed: 'very_slow', fromTiles: '13.5', toTiles: '13', requiredManaBonus: 4 },
   { id: 'very-slow-13_5-to-12', speed: 'very_slow', fromTiles: '13.5', toTiles: '12', requiredManaBonus: 13 },
@@ -1634,7 +1634,9 @@ function resolveFamilyManaConfig(
 
   if (
     normalizedFamily.includes('legends 2017') ||
-    normalizedFamily.includes('легенды 2017')
+    normalizedFamily.includes('легенды 2017') ||
+    normalizedFamily.includes('легенд 2017') ||
+    normalizedFamily.includes('семья легенд 2017')
   ) {
     return {
       defaultBonusPercent: 5,
@@ -2227,14 +2229,14 @@ export default function PublicHeroDetailsModal({
               '\u0414\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u0441\u043D\u0438\u0436\u0435\u043D\u0438\u044F \u0447\u0438\u0441\u043B\u0430 \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043B\u044F \u044D\u0442\u043E\u0433\u043E \u0433\u0435\u0440\u043E\u044F.',
             manaOptimizationModalHint:
               '\u041D\u0438\u0436\u0435 \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E\u0434\u0445\u043E\u0434\u044F\u0449\u0438\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u043F\u043E \u0443\u0440\u043E\u0432\u043D\u044E \u0432\u043E\u0439\u0441\u043A, \u0442\u0430\u043B\u0430\u043D\u0442\u0443 \u043A\u043B\u0430\u0441\u0441\u0430 \u0438 \u0431\u043E\u043D\u0443\u0441\u0443 \u043A\u043E\u0441\u0442\u044E\u043C\u0430.',
-            manaOptimizationLine: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+            manaOptimizationLine: (fromTiles: string, toTiles: string, requiredBonus: number, stageLabel?: string | null) =>
               stageLabel
-                ? `${stageLabel}: \u043E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`
-                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`,
-            manaOptimizationTitle: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+                ? `${stageLabel}: \u043E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439 (\u043E\u0442 ${requiredBonus}%)`
+                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u0441 ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 \u0434\u043E ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439 (\u043E\u0442 ${requiredBonus}%)`,
+            manaOptimizationTitle: (fromTiles: string, toTiles: string, requiredBonus: number, stageLabel?: string | null) =>
               stageLabel
-                ? `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${stageLabel}, ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`
-                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439`,
+                ? `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${stageLabel}, ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439 (\u043E\u0442 ${requiredBonus}%)`
+                : `\u041E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u044F \u043C\u0430\u043D\u044B: ${fromTiles} \u043A\u0430\u043C\u043D\u0435\u0439 -> ${toTiles} \u043A\u0430\u043C\u043D\u0435\u0439 (\u043E\u0442 ${requiredBonus}%)`,
             manaOptimizationOpenPath:
               '\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B\u0435 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B',
             troopOnly: '\u0422\u043E\u043B\u044C\u043A\u043E \u0431\u043E\u043D\u0443\u0441 \u043E\u0442 \u0432\u043E\u0439\u0441\u043A\u0430',
@@ -2297,14 +2299,14 @@ export default function PublicHeroDetailsModal({
             manaOptimizationHint: 'Available tile breakpoints for this hero.',
             manaOptimizationModalHint:
               'Below are the matching troop level paths for this hero, including class talent and costume mana bonuses.',
-            manaOptimizationLine: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+            manaOptimizationLine: (fromTiles: string, toTiles: string, requiredBonus: number, stageLabel?: string | null) =>
               stageLabel
-                ? `${stageLabel}: optimize from ${fromTiles} tiles to ${toTiles} tiles`
-                : `Optimize from ${fromTiles} tiles to ${toTiles} tiles`,
-            manaOptimizationTitle: (fromTiles: string, toTiles: string, stageLabel?: string | null) =>
+                ? `${stageLabel}: optimize from ${fromTiles} tiles to ${toTiles} tiles (from ${requiredBonus}%)`
+                : `Optimize from ${fromTiles} tiles to ${toTiles} tiles (from ${requiredBonus}%)`,
+            manaOptimizationTitle: (fromTiles: string, toTiles: string, requiredBonus: number, stageLabel?: string | null) =>
               stageLabel
-                ? `Mana Optimization Strategy: ${stageLabel}, ${fromTiles} tiles -> ${toTiles} tiles`
-                : `Mana Optimization Strategy: ${fromTiles} tiles -> ${toTiles} tiles`,
+                ? `Mana Optimization Strategy: ${stageLabel}, ${fromTiles} tiles -> ${toTiles} tiles (from ${requiredBonus}%)`
+                : `Mana Optimization Strategy: ${fromTiles} tiles -> ${toTiles} tiles (from ${requiredBonus}%)`,
             manaOptimizationOpenPath: 'Open matching paths',
             troopOnly: 'Troop bonus only',
             classTalentBonus: (bonus: 2 | 4) => `Class talent +${bonus}% mana`,
@@ -2758,6 +2760,7 @@ export default function PublicHeroDetailsModal({
         totalHealthBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalHealth : summary.health),
         totalManaBonusPercent: Number.parseFloat(isProfileTroop ? summary.totalMana : summary.mana),
         classKeys: troop.classes,
+        isProfile: isProfileTroop,
       };
     })
     .filter((item): item is HeroStatTroopOption => item !== null);
@@ -2773,6 +2776,7 @@ export default function PublicHeroDetailsModal({
         totalHealthBonusPercent: Number.parseFloat(troop.summary.health ?? '0'),
         totalManaBonusPercent: Number.parseFloat(troop.summary.mana ?? '0'),
         classKeys: [],
+        isProfile: false,
       })),
     );
 
@@ -3131,6 +3135,7 @@ export default function PublicHeroDetailsModal({
                             {t.manaOptimizationLine(
                               strategy.fromTiles,
                               strategy.toTiles,
+                              strategy.requiredManaBonus,
                               locale === 'RU' ? strategy.stageLabelRu : strategy.stageLabelEn,
                             )}
                           </div>
@@ -3291,6 +3296,7 @@ export default function PublicHeroDetailsModal({
           title={t.manaOptimizationTitle(
             selectedManaStrategy.fromTiles,
             selectedManaStrategy.toTiles,
+            selectedManaStrategy.requiredManaBonus,
             locale === 'RU' ? selectedManaStrategy.stageLabelRu : selectedManaStrategy.stageLabelEn,
           )}
           subtitle={t.manaOptimizationModalHint}
