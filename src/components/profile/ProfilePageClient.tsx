@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, CircleHelp, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleHelp, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -48,6 +48,7 @@ type HeroClassKey =
   | 'rogue'
   | 'sorcerer'
   | 'wizard';
+type ElementKey = 'dark' | 'fire' | 'holy' | 'ice' | 'nature';
 
 type PublicHeroCatalogItem = {
   id: number;
@@ -106,6 +107,12 @@ type PowerGradeOption = {
   imageUrl: string;
 };
 
+type IconFilterOption = {
+  value: string;
+  label: string;
+  imageUrl?: string | null;
+};
+
 const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
@@ -127,6 +134,13 @@ const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   rogue: `${HERO_CLASS_ASSET_BASE}/rogue.png`,
   sorcerer: `${HERO_CLASS_ASSET_BASE}/sorcerer.png`,
   wizard: `${HERO_CLASS_ASSET_BASE}/wizard.png`,
+};
+const HERO_ELEMENT_ICON_BY_KEY: Record<ElementKey, string> = {
+  dark: '/heroes/elements/elements/herald_purple.webp',
+  fire: '/heroes/elements/elements/herald_red.webp',
+  holy: '/heroes/elements/elements/herald_yellow.webp',
+  ice: '/heroes/elements/elements/herald_blue.webp',
+  nature: '/heroes/elements/elements/herald_green.webp',
 };
 
 const POWER_GRADE_ORDER: HeroPowerGrade[] = [
@@ -182,9 +196,9 @@ function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): str
   if (locale === 'RU') {
     switch (powerGrade) {
       case 'FIRST_ASCENSION':
-        return 'Первая лычка';
-      case 'SECOND_ASCENSION':
         return 'Вторая лычка';
+      case 'SECOND_ASCENSION':
+        return 'Третья лычка';
       case 'FULLY_ASCENDED':
         return 'Четыре лычки';
       case 'FIRST_LIMIT_BROKEN':
@@ -210,6 +224,10 @@ function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): str
     default:
       return 'Power grade';
   }
+}
+
+function canUseTalentEmblems(powerGrade: HeroPowerGrade): boolean {
+  return powerGrade === 'FULLY_ASCENDED' || powerGrade === 'FIRST_LIMIT_BROKEN' || powerGrade === 'SECOND_LIMIT_BROKEN';
 }
 
 function buildPowerGradeOptions(locale: HeroLocale): PowerGradeOption[] {
@@ -249,6 +267,18 @@ function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): Hero
       return classKey;
     }
   }
+
+  return null;
+}
+
+function resolveElementKey(value: string | null | undefined): ElementKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('ice') || normalized.includes('лёд') || normalized.includes('лед')) return 'ice';
+  if (normalized.includes('fire') || normalized.includes('огонь')) return 'fire';
+  if (normalized.includes('nature') || normalized.includes('природ')) return 'nature';
+  if (normalized.includes('dark') || normalized.includes('тьм')) return 'dark';
+  if (normalized.includes('holy') || normalized.includes('свят')) return 'holy';
 
   return null;
 }
@@ -338,17 +368,19 @@ function CornerIconBadge({
   imageUrl,
   alt,
   className,
+  sizeClassName = 'h-3.5 w-3.5 sm:h-5 sm:w-5',
 }: {
   imageUrl: string;
   alt: string;
   className: string;
+  sizeClassName?: string;
 }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={imageUrl}
       alt={alt}
-      className={`h-3.5 w-3.5 object-contain drop-shadow-[0_3px_6px_rgba(15,23,42,0.8)] sm:h-5 sm:w-5 ${className}`}
+      className={`${sizeClassName} object-contain drop-shadow-[0_3px_6px_rgba(15,23,42,0.8)] ${className}`}
     />
   );
 }
@@ -362,6 +394,7 @@ function PowerGradeBadge({
   options = [],
   onChange,
   locale,
+  sizeClassName = 'h-5 w-5 sm:h-7 sm:w-7',
 }: {
   powerGrade: HeroPowerGrade;
   label: string;
@@ -371,6 +404,7 @@ function PowerGradeBadge({
   options?: PowerGradeOption[];
   onChange?: (nextPowerGrade: HeroPowerGrade) => void;
   locale: HeroLocale;
+  sizeClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(interactive);
@@ -450,17 +484,17 @@ function PowerGradeBadge({
           disabled={disabled}
           aria-label={controlLabel}
           title={label}
-          className={`rounded-[5px] border border-white/12 bg-slate-950/88 p-px shadow-xl transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${
+          className={`transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${
             highlight ? 'animate-pulse ring-1 ring-cyan-300/60' : ''
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={label} className="h-5 w-5 rounded-[3px] object-contain sm:h-7 sm:w-7" />
+          <img src={imageUrl} alt={label} className={`${sizeClassName} object-contain drop-shadow-[0_4px_8px_rgba(15,23,42,0.8)]`} />
         </button>
       ) : (
-        <div className="rounded-[5px] border border-white/12 bg-slate-950/88 p-px shadow-xl">
+        <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={label} className="h-5 w-5 rounded-[3px] object-contain sm:h-7 sm:w-7" />
+          <img src={imageUrl} alt={label} className={`${sizeClassName} object-contain drop-shadow-[0_4px_8px_rgba(15,23,42,0.8)]`} />
         </div>
       )}
 
@@ -520,12 +554,14 @@ function TalentBadge({
   disabled = false,
   locale,
   onChange,
+  sizeClassName = 'h-[22px] w-[22px] sm:h-[30px] sm:w-[30px]',
 }: {
   talentLevel: number;
   interactive?: boolean;
   disabled?: boolean;
   locale: HeroLocale;
   onChange?: (nextTalentLevel: number) => void;
+  sizeClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [draftValue, setDraftValue] = useState<string>(String(talentLevel));
@@ -636,7 +672,7 @@ function TalentBadge({
           disabled={disabled}
           aria-label={controlLabel}
           title={titleLabel}
-          className={`relative flex h-[22px] w-[22px] items-center justify-center rounded-md transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 sm:h-[30px] sm:w-[30px] ${
+          className={`relative flex items-center justify-center rounded-md transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${sizeClassName} ${
             highlight && talentLevel === 0 ? 'animate-pulse' : ''
           }`}
         >
@@ -659,7 +695,7 @@ function TalentBadge({
           )}
         </button>
       ) : talentLevel > 0 ? (
-        <div className="relative flex h-[22px] w-[22px] items-center justify-center rounded-md sm:h-[30px] sm:w-[30px]">
+        <div className={`relative flex items-center justify-center rounded-md ${sizeClassName}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={TALENT_LEVEL_IMAGE_URL}
@@ -722,6 +758,142 @@ function TalentBadge({
         </div>,
         document.body,
       ) : null}
+    </div>
+  );
+}
+
+function IconFilterSelect({
+  label,
+  value,
+  allValue,
+  allLabel,
+  options,
+  onChange,
+  locale,
+}: {
+  label: string;
+  value: string;
+  allValue: string;
+  allLabel: string;
+  options: IconFilterOption[];
+  onChange: (nextValue: string) => void;
+  locale: HeroLocale;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverPanelRef = useRef<HTMLDivElement | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const selectedOption = value === allValue ? null : options.find((option) => option.value === value) ?? null;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setPopoverStyle(
+        buildFloatingPopoverStyle({
+          triggerRect: triggerRef.current.getBoundingClientRect(),
+          preferredWidth: 240,
+          estimatedHeight: 280,
+          align: 'left',
+        }),
+      );
+    };
+
+    updatePopoverPosition();
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      if (!popoverRef.current?.contains(targetNode) && !popoverPanelRef.current?.contains(targetNode)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
+    };
+  }, [open]);
+
+  return (
+    <div ref={popoverRef} className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+      <span>{label}</span>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {selectedOption?.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={selectedOption.imageUrl} alt={selectedOption.label} className="h-5 w-5 object-contain" />
+          ) : null}
+          <span className="truncate">{selectedOption?.label ?? allLabel}</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && popoverStyle && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={popoverPanelRef}
+              className="fixed z-[220] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
+              style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
+            >
+              <div className="mb-1 flex items-center justify-between gap-2 px-2">
+                <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md p-1 text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  aria-label={locale === 'RU' ? 'Закрыть' : 'Close'}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                {[{ value: allValue, label: allLabel, imageUrl: null }, ...options].map((option) => {
+                  const selected = option.value === value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setOpen(false);
+                        onChange(option.value);
+                      }}
+                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
+                        selected
+                          ? 'bg-cyan-400/12 text-cyan-200'
+                          : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      {option.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={option.imageUrl} alt={option.label} className="h-7 w-7 object-contain" />
+                      ) : (
+                        <div className="h-7 w-7 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)]" />
+                      )}
+                      <span className="min-w-0 flex-1 leading-tight">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -854,6 +1026,7 @@ function HeroPreviewTile({
   const accentClass = getHeroPreviewAccentClass(elementName);
   const powerGradeLabel = getPowerGradeLabel(powerGrade, locale);
   const heroClassLabel = heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
+  const talentEditable = canUseTalentEmblems(powerGrade);
   const content = (
     <>
       <div className="relative overflow-visible">
@@ -897,8 +1070,8 @@ function HeroPreviewTile({
         />
         <TalentBadge
           talentLevel={talentLevel}
-          interactive
-          disabled={talentLevelUpdating}
+          interactive={talentEditable}
+          disabled={!talentEditable || talentLevelUpdating}
           locale={locale}
           onChange={(nextTalentLevel) => onTalentLevelChange(profileHeroId, nextTalentLevel)}
         />
@@ -958,13 +1131,15 @@ function OverviewHeroTile({
             imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
             alt={heroClassLabel}
             className="pointer-events-none absolute left-1 top-1 z-10"
+            sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
           />
         ) : null}
         {hero.isCostume ? (
           <CornerIconBadge
             imageUrl={COSTUME_ICON_URL}
             alt={locale === 'RU' ? 'Костюм' : 'Costume'}
-            className="pointer-events-none absolute left-1 top-5 z-10"
+            className="pointer-events-none absolute left-1 top-4 z-10 sm:top-5"
+            sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
           />
         ) : null}
         <div className={`overflow-hidden rounded-md border p-[2px] ${accentClass}`}>
@@ -982,8 +1157,9 @@ function OverviewHeroTile({
           label={getPowerGradeLabel(hero.powerGrade, locale)}
           imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
           locale={locale}
+          sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
         />
-        <TalentBadge talentLevel={hero.talentLevel} locale={locale} />
+        <TalentBadge talentLevel={hero.talentLevel} locale={locale} sizeClassName="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
       </div>
       <div className="mt-1 line-clamp-2 min-h-[1.25rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.45rem] sm:text-[9px]">
         {hero.name}
@@ -1155,6 +1331,8 @@ export default function ProfilePageClient() {
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
+  const [heroFiltersExpanded, setHeroFiltersExpanded] = useState(true);
+  const [heroRosterExpanded, setHeroRosterExpanded] = useState(true);
   const [heroModalOpen, setHeroModalOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorQuery, setSelectorQuery] = useState('');
@@ -1687,18 +1865,40 @@ export default function ProfilePageClient() {
     return new Map(rosterCards.map((hero) => [hero.profileHeroId, hero]));
   }, [rosterCards]);
   const powerGradeOptions = useMemo(() => buildPowerGradeOptions(heroLocale), [heroLocale]);
-  const elementFilterOptions = useMemo(
+  const powerGradeFilterOptions = useMemo<IconFilterOption[]>(
+    () => powerGradeOptions.map((option) => ({ value: option.value, label: option.label, imageUrl: option.imageUrl })),
+    [powerGradeOptions],
+  );
+  const elementFilterOptions = useMemo<IconFilterOption[]>(
     () =>
       Array.from(
         new Set(rosterCards.map((hero) => hero.elementName).filter((value): value is string => Boolean(value))),
-      ).sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' })),
+      )
+        .sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' }))
+        .map((option) => ({
+          value: option,
+          label: option,
+          imageUrl: (() => {
+            const key = resolveElementKey(option);
+            return key ? HERO_ELEMENT_ICON_BY_KEY[key] : null;
+          })(),
+        })),
     [heroLocale, rosterCards],
   );
-  const heroClassFilterOptions = useMemo(
+  const heroClassFilterOptions = useMemo<IconFilterOption[]>(
     () =>
       Array.from(
         new Set(rosterCards.map((hero) => hero.heroClassName).filter((value): value is string => Boolean(value))),
-      ).sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' })),
+      )
+        .sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' }))
+        .map((option) => ({
+          value: option,
+          label: option,
+          imageUrl: (() => {
+            const key = resolveHeroClassKey(option);
+            return key ? HERO_CLASS_ICON_BY_KEY[key] : null;
+          })(),
+        })),
     [heroLocale, rosterCards],
   );
   const overviewIdealColumnCount = useMemo(
@@ -2032,6 +2232,13 @@ export default function ProfilePageClient() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setHeroFiltersExpanded(false);
+      setHeroRosterExpanded(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!overviewOpen) {
       return;
     }
@@ -2114,6 +2321,11 @@ export default function ProfilePageClient() {
   };
 
   const handleUpdateHeroTalentLevel = async (profileHeroId: string, nextTalentLevel: number) => {
+    const hero = profileHeroes.find((item) => item.id === profileHeroId) ?? null;
+    if (hero && !canUseTalentEmblems(hero.powerGrade)) {
+      return;
+    }
+
     setUpdatingTalentLevelHeroId(profileHeroId);
 
     try {
@@ -2405,47 +2617,61 @@ export default function ProfilePageClient() {
         </form>
       ) : activeTab === 'heroes' ? (
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
-            <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                {messages.profile.heroesTitle}
-              </h2>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                  <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
-                  <select
-                    value={heroSortField}
-                    onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                  >
-                    <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
-                    <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
-                    <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
-                    <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
-                    <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
-                    <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                  <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
-                  <select
-                    value={heroSortOrder}
-                    onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                  >
-                    <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
-                    <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
-                  </select>
-                </label>
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--foreground)]">
+                  {locale === 'ru' ? 'Мои герои' : 'My heroes'}
+                </h2>
+                <div className="text-xs text-[var(--foreground-soft)]">
+                  {locale === 'ru' ? `${sortedRosterCards.length} карточек` : `${sortedRosterCards.length} cards`}
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setHeroRosterExpanded((current) => !current)}
+                className="rounded-md p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:hidden"
+                aria-label={heroRosterExpanded ? (locale === 'ru' ? 'Скрыть сортировку' : 'Hide sorting') : (locale === 'ru' ? 'Показать сортировку' : 'Show sorting')}
+              >
+                <ChevronDown className={`h-5 w-5 transition ${heroRosterExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            <div className={`${heroRosterExpanded ? 'mt-4 flex' : 'hidden'} flex-col gap-2 sm:mt-4 sm:flex sm:flex-row`}>
+              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
+                <select
+                  value={heroSortField}
+                  onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                >
+                  <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
+                  <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
+                  <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                  <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
+                  <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                  <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                <select
+                  value={heroSortOrder}
+                  onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                >
+                  <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                  <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                </select>
+              </label>
             </div>
           </div>
 
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-sm font-semibold text-[var(--foreground)]">
                     {locale === 'ru' ? 'Фильтры героев' : 'Hero filters'}
@@ -2456,11 +2682,22 @@ export default function ProfilePageClient() {
                       : `Showing ${sortedRosterCards.length} of ${rosterCards.length}`}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHeroFiltersExpanded((current) => !current)}
+                  className="rounded-md p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:hidden"
+                  aria-label={heroFiltersExpanded ? (locale === 'ru' ? 'Скрыть фильтры' : 'Hide filters') : (locale === 'ru' ? 'Показать фильтры' : 'Show filters')}
+                >
+                  <ChevronDown className={`h-5 w-5 transition ${heroFiltersExpanded ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              <div className={`${heroFiltersExpanded ? 'flex' : 'hidden'} flex-col gap-4 sm:flex`}>
+                <div className="flex flex-row gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={resetHeroFilters}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                    className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:flex-none"
                   >
                     {locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
                   </button>
@@ -2468,61 +2705,43 @@ export default function ProfilePageClient() {
                     type="button"
                     onClick={() => setOverviewOpen(true)}
                     disabled={sortedRosterCards.length === 0}
-                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-w-0 flex-1 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
                   >
                     {locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
                   </button>
                 </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <IconFilterSelect
+                  label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}
+                  value={powerGradeFilter}
+                  allValue="ALL"
+                  allLabel={locale === 'ru' ? 'Все уровни' : 'All levels'}
+                  options={powerGradeFilterOptions}
+                  onChange={(nextValue) => setPowerGradeFilter(nextValue as HeroPowerGrade | 'ALL')}
+                  locale={heroLocale}
+                />
+
+                <IconFilterSelect
+                  label={locale === 'ru' ? 'Элемент' : 'Element'}
+                  value={elementFilter}
+                  allValue="ALL"
+                  allLabel={locale === 'ru' ? 'Все элементы' : 'All elements'}
+                  options={elementFilterOptions}
+                  onChange={setElementFilter}
+                  locale={heroLocale}
+                />
+
+                <IconFilterSelect
+                  label={locale === 'ru' ? 'Класс героя' : 'Hero class'}
+                  value={heroClassFilter}
+                  allValue="ALL"
+                  allLabel={locale === 'ru' ? 'Все классы' : 'All classes'}
+                  options={heroClassFilterOptions}
+                  onChange={setHeroClassFilter}
+                  locale={heroLocale}
+                />
               </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                  <span>{locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}</span>
-                  <select
-                    value={powerGradeFilter}
-                    onChange={(event) => setPowerGradeFilter(event.target.value as HeroPowerGrade | 'ALL')}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                  >
-                    <option value="ALL">{locale === 'ru' ? 'Все уровни' : 'All levels'}</option>
-                    {powerGradeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                  <span>{locale === 'ru' ? 'Элемент' : 'Element'}</span>
-                  <select
-                    value={elementFilter}
-                    onChange={(event) => setElementFilter(event.target.value)}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                  >
-                    <option value="ALL">{locale === 'ru' ? 'Все элементы' : 'All elements'}</option>
-                    {elementFilterOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                  <span>{locale === 'ru' ? 'Класс героя' : 'Hero class'}</span>
-                  <select
-                    value={heroClassFilter}
-                    onChange={(event) => setHeroClassFilter(event.target.value)}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                  >
-                    <option value="ALL">{locale === 'ru' ? 'Все классы' : 'All classes'}</option>
-                    {heroClassFilterOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               </div>
             </div>
           </div>
