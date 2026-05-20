@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -35,8 +35,19 @@ type ProfileFormState = {
 type ProfileTab = 'info' | 'heroes' | 'war';
 
 type HeroLocale = 'RU' | 'EN';
-type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade';
+type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade' | 'releaseDate';
 type HeroRosterSortOrder = 'asc' | 'desc';
+type HeroClassKey =
+  | 'barbarian'
+  | 'cleric'
+  | 'druid'
+  | 'fighter'
+  | 'monk'
+  | 'paladin'
+  | 'ranger'
+  | 'rogue'
+  | 'sorcerer'
+  | 'wizard';
 
 type PublicHeroCatalogItem = {
   id: number;
@@ -49,6 +60,9 @@ type PublicHeroCatalogItem = {
   imageUrl?: string | null;
   elementName: string;
   rarityStars: number;
+  heroClassName?: string | null;
+  heroClassImageUrl?: string | null;
+  releaseDate?: string | null;
 };
 
 type PublicHeroPageResponse = {
@@ -71,6 +85,9 @@ type RosterHeroCard = {
   createdAt: string;
   previewUrl: string | null;
   elementName: string | null;
+  heroClassName: string | null;
+  heroClassKey: HeroClassKey | null;
+  releaseDate: string | null;
   isCostume: boolean;
   costumeIndex: number | null;
 };
@@ -90,12 +107,26 @@ type PowerGradeOption = {
 };
 
 const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
+const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
+const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
 const POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
   FIRST_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_first_ascension.webp`,
   SECOND_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_second_ascension.webp`,
   FULLY_ASCENDED: `${POWER_GRADE_ASSET_BASE}/power_grade_fully_ascended.webp`,
   FIRST_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_first_limit_broken.webp`,
   SECOND_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_second_limit_broken.webp`,
+};
+const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
+  barbarian: `${HERO_CLASS_ASSET_BASE}/barbarian.png`,
+  cleric: `${HERO_CLASS_ASSET_BASE}/cleric.png`,
+  druid: `${HERO_CLASS_ASSET_BASE}/druid.png`,
+  fighter: `${HERO_CLASS_ASSET_BASE}/fighter.png`,
+  monk: `${HERO_CLASS_ASSET_BASE}/monk.png`,
+  paladin: `${HERO_CLASS_ASSET_BASE}/paladin.png`,
+  ranger: `${HERO_CLASS_ASSET_BASE}/ranger.png`,
+  rogue: `${HERO_CLASS_ASSET_BASE}/rogue.png`,
+  sorcerer: `${HERO_CLASS_ASSET_BASE}/sorcerer.png`,
+  wizard: `${HERO_CLASS_ASSET_BASE}/wizard.png`,
 };
 
 const POWER_GRADE_ORDER: HeroPowerGrade[] = [
@@ -187,6 +218,139 @@ function buildPowerGradeOptions(locale: HeroLocale): PowerGradeOption[] {
     label: getPowerGradeLabel(value, locale),
     imageUrl: POWER_GRADE_IMAGE_BY_CODE[value],
   }));
+}
+
+function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('barbarian') || normalized.includes('варвар')) return 'barbarian';
+  if (normalized.includes('cleric') || normalized.includes('церков')) return 'cleric';
+  if (normalized.includes('druid') || normalized.includes('друид')) return 'druid';
+  if (normalized.includes('fighter') || normalized.includes('боец')) return 'fighter';
+  if (normalized.includes('monk') || normalized.includes('монах')) return 'monk';
+  if (normalized.includes('paladin') || normalized.includes('палад')) return 'paladin';
+  if (normalized.includes('ranger') || normalized.includes('охот')) return 'ranger';
+  if (normalized.includes('rogue') || normalized.includes('ассас') || normalized.includes('разбой')) return 'rogue';
+  if (normalized.includes('sorcerer') || normalized.includes('колдун') || normalized.includes('маг')) return 'sorcerer';
+  if (normalized.includes('wizard') || normalized.includes('волшеб')) return 'wizard';
+
+  return null;
+}
+
+function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): HeroClassKey | null {
+  const normalized = (value ?? '').trim().toLocaleLowerCase();
+
+  for (const classKey of Object.keys(HERO_CLASS_ICON_BY_KEY) as HeroClassKey[]) {
+    if (
+      normalized.includes(`/${classKey}.`) ||
+      normalized.includes(`\\${classKey}.`) ||
+      normalized.endsWith(`${classKey}.png`)
+    ) {
+      return classKey;
+    }
+  }
+
+  return null;
+}
+
+function formatReleaseDate(value: string | null | undefined, locale: HeroLocale): string {
+  if (!value) {
+    return locale === 'RU' ? 'Без даты' : 'No date';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(locale === 'RU' ? 'ru-RU' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getReleaseDateSortValue(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+function sortRosterCardList(
+  cards: RosterHeroCard[],
+  heroLocale: HeroLocale,
+  heroSortField: HeroRosterSortField,
+  heroSortOrder: HeroRosterSortOrder,
+): RosterHeroCard[] {
+  const sorted = [...cards];
+
+  sorted.sort((left, right) => {
+    let result = 0;
+
+    if (heroSortField === 'name') {
+      result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+        sensitivity: 'base',
+      });
+    } else if (heroSortField === 'element') {
+      result = (left.elementName ?? '').localeCompare(right.elementName ?? '', heroLocale === 'RU' ? 'ru' : 'en', {
+        sensitivity: 'base',
+      });
+      if (result === 0) {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      }
+    } else if (heroSortField === 'powerGrade') {
+      result = POWER_GRADE_SORT_RANK[left.powerGrade] - POWER_GRADE_SORT_RANK[right.powerGrade];
+      if (result === 0) {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      }
+    } else if (heroSortField === 'rarity') {
+      result = left.rarityStars - right.rarityStars;
+      if (result === 0) {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      }
+    } else if (heroSortField === 'releaseDate') {
+      result = getReleaseDateSortValue(left.releaseDate) - getReleaseDateSortValue(right.releaseDate);
+      if (result === 0) {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      }
+    } else {
+      result = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+    }
+
+    return heroSortOrder === 'asc' ? result : -result;
+  });
+
+  return sorted;
+}
+
+function CornerIconBadge({
+  imageUrl,
+  alt,
+  className,
+}: {
+  imageUrl: string;
+  alt: string;
+  className: string;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt={alt}
+      className={`h-3.5 w-3.5 object-contain drop-shadow-[0_3px_6px_rgba(15,23,42,0.8)] sm:h-5 sm:w-5 ${className}`}
+    />
+  );
 }
 
 function PowerGradeBadge({
@@ -653,9 +817,10 @@ function HeroPreviewTile({
   name,
   previewUrl,
   elementName,
+  heroClassName,
+  heroClassKey,
   powerGrade,
   isCostume,
-  costumeIndex,
   locale,
   powerGradeOptions,
   powerGradeUpdating,
@@ -671,9 +836,10 @@ function HeroPreviewTile({
   name: string;
   previewUrl: string | null;
   elementName: string | null;
+  heroClassName: string | null;
+  heroClassKey: HeroClassKey | null;
   powerGrade: HeroPowerGrade;
   isCostume?: boolean;
-  costumeIndex?: number | null;
   locale: HeroLocale;
   powerGradeOptions: PowerGradeOption[];
   powerGradeUpdating?: boolean;
@@ -687,9 +853,24 @@ function HeroPreviewTile({
 }) {
   const accentClass = getHeroPreviewAccentClass(elementName);
   const powerGradeLabel = getPowerGradeLabel(powerGrade, locale);
+  const heroClassLabel = heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
   const content = (
     <>
       <div className="relative overflow-visible">
+        {heroClassKey ? (
+          <CornerIconBadge
+            imageUrl={HERO_CLASS_ICON_BY_KEY[heroClassKey]}
+            alt={heroClassLabel}
+            className="pointer-events-none absolute left-1 top-1 z-10 sm:left-1.5 sm:top-1.5"
+          />
+        ) : null}
+        {isCostume ? (
+          <CornerIconBadge
+            imageUrl={COSTUME_ICON_URL}
+            alt={locale === 'RU' ? 'Костюм' : 'Costume'}
+            className="pointer-events-none absolute left-1 top-5 z-10 sm:left-1.5 sm:top-7"
+          />
+        ) : null}
         <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -730,12 +911,6 @@ function HeroPreviewTile({
 
   return (
     <div className="group relative">
-      {isCostume ? (
-        <div className="pointer-events-none absolute left-1 top-1 z-10 rounded-full border border-cyan-400/40 bg-slate-950/85 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px]">
-          {`C${costumeIndex ?? '?'}`}
-        </div>
-      ) : null}
-
       {onClick ? (
         <button
           type="button"
@@ -761,6 +936,58 @@ function HeroPreviewTile({
           <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         </button>
       ) : null}
+    </div>
+  );
+}
+
+function OverviewHeroTile({
+  hero,
+  locale,
+}: {
+  hero: RosterHeroCard;
+  locale: HeroLocale;
+}) {
+  const accentClass = getHeroPreviewAccentClass(hero.elementName);
+  const heroClassLabel = hero.heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
+
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 text-center shadow-sm">
+      <div className="relative mx-auto w-fit overflow-visible">
+        {hero.heroClassKey ? (
+          <CornerIconBadge
+            imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
+            alt={heroClassLabel}
+            className="pointer-events-none absolute left-1 top-1 z-10"
+          />
+        ) : null}
+        {hero.isCostume ? (
+          <CornerIconBadge
+            imageUrl={COSTUME_ICON_URL}
+            alt={locale === 'RU' ? 'Костюм' : 'Costume'}
+            className="pointer-events-none absolute left-1 top-5 z-10"
+          />
+        ) : null}
+        <div className={`overflow-hidden rounded-md border p-[2px] ${accentClass}`}>
+          {hero.previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={hero.previewUrl} alt={hero.name} className="h-14 w-14 rounded-[6px] object-cover sm:h-16 sm:w-16" />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-[6px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16">
+              ?
+            </div>
+          )}
+        </div>
+        <PowerGradeBadge
+          powerGrade={hero.powerGrade}
+          label={getPowerGradeLabel(hero.powerGrade, locale)}
+          imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+          locale={locale}
+        />
+        <TalentBadge talentLevel={hero.talentLevel} locale={locale} />
+      </div>
+      <div className="mt-1 line-clamp-2 min-h-[1.25rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.45rem] sm:text-[9px]">
+        {hero.name}
+      </div>
     </div>
   );
 }
@@ -829,15 +1056,10 @@ function WarHeroSlot({
   }
 
   const accentClass = getHeroPreviewAccentClass(hero.elementName);
+  const heroClassLabel = hero.heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
 
   return (
     <div className="group relative">
-      {hero.isCostume ? (
-        <div className="pointer-events-none absolute left-1 top-1 z-10 rounded-full border border-cyan-400/35 bg-slate-950/85 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-cyan-200 shadow-lg">
-          {`C${hero.costumeIndex ?? '?'}`}
-        </div>
-      ) : null}
-
       <button
         type="button"
         onClick={onClick}
@@ -846,6 +1068,20 @@ function WarHeroSlot({
         }`}
       >
         <div className="relative overflow-visible">
+          {hero.heroClassKey ? (
+            <CornerIconBadge
+              imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
+              alt={heroClassLabel}
+              className="pointer-events-none absolute left-1 top-1 z-10"
+            />
+          ) : null}
+          {hero.isCostume ? (
+            <CornerIconBadge
+              imageUrl={COSTUME_ICON_URL}
+              alt={locale === 'RU' ? 'Костюм' : 'Costume'}
+              className="pointer-events-none absolute left-1 top-7 z-10"
+            />
+          ) : null}
           <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
             {hero.previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -913,6 +1149,12 @@ export default function ProfilePageClient() {
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
   const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('createdAt');
   const [heroSortOrder, setHeroSortOrder] = useState<HeroRosterSortOrder>('desc');
+  const [powerGradeFilter, setPowerGradeFilter] = useState<HeroPowerGrade | 'ALL'>('ALL');
+  const [elementFilter, setElementFilter] = useState<string>('ALL');
+  const [heroClassFilter, setHeroClassFilter] = useState<string>('ALL');
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [overviewPage, setOverviewPage] = useState(0);
+  const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
   const [heroModalOpen, setHeroModalOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorQuery, setSelectorQuery] = useState('');
@@ -1251,6 +1493,47 @@ export default function ProfilePageClient() {
           page += 1;
         }
 
+        const itemsNeedingDetails = Array.from(foundItems.values()).filter(
+          (item) => !item.heroClassName || !item.releaseDate,
+        );
+        if (itemsNeedingDetails.length > 0) {
+          const detailResponses = await Promise.all(
+            itemsNeedingDetails.map(async (item) => {
+              try {
+                const response = await apiJson<{
+                  currentHero: {
+                    heroClass?: { name: string; imageUrl?: string | null } | null;
+                    releaseDate?: string | null;
+                  };
+                }>(`/api/v1/public/heroes/${item.slug}/variants?language=${heroLocale}`);
+
+                return [item.id, response.currentHero] as const;
+              } catch {
+                return null;
+              }
+            }),
+          );
+
+          for (const detail of detailResponses) {
+            if (!detail) {
+              continue;
+            }
+
+            const [heroId, currentHero] = detail;
+            const existingItem = foundItems.get(heroId);
+            if (!existingItem) {
+              continue;
+            }
+
+            foundItems.set(heroId, {
+              ...existingItem,
+              heroClassName: existingItem.heroClassName ?? currentHero.heroClass?.name ?? null,
+              heroClassImageUrl: existingItem.heroClassImageUrl ?? currentHero.heroClass?.imageUrl ?? null,
+              releaseDate: existingItem.releaseDate ?? currentHero.releaseDate ?? null,
+            });
+          }
+        }
+
         if (!cancelled && foundItems.size > 0) {
           setRosterHeroMap((current) => {
             const next = new Map(current);
@@ -1363,59 +1646,91 @@ export default function ProfilePageClient() {
         createdAt: item.createdAt,
         previewUrl: hero?.previewUrl ?? hero?.imageUrl ?? null,
         elementName: hero?.elementName ?? null,
+        heroClassName: hero?.heroClassName ?? null,
+        heroClassKey:
+          resolveHeroClassKeyFromImageUrl(hero?.heroClassImageUrl) ??
+          resolveHeroClassKey(hero?.heroClassName),
+        releaseDate: hero?.releaseDate ?? null,
         isCostume: hero?.isCostume === true,
         costumeIndex: hero?.costumeIndex ?? null,
       };
     });
   }, [profileHeroes, rosterHeroMap]);
 
-  const sortedRosterCards = useMemo<RosterHeroCard[]>(() => {
-    const sorted = [...rosterCards];
-
-    sorted.sort((left, right) => {
-      let result = 0;
-
-      if (heroSortField === 'name') {
-        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
-          sensitivity: 'base',
-        });
-      } else if (heroSortField === 'element') {
-        result = (left.elementName ?? '').localeCompare(right.elementName ?? '', heroLocale === 'RU' ? 'ru' : 'en', {
-          sensitivity: 'base',
-        });
-        if (result === 0) {
-          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
-            sensitivity: 'base',
-          });
-        }
-      } else if (heroSortField === 'powerGrade') {
-        result = POWER_GRADE_SORT_RANK[left.powerGrade] - POWER_GRADE_SORT_RANK[right.powerGrade];
-        if (result === 0) {
-          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
-            sensitivity: 'base',
-          });
-        }
-      } else if (heroSortField === 'rarity') {
-        result = left.rarityStars - right.rarityStars;
-        if (result === 0) {
-          result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
-            sensitivity: 'base',
-          });
-        }
-      } else {
-        result = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  const filteredRosterCards = useMemo(() => {
+    return rosterCards.filter((hero) => {
+      if (powerGradeFilter !== 'ALL' && hero.powerGrade !== powerGradeFilter) {
+        return false;
       }
 
-      return heroSortOrder === 'asc' ? result : -result;
-    });
+      if (elementFilter !== 'ALL' && (hero.elementName ?? '') !== elementFilter) {
+        return false;
+      }
 
-    return sorted;
-  }, [heroLocale, heroSortField, heroSortOrder, rosterCards]);
+      if (heroClassFilter !== 'ALL' && (hero.heroClassName ?? '') !== heroClassFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [elementFilter, heroClassFilter, powerGradeFilter, rosterCards]);
+
+  const allSortedRosterCards = useMemo<RosterHeroCard[]>(
+    () => sortRosterCardList(rosterCards, heroLocale, heroSortField, heroSortOrder),
+    [heroLocale, heroSortField, heroSortOrder, rosterCards],
+  );
+  const sortedRosterCards = useMemo<RosterHeroCard[]>(() => {
+    return sortRosterCardList(filteredRosterCards, heroLocale, heroSortField, heroSortOrder);
+  }, [filteredRosterCards, heroLocale, heroSortField, heroSortOrder]);
 
   const rosterHeroCardMap = useMemo(() => {
-    return new Map(sortedRosterCards.map((hero) => [hero.profileHeroId, hero]));
-  }, [sortedRosterCards]);
+    return new Map(rosterCards.map((hero) => [hero.profileHeroId, hero]));
+  }, [rosterCards]);
   const powerGradeOptions = useMemo(() => buildPowerGradeOptions(heroLocale), [heroLocale]);
+  const elementFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(rosterCards.map((hero) => hero.elementName).filter((value): value is string => Boolean(value))),
+      ).sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' })),
+    [heroLocale, rosterCards],
+  );
+  const heroClassFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(rosterCards.map((hero) => hero.heroClassName).filter((value): value is string => Boolean(value))),
+      ).sort((left, right) => left.localeCompare(right, heroLocale === 'RU' ? 'ru' : 'en', { sensitivity: 'base' })),
+    [heroLocale, rosterCards],
+  );
+  const overviewIdealColumnCount = useMemo(
+    () => Math.max(1, Math.ceil(Math.sqrt(sortedRosterCards.length || 1))),
+    [sortedRosterCards.length],
+  );
+  const overviewTileWidth = overviewViewport.width > 0 && overviewViewport.width < 640 ? 72 : 84;
+  const overviewTileGap = overviewViewport.width > 0 && overviewViewport.width < 640 ? 4 : 6;
+  const overviewTileHeight = overviewViewport.width > 0 && overviewViewport.width < 640 ? 92 : 106;
+  const overviewMaxColumns = Math.max(
+    1,
+    Math.floor(Math.max(overviewViewport.width - 48, overviewTileWidth) / (overviewTileWidth + overviewTileGap)),
+  );
+  const overviewColumnCount = Math.max(1, Math.min(overviewIdealColumnCount, overviewMaxColumns));
+  const overviewMaxRows = Math.max(
+    1,
+    Math.floor(Math.max(overviewViewport.height - 220, overviewTileHeight) / (overviewTileHeight + overviewTileGap)),
+  );
+  const overviewPageSize = Math.max(1, overviewColumnCount * overviewMaxRows);
+  const overviewPageCount = Math.max(1, Math.ceil(sortedRosterCards.length / overviewPageSize));
+  const overviewPageItems = useMemo(() => {
+    const start = overviewPage * overviewPageSize;
+    return sortedRosterCards.slice(start, start + overviewPageSize);
+  }, [overviewPage, overviewPageSize, sortedRosterCards]);
+  const overviewSubtitle =
+    locale === 'ru'
+      ? `\u0413\u0435\u0440\u043e\u0438: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` \u2022 \u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430 ${overviewPage + 1}/${overviewPageCount}` : ''}`
+      : `Heroes: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` • Page ${overviewPage + 1}/${overviewPageCount}` : ''}`;
+  const overviewHelperText =
+    locale === 'ru'
+      ? '\u041a\u0430\u0440\u0442\u043e\u0447\u043a\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 \u043e\u0431\u044b\u0447\u043d\u044b\u0435 \u043f\u0440\u043e\u043f\u043e\u0440\u0446\u0438\u0438. \u0415\u0441\u043b\u0438 \u0433\u0435\u0440\u043e\u0435\u0432 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e, \u0441\u043f\u0438\u0441\u043e\u043a \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u0434\u0435\u043b\u0438\u0442\u0441\u044f \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b.'
+      : 'Cards keep their normal proportions here. If there are too many heroes, the list is split into pages automatically.';
 
   const usedWarHeroIds = useMemo(() => {
     return new Set(
@@ -1439,10 +1754,10 @@ export default function ProfilePageClient() {
         .find((team) => team.teamIndex === warSlotPicker.teamIndex)
         ?.slots.find((slot) => slot.slot === warSlotPicker.slot)?.playerProfileHeroId ?? null;
 
-    return sortedRosterCards.filter(
+    return allSortedRosterCards.filter(
       (hero) => hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId),
     );
-  }, [sortedRosterCards, usedWarHeroIds, warSlotPicker, warTeams]);
+  }, [allSortedRosterCards, usedWarHeroIds, warSlotPicker, warTeams]);
 
   const queueWarTeamsSave = useCallback(async (nextTeams: PlayerWarAttackTeamResponse[]) => {
     const payload = buildWarTeamsPayload(nextTeams);
@@ -1709,6 +2024,42 @@ export default function ProfilePageClient() {
   const handleCloseSelectedHero = () => {
     setSelectedHeroSlug(null);
   };
+
+  const resetHeroFilters = () => {
+    setPowerGradeFilter('ALL');
+    setElementFilter('ALL');
+    setHeroClassFilter('ALL');
+  };
+
+  useEffect(() => {
+    if (!overviewOpen) {
+      return;
+    }
+
+    const updateViewport = () => {
+      setOverviewViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, [overviewOpen]);
+
+  useEffect(() => {
+    setOverviewPage(0);
+  }, [overviewOpen, sortedRosterCards]);
+
+  useEffect(() => {
+    if (overviewPage >= overviewPageCount) {
+      setOverviewPage(Math.max(0, overviewPageCount - 1));
+    }
+  }, [overviewPage, overviewPageCount]);
 
   const handleRemoveHero = async (profileHeroId: string) => {
     setRemovingProfileHeroId(profileHeroId);
@@ -2072,7 +2423,8 @@ export default function ProfilePageClient() {
                     <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
                     <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
                     <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
-                    <option value="powerGrade">{locale === 'ru' ? 'По уровню вознесения' : 'By ascension level'}</option>
+                    <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                    <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
                   </select>
                 </label>
 
@@ -2085,6 +2437,90 @@ export default function ProfilePageClient() {
                   >
                     <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
                     <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--foreground)]">
+                    {locale === 'ru' ? 'Фильтры героев' : 'Hero filters'}
+                  </div>
+                  <div className="text-xs text-[var(--foreground-soft)]">
+                    {locale === 'ru'
+                      ? `Показано ${sortedRosterCards.length} из ${rosterCards.length}`
+                      : `Showing ${sortedRosterCards.length} of ${rosterCards.length}`}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={resetHeroFilters}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    {locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOverviewOpen(true)}
+                    disabled={sortedRosterCards.length === 0}
+                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                  <span>{locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}</span>
+                  <select
+                    value={powerGradeFilter}
+                    onChange={(event) => setPowerGradeFilter(event.target.value as HeroPowerGrade | 'ALL')}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                  >
+                    <option value="ALL">{locale === 'ru' ? 'Все уровни' : 'All levels'}</option>
+                    {powerGradeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                  <span>{locale === 'ru' ? 'Элемент' : 'Element'}</span>
+                  <select
+                    value={elementFilter}
+                    onChange={(event) => setElementFilter(event.target.value)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                  >
+                    <option value="ALL">{locale === 'ru' ? 'Все элементы' : 'All elements'}</option>
+                    {elementFilterOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                  <span>{locale === 'ru' ? 'Класс героя' : 'Hero class'}</span>
+                  <select
+                    value={heroClassFilter}
+                    onChange={(event) => setHeroClassFilter(event.target.value)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                  >
+                    <option value="ALL">{locale === 'ru' ? 'Все классы' : 'All classes'}</option>
+                    {heroClassFilterOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -2113,10 +2549,11 @@ export default function ProfilePageClient() {
                     name={hero.name}
                     previewUrl={hero.previewUrl}
                     elementName={hero.elementName}
+                    heroClassName={hero.heroClassName}
+                    heroClassKey={hero.heroClassKey}
                     powerGrade={hero.powerGrade}
                     talentLevel={hero.talentLevel}
                     isCostume={hero.isCostume}
-                    costumeIndex={hero.costumeIndex}
                     locale={heroLocale}
                     powerGradeOptions={powerGradeOptions}
                     powerGradeUpdating={updatingPowerGradeHeroId === hero.profileHeroId}
@@ -2140,7 +2577,11 @@ export default function ProfilePageClient() {
 
               {sortedRosterCards.length === 0 ? (
                 <p className="mt-5 text-sm text-[var(--foreground-soft)]">
-                  {messages.profile.heroesEmpty}
+                  {rosterCards.length === 0
+                    ? messages.profile.heroesEmpty
+                    : locale === 'ru'
+                      ? 'Нет героев по выбранным фильтрам.'
+                      : 'No heroes match the selected filters.'}
                 </p>
               ) : null}
             </div>
@@ -2195,7 +2636,7 @@ export default function ProfilePageClient() {
                 <span>{messages.profile.loadingHeroes}</span>
               </div>
             </div>
-          ) : sortedRosterCards.length === 0 ? (
+          ) : rosterCards.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--foreground-soft)] shadow-sm backdrop-blur-sm">
               {messages.profile.warEmpty}
             </div>
@@ -2318,7 +2759,22 @@ export default function ProfilePageClient() {
                           disabled={addingHeroId === hero.id}
                           className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                          <div className="relative inline-block overflow-visible">
+                            {resolveHeroClassKey(hero.heroClassName) ? (
+                              <CornerIconBadge
+                                imageUrl={HERO_CLASS_ICON_BY_KEY[resolveHeroClassKey(hero.heroClassName)!]}
+                                alt={hero.heroClassName ?? (locale === 'ru' ? 'Класс героя' : 'Hero class')}
+                                className="pointer-events-none absolute left-1 top-1 z-10"
+                              />
+                            ) : null}
+                            {hero.isCostume ? (
+                              <CornerIconBadge
+                                imageUrl={COSTUME_ICON_URL}
+                                alt={locale === 'ru' ? 'Костюм' : 'Costume'}
+                                className="pointer-events-none absolute left-1 top-5 z-10"
+                              />
+                            ) : null}
+                            <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
                             {hero.previewUrl || hero.imageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -2332,6 +2788,7 @@ export default function ProfilePageClient() {
                               </div>
                             )}
                           </div>
+                          </div>
 
                           <div className="mt-3">
                             <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-[var(--foreground)]">
@@ -2339,11 +2796,7 @@ export default function ProfilePageClient() {
                             </div>
                             <div className="mt-1 flex items-center gap-2 text-xs text-[var(--foreground-soft)]">
                               <span>{hero.rarityStars}*</span>
-                              {hero.isCostume ? (
-                                <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-2 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
-                                  {`C${hero.costumeIndex ?? '?'}`}
-                                </span>
-                              ) : null}
+                              {hero.releaseDate ? <span>{formatReleaseDate(hero.releaseDate, heroLocale)}</span> : null}
                             </div>
                           </div>
                         </button>
@@ -2413,12 +2866,26 @@ export default function ProfilePageClient() {
                         onClick={() => void handleAssignWarHero(hero.profileHeroId)}
                         disabled={savingWarTeams}
                         className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        <div className="relative inline-block overflow-visible">
-                          <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
-                            {hero.previewUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
+                        >
+                          <div className="relative inline-block overflow-visible">
+                            {hero.heroClassKey ? (
+                              <CornerIconBadge
+                                imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
+                                alt={hero.heroClassName ?? (locale === 'ru' ? 'Класс героя' : 'Hero class')}
+                                className="pointer-events-none absolute left-1 top-1 z-10"
+                              />
+                            ) : null}
+                            {hero.isCostume ? (
+                              <CornerIconBadge
+                                imageUrl={COSTUME_ICON_URL}
+                                alt={locale === 'ru' ? 'Костюм' : 'Costume'}
+                                className="pointer-events-none absolute left-1 top-5 z-10"
+                              />
+                            ) : null}
+                            <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                              {hero.previewUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
                                 src={hero.previewUrl}
                                 alt={hero.name}
                                 className="h-16 w-16 rounded-[12px] object-cover sm:h-20 sm:w-20"
@@ -2447,11 +2914,7 @@ export default function ProfilePageClient() {
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-soft)] sm:text-xs">
                             <span>{hero.rarityStars}*</span>
-                            {hero.isCostume ? (
-                              <span className="rounded-full border border-cyan-400/35 bg-cyan-400/10 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-cyan-300">
-                                {`C${hero.costumeIndex ?? '?'}`}
-                              </span>
-                            ) : null}
+                            {hero.releaseDate ? <span>{formatReleaseDate(hero.releaseDate, heroLocale)}</span> : null}
                           </div>
                         </div>
                       </button>
@@ -2463,6 +2926,83 @@ export default function ProfilePageClient() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {overviewOpen ? (
+        <div
+          className="fixed inset-0 z-[120] overflow-hidden bg-black/80 p-3 backdrop-blur-sm sm:p-4"
+          onClick={() => setOverviewOpen(false)}
+        >
+          <div className="flex h-full items-center justify-center overflow-auto">
+            <div
+              className="flex max-h-[calc(100dvh-1.5rem)] flex-col rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-2.5"
+              style={{
+                width: `min(calc(100vw - 1.5rem), ${overviewColumnCount * overviewTileWidth + Math.max(overviewColumnCount - 1, 0) * overviewTileGap + 24}px)`,
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--foreground)] sm:text-xl">
+                    {locale === 'ru' ? 'Лист героев для скриншота' : 'Hero screenshot overview'}
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--foreground-soft)] sm:text-sm">{overviewSubtitle}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOverviewOpen(false)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  aria-label={locale === 'ru' ? 'Закрыть' : 'Close'}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] text-[var(--foreground-soft)] sm:px-3 sm:py-2 sm:text-xs">
+                {overviewHelperText}
+              </div>
+
+              <div className="mt-2 overflow-auto">
+                <div
+                  className="grid justify-center gap-[4px] sm:gap-[6px]"
+                  style={{
+                    gridTemplateColumns: `repeat(${overviewColumnCount}, ${overviewTileWidth}px)`,
+                  }}
+                >
+                  {overviewPageItems.map((hero) => (
+                    <OverviewHeroTile key={`overview-${hero.profileHeroId}`} hero={hero} locale={heroLocale} />
+                  ))}
+                </div>
+              </div>
+
+              {overviewPageCount > 1 ? (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOverviewPage((current) => Math.max(0, current - 1))}
+                    disabled={overviewPage === 0}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {locale === 'ru' ? 'Назад' : 'Previous'}
+                  </button>
+                  <div className="text-center text-[10px] text-[var(--foreground-soft)] sm:text-xs">
+                    {locale === 'ru'
+                      ? `Страница ${overviewPage + 1} из ${overviewPageCount}`
+                      : `Page ${overviewPage + 1} of ${overviewPageCount}`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOverviewPage((current) => Math.min(overviewPageCount - 1, current + 1))}
+                    disabled={overviewPage >= overviewPageCount - 1}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {locale === 'ru' ? 'Дальше' : 'Next'}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -2485,3 +3025,4 @@ export default function ProfilePageClient() {
     </section>
   );
 }
+
