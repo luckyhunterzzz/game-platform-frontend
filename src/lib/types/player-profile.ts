@@ -1,5 +1,6 @@
 export type PlayerProfileStatus = 'INCOMPLETE' | 'COMPLETE' | 'SUSPENDED';
 export type HeroPowerGrade =
+  | 'FIRST_TIER'
   | 'FIRST_ASCENSION'
   | 'SECOND_ASCENSION'
   | 'FULLY_ASCENDED'
