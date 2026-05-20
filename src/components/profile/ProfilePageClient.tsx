@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, CircleHelp, Eraser, LoaderCircle, Plus, Save, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleHelp, Eraser, LoaderCircle, Monitor, Plus, RotateCcw, Save, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -764,19 +764,17 @@ function TalentBadge({
 
 function IconFilterSelect({
   label,
-  value,
-  allValue,
+  values,
   allLabel,
   options,
   onChange,
   locale,
 }: {
   label: string;
-  value: string;
-  allValue: string;
+  values: string[];
   allLabel: string;
   options: IconFilterOption[];
-  onChange: (nextValue: string) => void;
+  onChange: (nextValues: string[]) => void;
   locale: HeroLocale;
 }) {
   const [open, setOpen] = useState(false);
@@ -784,7 +782,15 @@ function IconFilterSelect({
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const popoverPanelRef = useRef<HTMLDivElement | null>(null);
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
-  const selectedOption = value === allValue ? null : options.find((option) => option.value === value) ?? null;
+  const selectedOptions = options.filter((option) => values.includes(option.value));
+  const summaryLabel =
+    selectedOptions.length === 0
+      ? allLabel
+      : selectedOptions.length === 1
+        ? selectedOptions[0].label
+        : locale === 'RU'
+          ? `Выбрано: ${selectedOptions.length}`
+          : `Selected: ${selectedOptions.length}`;
 
   useEffect(() => {
     if (!open) {
@@ -835,11 +841,11 @@ function IconFilterSelect({
         className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
       >
         <span className="flex min-w-0 items-center gap-2">
-          {selectedOption?.imageUrl ? (
+          {selectedOptions[0]?.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={selectedOption.imageUrl} alt={selectedOption.label} className="h-5 w-5 object-contain" />
+            <img src={selectedOptions[0].imageUrl} alt={selectedOptions[0].label} className="h-5 w-5 object-contain" />
           ) : null}
-          <span className="truncate">{selectedOption?.label ?? allLabel}</span>
+          <span className="truncate">{summaryLabel}</span>
         </span>
         <ChevronDown className={`h-4 w-4 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -863,15 +869,30 @@ function IconFilterSelect({
                 </button>
               </div>
               <div className="space-y-1">
-                {[{ value: allValue, label: allLabel, imageUrl: null }, ...options].map((option) => {
-                  const selected = option.value === value;
+                <button
+                  type="button"
+                  onClick={() => onChange([])}
+                  className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
+                    values.length === 0
+                      ? 'bg-cyan-400/12 text-cyan-200'
+                      : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <div className="h-7 w-7 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)]" />
+                  <span className="min-w-0 flex-1 leading-tight">{allLabel}</span>
+                </button>
+                {options.map((option) => {
+                  const selected = values.includes(option.value);
                   return (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => {
-                        setOpen(false);
-                        onChange(option.value);
+                        onChange(
+                          selected
+                            ? values.filter((value) => value !== option.value)
+                            : [...values, option.value],
+                        );
                       }}
                       className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
                         selected
@@ -886,6 +907,7 @@ function IconFilterSelect({
                         <div className="h-7 w-7 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)]" />
                       )}
                       <span className="min-w-0 flex-1 leading-tight">{option.label}</span>
+                      {selected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
                     </button>
                   );
                 })}
@@ -1325,14 +1347,13 @@ export default function ProfilePageClient() {
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
   const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('createdAt');
   const [heroSortOrder, setHeroSortOrder] = useState<HeroRosterSortOrder>('desc');
-  const [powerGradeFilter, setPowerGradeFilter] = useState<HeroPowerGrade | 'ALL'>('ALL');
-  const [elementFilter, setElementFilter] = useState<string>('ALL');
-  const [heroClassFilter, setHeroClassFilter] = useState<string>('ALL');
+  const [powerGradeFilters, setPowerGradeFilters] = useState<HeroPowerGrade[]>([]);
+  const [elementFilters, setElementFilters] = useState<string[]>([]);
+  const [heroClassFilters, setHeroClassFilters] = useState<string[]>([]);
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
   const [heroFiltersExpanded, setHeroFiltersExpanded] = useState(true);
-  const [heroRosterExpanded, setHeroRosterExpanded] = useState(true);
   const [heroModalOpen, setHeroModalOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
   const [selectorQuery, setSelectorQuery] = useState('');
@@ -1837,21 +1858,21 @@ export default function ProfilePageClient() {
 
   const filteredRosterCards = useMemo(() => {
     return rosterCards.filter((hero) => {
-      if (powerGradeFilter !== 'ALL' && hero.powerGrade !== powerGradeFilter) {
+      if (powerGradeFilters.length > 0 && !powerGradeFilters.includes(hero.powerGrade)) {
         return false;
       }
 
-      if (elementFilter !== 'ALL' && (hero.elementName ?? '') !== elementFilter) {
+      if (elementFilters.length > 0 && !elementFilters.includes(hero.elementName ?? '')) {
         return false;
       }
 
-      if (heroClassFilter !== 'ALL' && (hero.heroClassName ?? '') !== heroClassFilter) {
+      if (heroClassFilters.length > 0 && !heroClassFilters.includes(hero.heroClassName ?? '')) {
         return false;
       }
 
       return true;
     });
-  }, [elementFilter, heroClassFilter, powerGradeFilter, rosterCards]);
+  }, [elementFilters, heroClassFilters, powerGradeFilters, rosterCards]);
 
   const allSortedRosterCards = useMemo<RosterHeroCard[]>(
     () => sortRosterCardList(rosterCards, heroLocale, heroSortField, heroSortOrder),
@@ -1927,10 +1948,6 @@ export default function ProfilePageClient() {
     locale === 'ru'
       ? `\u0413\u0435\u0440\u043e\u0438: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` \u2022 \u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430 ${overviewPage + 1}/${overviewPageCount}` : ''}`
       : `Heroes: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` • Page ${overviewPage + 1}/${overviewPageCount}` : ''}`;
-  const overviewHelperText =
-    locale === 'ru'
-      ? '\u041a\u0430\u0440\u0442\u043e\u0447\u043a\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 \u043e\u0431\u044b\u0447\u043d\u044b\u0435 \u043f\u0440\u043e\u043f\u043e\u0440\u0446\u0438\u0438. \u0415\u0441\u043b\u0438 \u0433\u0435\u0440\u043e\u0435\u0432 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e, \u0441\u043f\u0438\u0441\u043e\u043a \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u0434\u0435\u043b\u0438\u0442\u0441\u044f \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b.'
-      : 'Cards keep their normal proportions here. If there are too many heroes, the list is split into pages automatically.';
 
   const usedWarHeroIds = useMemo(() => {
     return new Set(
@@ -2226,15 +2243,14 @@ export default function ProfilePageClient() {
   };
 
   const resetHeroFilters = () => {
-    setPowerGradeFilter('ALL');
-    setElementFilter('ALL');
-    setHeroClassFilter('ALL');
+    setPowerGradeFilters([]);
+    setElementFilters([]);
+    setHeroClassFilters([]);
   };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setHeroFiltersExpanded(false);
-      setHeroRosterExpanded(false);
     }
   }, []);
 
@@ -2618,58 +2634,6 @@ export default function ProfilePageClient() {
       ) : activeTab === 'heroes' ? (
         <div className="space-y-6">
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                  {locale === 'ru' ? 'Мои герои' : 'My heroes'}
-                </h2>
-                <div className="text-xs text-[var(--foreground-soft)]">
-                  {locale === 'ru' ? `${sortedRosterCards.length} карточек` : `${sortedRosterCards.length} cards`}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setHeroRosterExpanded((current) => !current)}
-                className="rounded-md p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:hidden"
-                aria-label={heroRosterExpanded ? (locale === 'ru' ? 'Скрыть сортировку' : 'Hide sorting') : (locale === 'ru' ? 'Показать сортировку' : 'Show sorting')}
-              >
-                <ChevronDown className={`h-5 w-5 transition ${heroRosterExpanded ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-
-            <div className={`${heroRosterExpanded ? 'mt-4 flex' : 'hidden'} flex-col gap-2 sm:mt-4 sm:flex sm:flex-row`}>
-              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
-                <select
-                  value={heroSortField}
-                  onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                >
-                  <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
-                  <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
-                  <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
-                  <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
-                  <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
-                  <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
-                <select
-                  value={heroSortOrder}
-                  onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                >
-                  <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
-                  <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
             <div className="flex flex-col gap-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -2693,55 +2657,84 @@ export default function ProfilePageClient() {
               </div>
 
               <div className={`${heroFiltersExpanded ? 'flex' : 'hidden'} flex-col gap-4 sm:flex`}>
-                <div className="flex flex-row gap-2 sm:flex-row sm:flex-wrap">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] gap-2 md:grid-cols-[repeat(2,minmax(0,220px))_auto_auto]">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
+                    <select
+                      value={heroSortField}
+                      onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                    >
+                      <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
+                      <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
+                      <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                      <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
+                      <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                      <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                    <select
+                      value={heroSortOrder}
+                      onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                    >
+                      <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                      <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                    </select>
+                  </label>
+
                   <button
                     type="button"
                     onClick={resetHeroFilters}
-                    className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:flex-none"
+                    title={locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
+                    aria-label={locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
+                    className="mt-[1.35rem] inline-flex h-10 w-10 items-center justify-center self-start rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
                   >
-                    {locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
+                    <RotateCcw className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setOverviewOpen(true)}
                     disabled={sortedRosterCards.length === 0}
-                    className="min-w-0 flex-1 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+                    title={locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
+                    aria-label={locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
+                    className="mt-[1.35rem] inline-flex h-10 w-10 items-center justify-center self-start rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
+                    <Monitor className="h-4 w-4" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <IconFilterSelect
-                  label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}
-                  value={powerGradeFilter}
-                  allValue="ALL"
-                  allLabel={locale === 'ru' ? 'Все уровни' : 'All levels'}
-                  options={powerGradeFilterOptions}
-                  onChange={(nextValue) => setPowerGradeFilter(nextValue as HeroPowerGrade | 'ALL')}
-                  locale={heroLocale}
-                />
+                  <IconFilterSelect
+                    label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}
+                    values={powerGradeFilters}
+                    allLabel={locale === 'ru' ? 'Все уровни' : 'All levels'}
+                    options={powerGradeFilterOptions}
+                    onChange={(nextValues) => setPowerGradeFilters(nextValues as HeroPowerGrade[])}
+                    locale={heroLocale}
+                  />
 
-                <IconFilterSelect
-                  label={locale === 'ru' ? 'Элемент' : 'Element'}
-                  value={elementFilter}
-                  allValue="ALL"
-                  allLabel={locale === 'ru' ? 'Все элементы' : 'All elements'}
-                  options={elementFilterOptions}
-                  onChange={setElementFilter}
-                  locale={heroLocale}
-                />
+                  <IconFilterSelect
+                    label={locale === 'ru' ? 'Элемент' : 'Element'}
+                    values={elementFilters}
+                    allLabel={locale === 'ru' ? 'Все элементы' : 'All elements'}
+                    options={elementFilterOptions}
+                    onChange={setElementFilters}
+                    locale={heroLocale}
+                  />
 
-                <IconFilterSelect
-                  label={locale === 'ru' ? 'Класс героя' : 'Hero class'}
-                  value={heroClassFilter}
-                  allValue="ALL"
-                  allLabel={locale === 'ru' ? 'Все классы' : 'All classes'}
-                  options={heroClassFilterOptions}
-                  onChange={setHeroClassFilter}
-                  locale={heroLocale}
-                />
-              </div>
+                  <IconFilterSelect
+                    label={locale === 'ru' ? 'Класс героя' : 'Hero class'}
+                    values={heroClassFilters}
+                    allLabel={locale === 'ru' ? 'Все классы' : 'All classes'}
+                    options={heroClassFilterOptions}
+                    onChange={setHeroClassFilters}
+                    locale={heroLocale}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -3179,11 +3172,6 @@ export default function ProfilePageClient() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] text-[var(--foreground-soft)] sm:px-3 sm:py-2 sm:text-xs">
-                {overviewHelperText}
-              </div>
-
               <div className="mt-2 overflow-auto">
                 <div
                   className="grid justify-center gap-[4px] sm:gap-[6px]"
