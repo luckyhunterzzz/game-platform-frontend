@@ -1667,77 +1667,16 @@ export default function ProfilePageClient() {
           return;
         }
 
-        const unresolvedIds = new Set(missingIds);
-        let page = 0;
-        let hasNext = true;
-        const foundItems = new Map<number, PublicHeroCatalogItem>();
-
-        while (hasNext && unresolvedIds.size > 0) {
-          const params = new URLSearchParams({
-            page: String(page),
-            size: '100',
-            language: heroLocale,
-          });
-
-          const response = await apiJson<PublicHeroPageResponse>(`/api/v1/public/heroes?${params.toString()}`);
-
-          for (const item of response.items) {
-            if (unresolvedIds.has(item.id)) {
-              foundItems.set(item.id, item);
-              unresolvedIds.delete(item.id);
-            }
-          }
-
-          hasNext = response.hasNext;
-          page += 1;
-        }
-
-        const itemsNeedingDetails = Array.from(foundItems.values()).filter(
-          (item) => !item.heroClassName || !item.releaseDate,
+        const response = await apiPostJson<{ heroIds: number[] }, PublicHeroCatalogItem[]>(
+          `/api/v1/public/heroes/batch?language=${heroLocale}`,
+          { heroIds: missingIds },
         );
-        if (itemsNeedingDetails.length > 0) {
-          const detailResponses = await Promise.all(
-            itemsNeedingDetails.map(async (item) => {
-              try {
-                const response = await apiJson<{
-                  currentHero: {
-                    heroClass?: { name: string; imageUrl?: string | null } | null;
-                    releaseDate?: string | null;
-                  };
-                }>(`/api/v1/public/heroes/${item.slug}/variants?language=${heroLocale}`);
 
-                return [item.id, response.currentHero] as const;
-              } catch {
-                return null;
-              }
-            }),
-          );
-
-          for (const detail of detailResponses) {
-            if (!detail) {
-              continue;
-            }
-
-            const [heroId, currentHero] = detail;
-            const existingItem = foundItems.get(heroId);
-            if (!existingItem) {
-              continue;
-            }
-
-            foundItems.set(heroId, {
-              ...existingItem,
-              heroClassName: existingItem.heroClassName ?? currentHero.heroClass?.name ?? null,
-              heroClassImageUrl: existingItem.heroClassImageUrl ?? currentHero.heroClass?.imageUrl ?? null,
-              releaseDate: existingItem.releaseDate ?? currentHero.releaseDate ?? null,
-            });
-          }
-        }
-
-        if (!cancelled && foundItems.size > 0) {
+        if (!cancelled && response.length > 0) {
           setRosterHeroMap((current) => {
             const next = new Map(current);
-            for (const [heroId, item] of foundItems.entries()) {
-              next.set(heroId, item);
+            for (const item of response) {
+              next.set(item.id, item);
             }
             return next;
           });
@@ -1752,7 +1691,7 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated, heroLocale, rosterHeroMap, uniqueHeroIds]);
+  }, [apiPostJson, authenticated, heroLocale, rosterHeroMap, uniqueHeroIds]);
 
   useEffect(() => {
     setRosterHeroMap(new Map());
@@ -2657,54 +2596,58 @@ export default function ProfilePageClient() {
               </div>
 
               <div className={`${heroFiltersExpanded ? 'flex' : 'hidden'} flex-col gap-4 sm:flex`}>
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] gap-2 md:grid-cols-[repeat(2,minmax(0,220px))_auto_auto]">
-                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                    <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
-                    <select
-                      value={heroSortField}
-                      onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                    >
-                      <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
-                      <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
-                      <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
-                      <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
-                      <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
-                      <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
-                    </select>
-                  </label>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                  <div className="grid grid-cols-2 gap-2 md:max-w-[28rem]">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                      <span>{locale === 'ru' ? 'Сортировка' : 'Sort'}</span>
+                      <select
+                        value={heroSortField}
+                        onChange={(event) => setHeroSortField(event.target.value as HeroRosterSortField)}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                      >
+                        <option value="createdAt">{locale === 'ru' ? 'По дате добавления' : 'By added date'}</option>
+                        <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
+                        <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                        <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
+                        <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                        <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
+                      </select>
+                    </label>
 
-                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-                    <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
-                    <select
-                      value={heroSortOrder}
-                      onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                    >
-                      <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
-                      <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
-                    </select>
-                  </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                      <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                      <select
+                        value={heroSortOrder}
+                        onChange={(event) => setHeroSortOrder(event.target.value as HeroRosterSortOrder)}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                      >
+                        <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                        <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                      </select>
+                    </label>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={resetHeroFilters}
-                    title={locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
-                    aria-label={locale === 'ru' ? 'Сбросить фильтры' : 'Reset filters'}
-                    className="mt-[1.35rem] inline-flex h-10 w-10 items-center justify-center self-start rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOverviewOpen(true)}
-                    disabled={sortedRosterCards.length === 0}
-                    title={locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
-                    aria-label={locale === 'ru' ? 'Лист для скриншота' : 'Screenshot overview'}
-                    className="mt-[1.35rem] inline-flex h-10 w-10 items-center justify-center self-start rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Monitor className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-end justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={resetHeroFilters}
+                      title={locale === 'ru' ? 'Сбросить все фильтры героев' : 'Reset all hero filters'}
+                      aria-label={locale === 'ru' ? 'Сбросить все фильтры героев' : 'Reset all hero filters'}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOverviewOpen(true)}
+                      disabled={sortedRosterCards.length === 0}
+                      title={locale === 'ru' ? 'Открыть лист героев для скриншота' : 'Open hero screenshot overview'}
+                      aria-label={locale === 'ru' ? 'Открыть лист героев для скриншота' : 'Open hero screenshot overview'}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Monitor className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
