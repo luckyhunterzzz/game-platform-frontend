@@ -2413,7 +2413,7 @@ export default function PublicHeroDetailsModal({
     locale === 'RU'
       ? 'Для этого героя подходящие отряды пока не найдены.'
       : 'Matching troops are not configured for this hero yet.';
-  const currentHeroIsMimic = currentHeroSlug?.toLocaleLowerCase() === 'mimic';
+  const currentHeroIsMimic = currentHeroSlug?.toLocaleLowerCase().includes('mimic') === true;
   const limitBreakSource = currentHeroIsCostume || currentHeroIsMimic
     ? COSTUME_LIMIT_BREAK_REQUIREMENTS
     : LIMIT_BREAK_REQUIREMENTS;
