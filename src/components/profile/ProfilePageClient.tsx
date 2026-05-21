@@ -469,7 +469,7 @@ function CostumeCollectionBadge({
         sizeClassName={sizeClassName}
       />
       {level > 1 ? (
-        <span className={`absolute -right-2 -top-1 rounded-full bg-black/80 px-1 py-[1px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] ${textClassName}`}>
+        <span className={`absolute -right-2 -bottom-1 rounded-full bg-black/80 px-1 py-[1px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] ${textClassName}`}>
           {`x${level}`}
         </span>
       ) : null}
@@ -646,7 +646,7 @@ function TalentBadge({
   disabled = false,
   locale,
   onChange,
-  sizeClassName = 'h-[22px] w-[22px] sm:h-[30px] sm:w-[30px]',
+  sizeClassName = 'h-[18px] w-[18px] sm:h-[24px] sm:w-[24px]',
 }: {
   talentLevel: number;
   interactive?: boolean;
@@ -777,7 +777,7 @@ function TalentBadge({
                 className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
               />
               {talentLevel > 0 ? (
-                <span className="absolute right-[-3px] top-[-3px] rounded-full bg-black/80 px-1 py-[1px] text-[7px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] sm:right-[-4px] sm:top-[-4px] sm:text-[8px]">
+                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_4px_rgba(0,0,0,0.95)] sm:text-[8px]">
                   {talentLevel}
                 </span>
               ) : null}
@@ -794,7 +794,7 @@ function TalentBadge({
             alt={titleLabel}
             className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
           />
-          <span className="absolute right-[-3px] top-[-3px] rounded-full bg-black/80 px-1 py-[1px] text-[7px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] sm:right-[-4px] sm:top-[-4px] sm:text-[8px]">
+          <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_4px_rgba(0,0,0,0.95)] sm:text-[8px]">
             {talentLevel}
           </span>
         </div>
@@ -1705,6 +1705,7 @@ export default function ProfilePageClient() {
   const [savingWarTeams, setSavingWarTeams] = useState(false);
   const [warSaveError, setWarSaveError] = useState<string | null>(null);
   const [warSlotPicker, setWarSlotPicker] = useState<WarSlotPickerState>(null);
+  const [warSlotPickerSearch, setWarSlotPickerSearch] = useState('');
   const [warCompactMode, setWarCompactMode] = useState(false);
   const [warTeamsExpanded, setWarTeamsExpanded] = useState(true);
   const [warStatTeams, setWarStatTeams] = useState<PlayerWarStatAttackTeamResponse[]>([]);
@@ -1712,6 +1713,7 @@ export default function ProfilePageClient() {
   const [savingWarStatTeams, setSavingWarStatTeams] = useState(false);
   const [warStatSaveError, setWarStatSaveError] = useState<string | null>(null);
   const [warStatSlotPicker, setWarStatSlotPicker] = useState<WarStatSlotPickerState>(null);
+  const [warStatSlotPickerSearch, setWarStatSlotPickerSearch] = useState('');
   const [warStatHistoryModal, setWarStatHistoryModal] = useState<WarStatHistoryModalState>(null);
   const [warStatAddRecordModal, setWarStatAddRecordModal] = useState<WarStatAddRecordModalState>(null);
   const [warStatDraftsByTeamId, setWarStatDraftsByTeamId] = useState<Record<string, WarStatRecordDraft>>({});
@@ -1889,7 +1891,7 @@ export default function ProfilePageClient() {
         if (!cancelled) {
           const nextTeams = normalizeWarStatTeams(response.teams);
           setWarStatTeams(nextTeams);
-          setWarStatExpandedTeamIds(nextTeams.map((team) => team.id));
+          setWarStatExpandedTeamIds([]);
           setWarStatDraftsByTeamId((current) => {
             const next: Record<string, WarStatRecordDraft> = {};
             for (const team of nextTeams) {
@@ -1938,7 +1940,20 @@ export default function ProfilePageClient() {
 
   useEffect(() => {
     setWarSlotPicker(null);
+    setWarSlotPickerSearch('');
   }, [activeWarModeCode]);
+
+  useEffect(() => {
+    if (!warSlotPicker) {
+      setWarSlotPickerSearch('');
+    }
+  }, [warSlotPicker]);
+
+  useEffect(() => {
+    if (!warStatSlotPicker) {
+      setWarStatSlotPickerSearch('');
+    }
+  }, [warStatSlotPicker]);
 
   useEffect(() => {
     if (!heroModalOpen) {
@@ -2364,10 +2379,19 @@ export default function ProfilePageClient() {
         .find((team) => team.teamIndex === warSlotPicker.teamIndex)
         ?.slots.find((slot) => slot.slot === warSlotPicker.slot)?.playerProfileHeroId ?? null;
 
-    return allSortedRosterCards.filter(
-      (hero) => hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId),
-    );
-  }, [activeWarTeams, allSortedRosterCards, usedWarHeroIds, warSlotPicker]);
+    const query = warSlotPickerSearch.trim().toLocaleLowerCase();
+
+    return allSortedRosterCards.filter((hero) => {
+      const available = hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId);
+      if (!available) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return hero.name.toLocaleLowerCase().includes(query);
+    });
+  }, [activeWarTeams, allSortedRosterCards, usedWarHeroIds, warSlotPicker, warSlotPickerSearch]);
   const warStatTeamMap = useMemo(
     () => new Map(warStatTeams.map((team) => [team.id, team])),
     [warStatTeams],
@@ -2424,10 +2448,19 @@ export default function ProfilePageClient() {
     const selectedSlotHeroId =
       currentTeam.slots.find((slot) => slot.slot === warStatSlotPicker.slot)?.playerProfileHeroId ?? null;
 
-    return allSortedRosterCards.filter(
-      (hero) => hero.profileHeroId === selectedSlotHeroId || !usedIds.has(hero.profileHeroId),
-    );
-  }, [allSortedRosterCards, warStatSlotPicker, warStatTeamMap]);
+    const query = warStatSlotPickerSearch.trim().toLocaleLowerCase();
+
+    return allSortedRosterCards.filter((hero) => {
+      const available = hero.profileHeroId === selectedSlotHeroId || !usedIds.has(hero.profileHeroId);
+      if (!available) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return hero.name.toLocaleLowerCase().includes(query);
+    });
+  }, [allSortedRosterCards, warStatSlotPicker, warStatTeamMap, warStatSlotPickerSearch]);
 
   const queueWarTeamsSave = useCallback(async (nextTeams: PlayerWarAttackTeamResponse[]) => {
     const payload = buildWarTeamsPayload(nextTeams);
@@ -2472,9 +2505,7 @@ export default function ProfilePageClient() {
     setWarStatTeams(nextTeams);
     setWarStatExpandedTeamIds((current) => {
       const availableIds = new Set(nextTeams.map((team) => team.id));
-      const kept = current.filter((id) => availableIds.has(id));
-      const missing = nextTeams.map((team) => team.id).filter((id) => !kept.includes(id));
-      return [...kept, ...missing];
+      return current.filter((id) => availableIds.has(id));
     });
     setWarStatDraftsByTeamId((current) => {
       const next: Record<string, WarStatRecordDraft> = {};
@@ -3826,7 +3857,12 @@ export default function ProfilePageClient() {
                           <div className="text-xs font-medium text-[var(--foreground-soft)]">
                             {messages.profile.warStatsFailed}
                           </div>
-                          <div className="mt-1 text-2xl font-bold text-red-300">{summary.failed}</div>
+                          <div className="mt-1 text-2xl font-bold text-red-300">
+                            {summary.failed}
+                            <span className="ml-2 text-sm font-medium text-red-200">
+                              ({summary.success + summary.failed > 0 ? Math.round((summary.failed / (summary.success + summary.failed)) * 100) : 0}%)
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -3898,7 +3934,7 @@ export default function ProfilePageClient() {
                 {messages.profile.warTitle}
               </h2>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {warModes.map((warMode) => {
                   const modeCode = normalizeWarModeCode(warMode.code);
                   const selected = modeCode === activeWarModeCode;
@@ -3908,7 +3944,7 @@ export default function ProfilePageClient() {
                       key={warMode.code}
                       type="button"
                       onClick={() => setActiveWarModeCode(modeCode)}
-                      className={`rounded-2xl border px-3 py-2 text-left text-xs font-semibold transition sm:text-sm ${
+                      className={`flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl border px-3 py-2 text-center text-xs font-semibold transition sm:text-sm ${
                         selected
                           ? 'border-cyan-400/40 bg-cyan-400/12 text-cyan-200'
                           : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
@@ -4319,6 +4355,28 @@ export default function ProfilePageClient() {
                 </button>
               </div>
 
+              <div className="mb-4">
+                <input
+                  value={warSlotPickerSearch}
+                  onChange={(event) => setWarSlotPickerSearch(event.target.value)}
+                  placeholder={messages.profile.searchHeroes}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                />
+              </div>
+              <div className="mb-4">
+                <input
+                  value={warStatSlotPickerSearch}
+                  onChange={(event) => setWarStatSlotPickerSearch(event.target.value)}
+                  placeholder={messages.profile.searchHeroes}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                />
+              </div>
               <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
                 {availableWarStatRosterCards.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
