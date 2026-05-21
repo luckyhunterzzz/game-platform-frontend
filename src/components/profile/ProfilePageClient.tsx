@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, CircleHelp, Eraser, LoaderCircle, Monitor, Plus, RotateCcw, Save, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleHelp, Eraser, FilePlus2, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -19,9 +19,15 @@ import type {
   PlayerProfileResponse,
   PlayerProfileUpdateRequest,
   PlayerWarAttackTeamResponse,
-  PlayerWarModeResponse,
   PlayerWarAttackTeamsResponse,
   PlayerWarAttackTeamsUpdateRequest,
+  PlayerWarModeResponse,
+  PlayerWarStatAttackRecordResponse,
+  PlayerWarStatAttackRecordUpsertRequest,
+  PlayerWarStatAttackTeamResponse,
+  PlayerWarStatAttackTeamUpdateRequest,
+  PlayerWarStatAttackTeamsResponse,
+  WarStatAttackResultType,
 } from '@/lib/types/player-profile';
 
 type ProfileFormState = {
@@ -33,11 +39,13 @@ type ProfileFormState = {
   currentGameNickname: string;
 };
 
-type ProfileTab = 'info' | 'heroes' | 'war';
+type ProfileTab = 'info' | 'heroes' | 'war' | 'warStats';
 
 type HeroLocale = 'RU' | 'EN';
 type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade' | 'releaseDate';
 type HeroRosterSortOrder = 'asc' | 'desc';
+type WarStatSortField = 'successRate' | 'failedRate' | 'oneShotRate' | 'cleanupRate';
+type WarStatSortOrder = 'asc' | 'desc';
 type HeroClassKey =
   | 'barbarian'
   | 'cleric'
@@ -115,6 +123,35 @@ type IconFilterOption = {
   imageUrl?: string | null;
 };
 
+type WarStatSlotPickerState = {
+  teamId: string;
+  slot: number;
+} | null;
+
+type WarStatHistoryModalState = {
+  teamId: string;
+} | null;
+
+type WarStatAddRecordModalState = {
+  teamId: string;
+} | null;
+
+type WarStatRecordDraft = {
+  teamName: string;
+  warModeCode: string;
+  resultType: WarStatAttackResultType;
+  battleDate: string;
+};
+
+type WarStatSummary = {
+  success: number;
+  failed: number;
+  oneShot: number;
+  cleanup: number;
+  failFull: number;
+  failCleanup: number;
+};
+
 const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
@@ -164,11 +201,16 @@ const POWER_GRADE_SORT_RANK: Record<HeroPowerGrade, number> = {
 };
 
 const TALENT_LEVEL_IMAGE_URL = '/heroes/talents/talents_level.png';
+const DEFAULT_WAR_STAT_RESULT_TYPE: WarStatAttackResultType = 'SUCCESS_ONE_SHOT';
 
 const FLOATING_POPOVER_MARGIN = 16;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getTodayDateInputValue() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function buildFloatingPopoverStyle(params: {
@@ -735,7 +777,7 @@ function TalentBadge({
                 className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
               />
               {talentLevel > 0 ? (
-                <span className="absolute inset-0 flex items-center justify-center px-[3px] text-[9px] font-extrabold leading-none text-slate-950 sm:px-1 sm:text-[11px]">
+                <span className="absolute right-[-3px] top-[-3px] rounded-full bg-black/80 px-1 py-[1px] text-[7px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] sm:right-[-4px] sm:top-[-4px] sm:text-[8px]">
                   {talentLevel}
                 </span>
               ) : null}
@@ -752,7 +794,7 @@ function TalentBadge({
             alt={titleLabel}
             className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
           />
-          <span className="absolute inset-0 flex items-center justify-center px-[3px] text-[9px] font-extrabold leading-none text-slate-950 sm:px-1 sm:text-[11px]">
+          <span className="absolute right-[-3px] top-[-3px] rounded-full bg-black/80 px-1 py-[1px] text-[7px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] sm:right-[-4px] sm:top-[-4px] sm:text-[8px]">
             {talentLevel}
           </span>
         </div>
@@ -1128,6 +1170,118 @@ function buildWarTeamsPayload(
   };
 }
 
+function normalizeWarStatTeams(
+  teams: PlayerWarStatAttackTeamResponse[],
+): PlayerWarStatAttackTeamResponse[] {
+  return teams
+    .map((team) => {
+      const slotMap = new Map(team.slots.map((slot) => [slot.slot, slot]));
+
+      return {
+        ...team,
+        slots: Array.from({ length: 5 }, (_, slotIndex) => ({
+          slot: slotIndex + 1,
+          playerProfileHeroId: slotMap.get(slotIndex + 1)?.playerProfileHeroId ?? null,
+        })),
+      };
+    })
+    .sort((left, right) => left.teamOrder - right.teamOrder);
+}
+
+function buildWarStatDraft(warModes: PlayerWarModeResponse[]): WarStatRecordDraft {
+  return {
+    teamName: '',
+    warModeCode: warModes[0]?.code ?? 'UNIVERSAL',
+    resultType: DEFAULT_WAR_STAT_RESULT_TYPE,
+    battleDate: getTodayDateInputValue(),
+  };
+}
+
+function getWarStatResultTypeLabel(resultType: WarStatAttackResultType, locale: HeroLocale): string {
+  if (locale === 'RU') {
+    switch (resultType) {
+      case 'SUCCESS_ONE_SHOT':
+        return 'Шот целого';
+      case 'SUCCESS_CLEANUP':
+        return 'Добив раненого';
+      case 'FAIL_FULL_ATTACK':
+        return 'Провал атаки целого';
+      case 'FAIL_CLEANUP':
+        return 'Провал добива';
+      default:
+        return 'Результат';
+    }
+  }
+
+  switch (resultType) {
+    case 'SUCCESS_ONE_SHOT':
+      return 'One-shot';
+    case 'SUCCESS_CLEANUP':
+      return 'Cleanup';
+    case 'FAIL_FULL_ATTACK':
+      return 'Failed full attack';
+    case 'FAIL_CLEANUP':
+      return 'Failed cleanup';
+    default:
+      return 'Result';
+  }
+}
+
+function buildWarStatSummary(records: PlayerWarStatAttackRecordResponse[]): WarStatSummary {
+  return records.reduce<WarStatSummary>(
+    (summary, record) => {
+      switch (record.resultType) {
+        case 'SUCCESS_ONE_SHOT':
+          summary.success += 1;
+          summary.oneShot += 1;
+          break;
+        case 'SUCCESS_CLEANUP':
+          summary.success += 1;
+          summary.cleanup += 1;
+          break;
+        case 'FAIL_FULL_ATTACK':
+          summary.failed += 1;
+          summary.failFull += 1;
+          break;
+        case 'FAIL_CLEANUP':
+          summary.failed += 1;
+          summary.failCleanup += 1;
+          break;
+      }
+
+      return summary;
+    },
+    {
+      success: 0,
+      failed: 0,
+      oneShot: 0,
+      cleanup: 0,
+      failFull: 0,
+      failCleanup: 0,
+    },
+  );
+}
+
+function getWarStatSuccessRate(summary: WarStatSummary): number {
+  const total = summary.success + summary.failed;
+  return total > 0 ? summary.success / total : 0;
+}
+
+function getWarStatFailedRate(summary: WarStatSummary): number {
+  const total = summary.success + summary.failed;
+  return total > 0 ? summary.failed / total : 0;
+}
+
+function getWarStatOneShotRate(summary: WarStatSummary): number {
+  const totalFullAttempts = summary.oneShot + summary.failFull;
+  return totalFullAttempts > 0 ? summary.oneShot / totalFullAttempts : 0;
+}
+
+function getWarStatCleanupRate(summary: WarStatSummary): number {
+  const totalCleanupAttempts = summary.cleanup + summary.failCleanup;
+  return totalCleanupAttempts > 0 ? summary.cleanup / totalCleanupAttempts : 0;
+}
+
 const emptyForm: ProfileFormState = {
   firstName: '',
   lastName: '',
@@ -1217,6 +1371,7 @@ function HeroPreviewTile({
             imageUrl={HERO_CLASS_ICON_BY_KEY[heroClassKey]}
             alt={heroClassLabel}
             className="pointer-events-none absolute left-1 top-1 z-10 sm:left-1.5 sm:top-1.5"
+            sizeClassName="h-3 w-3 sm:h-5 sm:w-5"
           />
         ) : null}
         {costumeCollectionLevel > 0 ? (
@@ -1224,6 +1379,8 @@ function HeroPreviewTile({
             level={costumeCollectionLevel}
             locale={locale}
             className="left-1 top-5 sm:left-1.5 sm:top-7"
+            sizeClassName="h-3 w-3 sm:h-5 sm:w-5"
+            textClassName="text-[6px] sm:text-[8px]"
             />
           ) : null}
         <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
@@ -1249,6 +1406,7 @@ function HeroPreviewTile({
           options={powerGradeOptions}
           onChange={(nextPowerGrade) => onPowerGradeChange(profileHeroId, nextPowerGrade)}
           locale={locale}
+          sizeClassName="h-4 w-4 sm:h-7 sm:w-7"
         />
         <TalentBadge
           talentLevel={talentLevel}
@@ -1256,6 +1414,7 @@ function HeroPreviewTile({
           disabled={!talentEditable || talentLevelUpdating}
           locale={locale}
           onChange={(nextTalentLevel) => onTalentLevelChange(profileHeroId, nextTalentLevel)}
+          sizeClassName="h-[16px] w-[16px] sm:h-[30px] sm:w-[30px]"
         />
       </div>
       <span className="line-clamp-2 min-h-[1.75rem] text-[10px] font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
@@ -1342,9 +1501,9 @@ function OverviewHeroTile({
           label={getPowerGradeLabel(hero.powerGrade, locale)}
           imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
           locale={locale}
-          sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
+          sizeClassName="h-3.5 w-3.5 sm:h-5 sm:w-5"
         />
-        <TalentBadge talentLevel={hero.talentLevel} locale={locale} sizeClassName="h-[18px] w-[18px] sm:h-[22px] sm:w-[22px]" />
+        <TalentBadge talentLevel={hero.talentLevel} locale={locale} sizeClassName="h-[15px] w-[15px] sm:h-[22px] sm:w-[22px]" />
       </div>
       <div className="mt-1 line-clamp-2 min-h-[1.25rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.45rem] sm:text-[9px]">
         {hero.name}
@@ -1436,6 +1595,7 @@ function WarHeroSlot({
               imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
               alt={heroClassLabel}
               className="pointer-events-none absolute left-1 top-1 z-10"
+              sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
             />
           ) : null}
           {costumeCollectionLevel > 0 ? (
@@ -1443,7 +1603,8 @@ function WarHeroSlot({
               level={costumeCollectionLevel}
               locale={locale}
               className="left-1 top-7"
-              textClassName="text-[6px] sm:text-[7px]"
+              sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
+              textClassName={compact ? 'text-[6px]' : 'text-[6px] sm:text-[7px]'}
             />
           ) : null}
           <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
@@ -1465,10 +1626,12 @@ function WarHeroSlot({
             label={getPowerGradeLabel(hero.powerGrade, locale)}
             imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
             locale={locale}
+            sizeClassName={compact ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5 sm:h-7 sm:w-7'}
           />
           <TalentBadge
             talentLevel={hero.talentLevel}
             locale={locale}
+            sizeClassName={compact ? 'h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]' : 'h-[22px] w-[22px] sm:h-[30px] sm:w-[30px]'}
           />
         </div>
 
@@ -1494,7 +1657,7 @@ function WarHeroSlot({
 
 export default function ProfilePageClient() {
   const { authenticated, loading: authLoading, login } = useAuth();
-  const { apiJson, apiPutJson, apiPostJson, apiDeleteVoid } = useApi();
+  const { apiJson, apiPutJson, apiPostJson, apiDelete, apiDeleteVoid } = useApi();
   const { messages, locale } = useI18n();
 
   const heroLocale: HeroLocale = locale === 'ru' ? 'RU' : 'EN';
@@ -1543,6 +1706,20 @@ export default function ProfilePageClient() {
   const [warSaveError, setWarSaveError] = useState<string | null>(null);
   const [warSlotPicker, setWarSlotPicker] = useState<WarSlotPickerState>(null);
   const [warCompactMode, setWarCompactMode] = useState(false);
+  const [warTeamsExpanded, setWarTeamsExpanded] = useState(true);
+  const [warStatTeams, setWarStatTeams] = useState<PlayerWarStatAttackTeamResponse[]>([]);
+  const [loadingWarStatTeams, setLoadingWarStatTeams] = useState(false);
+  const [savingWarStatTeams, setSavingWarStatTeams] = useState(false);
+  const [warStatSaveError, setWarStatSaveError] = useState<string | null>(null);
+  const [warStatSlotPicker, setWarStatSlotPicker] = useState<WarStatSlotPickerState>(null);
+  const [warStatHistoryModal, setWarStatHistoryModal] = useState<WarStatHistoryModalState>(null);
+  const [warStatAddRecordModal, setWarStatAddRecordModal] = useState<WarStatAddRecordModalState>(null);
+  const [warStatDraftsByTeamId, setWarStatDraftsByTeamId] = useState<Record<string, WarStatRecordDraft>>({});
+  const [warStatSearchQuery, setWarStatSearchQuery] = useState('');
+  const [warStatControlsOpen, setWarStatControlsOpen] = useState(false);
+  const [warStatSortField, setWarStatSortField] = useState<WarStatSortField>('successRate');
+  const [warStatSortOrder, setWarStatSortOrder] = useState<WarStatSortOrder>('desc');
+  const [warStatExpandedTeamIds, setWarStatExpandedTeamIds] = useState<string[]>([]);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
   const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -1692,6 +1869,64 @@ export default function ProfilePageClient() {
       cancelled = true;
     };
   }, [apiJson, authenticated, messages.profile.warSaveError]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      setWarStatTeams([]);
+      setWarStatDraftsByTeamId({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadWarStatTeams = async () => {
+      setLoadingWarStatTeams(true);
+      setWarStatSaveError(null);
+
+      try {
+        const response = await apiJson<PlayerWarStatAttackTeamsResponse>('/api/v1/profile/me/war-stat-attack-teams');
+
+        if (!cancelled) {
+          const nextTeams = normalizeWarStatTeams(response.teams);
+          setWarStatTeams(nextTeams);
+          setWarStatExpandedTeamIds(nextTeams.map((team) => team.id));
+          setWarStatDraftsByTeamId((current) => {
+            const next: Record<string, WarStatRecordDraft> = {};
+            for (const team of nextTeams) {
+              next[team.id] = {
+                ...(current[team.id] ?? buildWarStatDraft(response.warModes)),
+                teamName: current[team.id]?.teamName ?? team.name,
+              };
+            }
+            return next;
+          });
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setWarStatTeams([]);
+        setWarStatDraftsByTeamId({});
+
+        if (error instanceof ApiError) {
+          setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+        } else {
+          setWarStatSaveError(messages.profile.warStatsSaveError);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingWarStatTeams(false);
+        }
+      }
+    };
+
+    void loadWarStatTeams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, authenticated, messages.profile.warStatsSaveError]);
 
   useEffect(() => {
     if (warModes.some((warMode) => normalizeWarModeCode(warMode.code) === activeWarModeCode)) {
@@ -2133,6 +2368,66 @@ export default function ProfilePageClient() {
       (hero) => hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId),
     );
   }, [activeWarTeams, allSortedRosterCards, usedWarHeroIds, warSlotPicker]);
+  const warStatTeamMap = useMemo(
+    () => new Map(warStatTeams.map((team) => [team.id, team])),
+    [warStatTeams],
+  );
+  const visibleWarStatTeams = useMemo(() => {
+    const query = warStatSearchQuery.trim().toLocaleLowerCase();
+    const filteredTeams = !query
+      ? warStatTeams
+      : warStatTeams.filter((team) => team.name.toLocaleLowerCase().includes(query));
+
+    return [...filteredTeams].sort((left, right) => {
+      const leftSummary = buildWarStatSummary(left.records);
+      const rightSummary = buildWarStatSummary(right.records);
+
+      const leftValue =
+        warStatSortField === 'successRate'
+          ? getWarStatSuccessRate(leftSummary)
+          : warStatSortField === 'failedRate'
+            ? getWarStatFailedRate(leftSummary)
+            : warStatSortField === 'oneShotRate'
+              ? getWarStatOneShotRate(leftSummary)
+              : getWarStatCleanupRate(leftSummary);
+      const rightValue =
+        warStatSortField === 'successRate'
+          ? getWarStatSuccessRate(rightSummary)
+          : warStatSortField === 'failedRate'
+            ? getWarStatFailedRate(rightSummary)
+            : warStatSortField === 'oneShotRate'
+              ? getWarStatOneShotRate(rightSummary)
+              : getWarStatCleanupRate(rightSummary);
+
+      if (leftValue === rightValue) {
+        return left.teamOrder - right.teamOrder;
+      }
+
+      return warStatSortOrder === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+    });
+  }, [warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTeams]);
+  const availableWarStatRosterCards = useMemo(() => {
+    if (!warStatSlotPicker) {
+      return [];
+    }
+
+    const currentTeam = warStatTeamMap.get(warStatSlotPicker.teamId);
+    if (!currentTeam) {
+      return [];
+    }
+
+    const usedIds = new Set(
+      currentTeam.slots
+        .map((slot) => slot.playerProfileHeroId)
+        .filter((value): value is string => value !== null),
+    );
+    const selectedSlotHeroId =
+      currentTeam.slots.find((slot) => slot.slot === warStatSlotPicker.slot)?.playerProfileHeroId ?? null;
+
+    return allSortedRosterCards.filter(
+      (hero) => hero.profileHeroId === selectedSlotHeroId || !usedIds.has(hero.profileHeroId),
+    );
+  }, [allSortedRosterCards, warStatSlotPicker, warStatTeamMap]);
 
   const queueWarTeamsSave = useCallback(async (nextTeams: PlayerWarAttackTeamResponse[]) => {
     const payload = buildWarTeamsPayload(nextTeams);
@@ -2172,6 +2467,28 @@ export default function ProfilePageClient() {
     }
   }, [apiPutJson, messages.profile.warSaveError, warModes]);
 
+  const applyWarStatResponse = useCallback((response: PlayerWarStatAttackTeamsResponse) => {
+    const nextTeams = normalizeWarStatTeams(response.teams);
+    setWarStatTeams(nextTeams);
+    setWarStatExpandedTeamIds((current) => {
+      const availableIds = new Set(nextTeams.map((team) => team.id));
+      const kept = current.filter((id) => availableIds.has(id));
+      const missing = nextTeams.map((team) => team.id).filter((id) => !kept.includes(id));
+      return [...kept, ...missing];
+    });
+    setWarStatDraftsByTeamId((current) => {
+      const next: Record<string, WarStatRecordDraft> = {};
+      for (const team of nextTeams) {
+        next[team.id] = {
+          ...(current[team.id] ?? buildWarStatDraft(response.warModes)),
+          teamName: current[team.id]?.teamName ?? team.name,
+        };
+      }
+      return next;
+    });
+    setWarStatSaveError(null);
+  }, []);
+
   useEffect(() => {
     if (loadingProfileHeroes || loadingWarTeams) {
       return;
@@ -2200,6 +2517,33 @@ export default function ProfilePageClient() {
       void queueWarTeamsSave(sanitizedTeams);
     }
   }, [loadingProfileHeroes, loadingWarTeams, profileHeroes, queueWarTeamsSave, warTeams]);
+
+  useEffect(() => {
+    if (loadingProfileHeroes || loadingWarStatTeams) {
+      return;
+    }
+
+    const validProfileHeroIds = new Set(profileHeroes.map((hero) => hero.id));
+    const hasInvalidHero = warStatTeams.some((team) =>
+      team.slots.some((slot) => slot.playerProfileHeroId && !validProfileHeroIds.has(slot.playerProfileHeroId)),
+    );
+
+    if (!hasInvalidHero) {
+      return;
+    }
+
+    void apiJson<PlayerWarStatAttackTeamsResponse>('/api/v1/profile/me/war-stat-attack-teams')
+      .then((response) => {
+        applyWarStatResponse(response);
+      })
+      .catch((error) => {
+        if (error instanceof ApiError) {
+          setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+        } else {
+          setWarStatSaveError(messages.profile.warStatsSaveError);
+        }
+      });
+  }, [apiJson, applyWarStatResponse, loadingProfileHeroes, loadingWarStatTeams, messages.profile.warStatsSaveError, profileHeroes, warStatTeams]);
 
   const handleChange = (field: keyof ProfileFormState, value: string) => {
     setForm((current) => ({
@@ -2379,6 +2723,246 @@ export default function ProfilePageClient() {
     await queueWarTeamsSave(nextTeams);
   };
 
+  const openWarStatSlotPicker = (teamId: string, slot: number) => {
+    setWarStatSlotPicker({ teamId, slot });
+    setWarStatSaveError(null);
+  };
+
+  const handleSaveWarStatTeam = async (
+    teamId: string,
+    nextSlots: PlayerWarStatAttackTeamResponse['slots'],
+    nextName?: string,
+  ) => {
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiPutJson<PlayerWarStatAttackTeamUpdateRequest, PlayerWarStatAttackTeamsResponse>(
+        `/api/v1/profile/me/war-stat-attack-teams/${teamId}`,
+        { name: (nextName ?? warStatTeamMap.get(teamId)?.name ?? '').trim() || 'Team', slots: nextSlots },
+      );
+      applyWarStatResponse(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleAssignWarStatHero = async (profileHeroId: string) => {
+    if (!warStatSlotPicker) {
+      return;
+    }
+
+    const team = warStatTeamMap.get(warStatSlotPicker.teamId);
+    if (!team) {
+      return;
+    }
+
+    const nextSlots = team.slots.map((slot) =>
+      slot.slot === warStatSlotPicker.slot
+        ? { ...slot, playerProfileHeroId: profileHeroId }
+        : slot,
+    );
+
+    setWarStatTeams((current) =>
+      current.map((item) =>
+        item.id === team.id
+          ? { ...item, slots: nextSlots }
+          : item,
+      ),
+    );
+    setWarStatSlotPicker(null);
+    await handleSaveWarStatTeam(team.id, nextSlots);
+  };
+
+  const handleClearWarStatSlot = async (teamId: string, slotIndex: number) => {
+    const team = warStatTeamMap.get(teamId);
+    if (!team) {
+      return;
+    }
+
+    const nextSlots = team.slots.map((slot) =>
+      slot.slot === slotIndex
+        ? { ...slot, playerProfileHeroId: null }
+        : slot,
+    );
+
+    setWarStatTeams((current) =>
+      current.map((item) =>
+        item.id === team.id
+          ? { ...item, slots: nextSlots }
+          : item,
+      ),
+    );
+    await handleSaveWarStatTeam(team.id, nextSlots);
+  };
+
+  const handleRenameWarStatTeam = async (teamId: string, nextName: string) => {
+    const team = warStatTeamMap.get(teamId);
+    if (!team) {
+      return;
+    }
+
+    const trimmedName = nextName.trim() || `Team ${team.teamOrder}`;
+    setWarStatTeams((current) =>
+      current.map((item) =>
+        item.id === team.id
+          ? { ...item, name: trimmedName }
+          : item,
+      ),
+    );
+    setWarStatDraftsByTeamId((current) => ({
+      ...current,
+      [teamId]: {
+        ...(current[teamId] ?? buildWarStatDraft(warModes)),
+        teamName: trimmedName,
+      },
+    }));
+    await handleSaveWarStatTeam(team.id, team.slots, trimmedName);
+  };
+
+  const handleCreateWarStatTeam = async () => {
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiPostJson<Record<string, never>, PlayerWarStatAttackTeamsResponse>(
+        '/api/v1/profile/me/war-stat-attack-teams',
+        {},
+      );
+      applyWarStatResponse(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleDeleteWarStatTeam = async (teamId: string) => {
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiDelete<PlayerWarStatAttackTeamsResponse>(
+        `/api/v1/profile/me/war-stat-attack-teams/${teamId}`,
+      );
+      applyWarStatResponse(response);
+      if (warStatHistoryModal?.teamId === teamId) {
+        setWarStatHistoryModal(null);
+      }
+      if (warStatAddRecordModal?.teamId === teamId) {
+        setWarStatAddRecordModal(null);
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleWarStatDraftChange = (teamId: string, patch: Partial<WarStatRecordDraft>) => {
+    setWarStatDraftsByTeamId((current) => ({
+      ...current,
+      [teamId]: {
+        ...(current[teamId] ?? buildWarStatDraft(warModes)),
+        ...patch,
+      },
+    }));
+  };
+
+  const toggleWarStatDetails = (teamId: string) => {
+    setWarStatExpandedTeamIds((current) =>
+      current.includes(teamId)
+        ? current.filter((id) => id !== teamId)
+        : [...current, teamId],
+    );
+  };
+
+  const handleAddWarStatRecord = async (teamId: string) => {
+    const draft = warStatDraftsByTeamId[teamId] ?? buildWarStatDraft(warModes);
+    const team = warStatTeamMap.get(teamId);
+    if (!team || team.slots.every((slot) => slot.playerProfileHeroId === null)) {
+      return;
+    }
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiPostJson<PlayerWarStatAttackRecordUpsertRequest, PlayerWarStatAttackTeamsResponse>(
+        `/api/v1/profile/me/war-stat-attack-teams/${teamId}/records`,
+        draft,
+      );
+      applyWarStatResponse(response);
+      setWarStatDraftsByTeamId((current) => ({
+        ...current,
+        [teamId]: {
+          ...buildWarStatDraft(warModes),
+          teamName: team.name,
+        },
+      }));
+      setWarStatAddRecordModal(null);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleDeleteWarStatRecord = async (teamId: string, recordId: string) => {
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiDelete<PlayerWarStatAttackTeamsResponse>(
+        `/api/v1/profile/me/war-stat-attack-teams/${teamId}/records/${recordId}`,
+      );
+      applyWarStatResponse(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleImportWarTeamToStats = async (warModeCode: string, teamIndex: number) => {
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiPostJson<
+        { warModeCode: string; teamIndex: number },
+        PlayerWarStatAttackTeamsResponse
+      >('/api/v1/profile/me/war-stat-attack-teams/import-war-team', {
+        warModeCode,
+        teamIndex,
+      });
+      applyWarStatResponse(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
   const handleAddHero = async (heroId: number) => {
     setAddingHeroId(heroId);
 
@@ -2477,6 +3061,18 @@ export default function ProfilePageClient() {
       }));
       setWarTeams(nextTeams);
       await queueWarTeamsSave(nextTeams);
+
+      const nextWarStatTeams = warStatTeams.map((team) => ({
+        ...team,
+        slots: team.slots.map((slot) =>
+          slot.playerProfileHeroId === profileHeroId
+            ? { ...slot, playerProfileHeroId: null }
+            : slot,
+        ),
+      }));
+      setWarStatTeams(nextWarStatTeams);
+      const latestWarStatState = await apiJson<PlayerWarStatAttackTeamsResponse>('/api/v1/profile/me/war-stat-attack-teams');
+      applyWarStatResponse(latestWarStatState);
     } catch (error) {
       if (error instanceof ApiError) {
         setSaveError(error.message || messages.profile.saveError);
@@ -2670,6 +3266,17 @@ export default function ProfilePageClient() {
           }`}
         >
           {messages.profile.tabWar}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('warStats')}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            activeTab === 'warStats'
+              ? 'bg-cyan-400/10 text-cyan-300'
+              : 'text-[var(--foreground-soft)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          {messages.profile.tabWarStats}
         </button>
       </div>
 
@@ -2995,6 +3602,294 @@ export default function ProfilePageClient() {
             </div>
           )}
         </div>
+      ) : activeTab === 'warStats' ? (
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-[var(--foreground)]">
+                    {messages.profile.warStatsTitle}
+                  </h2>
+                  <p className="mt-2 text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warStatsSelectHeroes}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {savingWarStatTeams ? (
+                    <span className="inline-flex items-center gap-2 text-xs text-[var(--foreground-muted)]">
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+                      {messages.profile.warStatsSaving}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateWarStatTeam()}
+                    disabled={savingWarStatTeams}
+                    title={messages.profile.warStatsAddTeam}
+                    aria-label={messages.profile.warStatsAddTeam}
+                    className="relative inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Shield className="h-4.5 w-4.5" />
+                    <Plus className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-cyan-500 p-[1px] text-slate-950" />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setWarStatControlsOpen((current) => !current)}
+                className="flex items-center justify-between gap-3 text-left text-sm font-medium text-[var(--foreground-soft)]"
+              >
+                <span>{locale === 'ru' ? 'Поиск и сортировка' : 'Search and sort'}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setWarStatSearchQuery('');
+                      setWarStatSortField('successRate');
+                      setWarStatSortOrder('desc');
+                    }}
+                    title={locale === 'ru' ? 'Сбросить поиск и сортировку' : 'Reset search and sorting'}
+                    aria-label={locale === 'ru' ? 'Сбросить поиск и сортировку' : 'Reset search and sorting'}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                  <ChevronDown className={`h-4 w-4 transition ${warStatControlsOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+
+              {warStatControlsOpen ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Название команды' : 'Team name'}</span>
+                    <input
+                      value={warStatSearchQuery}
+                      onChange={(event) => setWarStatSearchQuery(event.target.value)}
+                      placeholder={locale === 'ru' ? 'Введите название команды' : 'Type team name'}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Сортировка' : 'Sort by'}</span>
+                    <select
+                      value={warStatSortField}
+                      onChange={(event) => setWarStatSortField(event.target.value as WarStatSortField)}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    >
+                      <option value="successRate">{locale === 'ru' ? 'Процент успешных атак' : 'Success rate'}</option>
+                      <option value="failedRate">{locale === 'ru' ? 'Процент неуспешных атак' : 'Failed rate'}</option>
+                      <option value="oneShotRate">{locale === 'ru' ? 'Процент шотов' : 'One-shot rate'}</option>
+                      <option value="cleanupRate">{locale === 'ru' ? 'Процент добивов' : 'Cleanup rate'}</option>
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                    <select
+                      value={warStatSortOrder}
+                      onChange={(event) => setWarStatSortOrder(event.target.value as WarStatSortOrder)}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    >
+                      <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                      <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                    </select>
+                  </label>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {warStatSaveError ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {warStatSaveError}
+            </div>
+          ) : null}
+
+          {loadingWarStatTeams || loadingProfileHeroes ? (
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm backdrop-blur-sm">
+              <div className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                <LoaderCircle className="h-5 w-5 animate-spin text-cyan-400" />
+                <span>{messages.profile.loadingHeroes}</span>
+              </div>
+            </div>
+          ) : rosterCards.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--foreground-soft)] shadow-sm backdrop-blur-sm">
+              {messages.profile.warStatsEmpty}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {visibleWarStatTeams.map((team) => {
+                const summary = buildWarStatSummary(team.records);
+                const draft = warStatDraftsByTeamId[team.id] ?? buildWarStatDraft(warModes);
+                const teamLocked = team.records.length > 0;
+                const teamExpanded = warStatExpandedTeamIds.includes(team.id);
+                const teamEmpty = team.slots.every((slot) => slot.playerProfileHeroId === null);
+
+                return (
+                  <div
+                    key={team.id}
+                    className="grid gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm lg:grid-cols-[minmax(0,1fr)_340px] sm:p-4"
+                  >
+                    <div>
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
+                            {`${messages.profile.warTeam} ${team.teamOrder}`}
+                          </div>
+                          <input
+                            value={draft.teamName || team.name}
+                            onChange={(event) => handleWarStatDraftChange(team.id, { teamName: event.target.value })}
+                            onBlur={() => {
+                              if (teamLocked) {
+                                return;
+                              }
+                              const nextName = (draft.teamName || team.name).trim();
+                              if (nextName && nextName !== team.name) {
+                                void handleRenameWarStatTeam(team.id, nextName);
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                (event.currentTarget as HTMLInputElement).blur();
+                              }
+                            }}
+                            disabled={teamLocked || savingWarStatTeams}
+                            className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteWarStatTeam(team.id)}
+                          title={messages.profile.warStatsDeleteTeam}
+                          aria-label={messages.profile.warStatsDeleteTeam}
+                          disabled={savingWarStatTeams || teamLocked}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
+                        {team.slots.map((slot) => {
+                          const hero = slot.playerProfileHeroId ? rosterHeroCardMap.get(slot.playerProfileHeroId) ?? null : null;
+
+                          return (
+                            <WarHeroSlot
+                              key={`${team.id}-${slot.slot}`}
+                              hero={hero}
+                              locale={heroLocale}
+                              compact={warCompactMode}
+                              costumeCollectionLevel={hero ? (costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) : 0}
+                              label={messages.profile.addHero}
+                              removeLabel={messages.profile.removeHero}
+                              onClick={
+                                hero && hero.slug !== String(hero.heroId)
+                                  ? () => handleOpenRosterHero(hero.slug)
+                                  : teamLocked
+                                    ? () => {}
+                                    : () => openWarStatSlotPicker(team.id, slot.slot)
+                              }
+                              onRemove={
+                                hero && !teamLocked
+                                  ? () => void handleClearWarStatSlot(team.id, slot.slot)
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/8 p-3">
+                          <div className="text-xs font-medium text-[var(--foreground-soft)]">
+                            {messages.profile.warStatsSuccess}
+                          </div>
+                          <div className="mt-1 text-2xl font-bold text-emerald-300">
+                            {summary.success}
+                            <span className="ml-2 text-sm font-medium text-emerald-200">
+                              ({summary.success + summary.failed > 0 ? Math.round((summary.success / (summary.success + summary.failed)) * 100) : 0}%)
+                            </span>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-red-400/20 bg-red-400/8 p-3">
+                          <div className="text-xs font-medium text-[var(--foreground-soft)]">
+                            {messages.profile.warStatsFailed}
+                          </div>
+                          <div className="mt-1 text-2xl font-bold text-red-300">{summary.failed}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleWarStatDetails(team.id)}
+                          className="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
+                        >
+                          <span>{locale === 'ru' ? 'Детализация' : 'Details'}</span>
+                          <ChevronDown className={`h-4 w-4 transition ${teamExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {teamExpanded ? (
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground-soft)]">
+                              <div>{messages.profile.warStatsOneShot}</div>
+                              <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">{summary.oneShot}</div>
+                            </div>
+                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground-soft)]">
+                              <div>{messages.profile.warStatsCleanup}</div>
+                              <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">{summary.cleanup}</div>
+                            </div>
+                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground-soft)]">
+                              <div>{messages.profile.warStatsFailFull}</div>
+                              <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">{summary.failFull}</div>
+                            </div>
+                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground-soft)]">
+                              <div>{messages.profile.warStatsFailCleanup}</div>
+                              <div className="mt-1 text-sm font-semibold text-[var(--foreground)]">{summary.failCleanup}</div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setWarStatHistoryModal({ teamId: team.id })}
+                          title={locale === 'ru' ? 'Посмотреть историю' : 'View history'}
+                          aria-label={locale === 'ru' ? 'Посмотреть историю' : 'View history'}
+                          className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWarStatAddRecordModal({ teamId: team.id })}
+                          disabled={savingWarStatTeams || teamEmpty}
+                          title={messages.profile.warStatsAddRecord}
+                          aria-label={messages.profile.warStatsAddRecord}
+                          className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          <FilePlus2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-6">
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm backdrop-blur-sm sm:p-6">
@@ -3056,6 +3951,15 @@ export default function ProfilePageClient() {
                   <Eraser className="h-4 w-4" />
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setWarTeamsExpanded((current) => !current)}
+                className="flex w-full items-center justify-between gap-3 text-left text-sm font-medium text-[var(--foreground-soft)]"
+              >
+                <span>{locale === 'ru' ? 'Список военных команд' : 'War team list'}</span>
+                <ChevronDown className={`h-4 w-4 transition ${warTeamsExpanded ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           </div>
 
@@ -3076,7 +3980,7 @@ export default function ProfilePageClient() {
             <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--foreground-soft)] shadow-sm backdrop-blur-sm">
               {messages.profile.warEmpty}
             </div>
-          ) : (
+          ) : warTeamsExpanded ? (
             <div className="space-y-4">
               {activeWarTeams.map((team) => (
                 <div
@@ -3088,16 +3992,29 @@ export default function ProfilePageClient() {
                       {`${messages.profile.warTeam} ${team.teamIndex}`}
                     </h3>
 
-                    <button
-                      type="button"
-                      onClick={() => void handleClearWarTeam(team.teamIndex)}
-                      title={messages.profile.warClearTeam}
-                      aria-label={messages.profile.warClearTeam}
-                      disabled={savingWarTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Eraser className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleImportWarTeamToStats(team.warModeCode, team.teamIndex)}
+                        title={messages.profile.warStatsImportTeam}
+                        aria-label={messages.profile.warStatsImportTeam}
+                        disabled={savingWarStatTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleClearWarTeam(team.teamIndex)}
+                        title={messages.profile.warClearTeam}
+                        aria-label={messages.profile.warClearTeam}
+                        disabled={savingWarTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Eraser className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
@@ -3130,7 +4047,7 @@ export default function ProfilePageClient() {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -3310,6 +4227,7 @@ export default function ProfilePageClient() {
                                 imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
                                 alt={hero.heroClassName ?? (locale === 'ru' ? 'Класс героя' : 'Hero class')}
                                 className="pointer-events-none absolute left-1 top-1 z-10"
+                                sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
                               />
                             ) : null}
                             {(costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) > 0 ? (
@@ -3317,6 +4235,7 @@ export default function ProfilePageClient() {
                                 level={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
                                 locale={heroLocale}
                                 className="left-1 top-5"
+                                sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
                                 textClassName="text-[6px] sm:text-[7px]"
                               />
                             ) : null}
@@ -3339,10 +4258,12 @@ export default function ProfilePageClient() {
                             label={getPowerGradeLabel(hero.powerGrade, heroLocale)}
                             imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
                             locale={heroLocale}
+                            sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
                           />
                           <TalentBadge
                             talentLevel={hero.talentLevel}
                             locale={heroLocale}
+                            sizeClassName="h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]"
                           />
                         </div>
 
@@ -3364,6 +4285,272 @@ export default function ProfilePageClient() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatSlotPicker ? (
+        <div
+          className="fixed inset-0 z-[95] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatSlotPicker(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                    {messages.profile.selectRosterHero}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warAvailableHeroes}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWarStatSlotPicker(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
+                {availableWarStatRosterCards.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+                    {availableWarStatRosterCards.map((hero) => (
+                      <button
+                        key={hero.profileHeroId}
+                        type="button"
+                        onClick={() => void handleAssignWarStatHero(hero.profileHeroId)}
+                        disabled={savingWarStatTeams}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 text-left shadow-sm transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        <div className="relative inline-block overflow-visible">
+                          {hero.heroClassKey ? (
+                            <CornerIconBadge
+                              imageUrl={HERO_CLASS_ICON_BY_KEY[hero.heroClassKey]}
+                              alt={hero.heroClassName ?? (locale === 'ru' ? 'Класс героя' : 'Hero class')}
+                              className="pointer-events-none absolute left-1 top-1 z-10"
+                              sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
+                            />
+                          ) : null}
+                          {(costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) > 0 ? (
+                            <CostumeCollectionBadge
+                              level={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
+                              locale={heroLocale}
+                              className="left-1 top-5"
+                              sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
+                              textClassName="text-[6px] sm:text-[7px]"
+                            />
+                          ) : null}
+                          <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
+                            {hero.previewUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={hero.previewUrl}
+                                alt={hero.name}
+                                className="h-16 w-16 rounded-[12px] object-cover sm:h-20 sm:w-20"
+                              />
+                            ) : (
+                              <div className="flex h-16 w-16 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20">
+                                ?
+                              </div>
+                            )}
+                          </div>
+                          <PowerGradeBadge
+                            powerGrade={hero.powerGrade}
+                            label={getPowerGradeLabel(hero.powerGrade, heroLocale)}
+                            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+                            locale={heroLocale}
+                            sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
+                          />
+                          <TalentBadge
+                            talentLevel={hero.talentLevel}
+                            locale={heroLocale}
+                            sizeClassName="h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]"
+                          />
+                        </div>
+
+                        <div className="mt-2 space-y-1">
+                          <div className="line-clamp-2 min-h-[2rem] text-[11px] font-semibold text-[var(--foreground)] sm:text-xs">
+                            {hero.name}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-soft)] sm:text-xs">
+                            <span>{hero.rarityStars}*</span>
+                            {hero.releaseDate ? <span>{formatReleaseDate(hero.releaseDate, heroLocale)}</span> : null}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warNoAvailableHeroes}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatHistoryModal ? (
+        <div
+          className="fixed inset-0 z-[96] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatHistoryModal(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                  {locale === 'ru' ? 'История команды' : 'Team history'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setWarStatHistoryModal(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-[14rem] flex-1 overflow-y-auto pr-1">
+                {(warStatTeamMap.get(warStatHistoryModal.teamId)?.records ?? []).length > 0 ? (
+                  <div className="space-y-2">
+                    {(warStatTeamMap.get(warStatHistoryModal.teamId)?.records ?? []).map((record) => (
+                      <div
+                        key={record.id}
+                        className="flex items-start justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-[var(--foreground)]">
+                            {getWarStatResultTypeLabel(record.resultType, heroLocale)}
+                          </div>
+                          <div className="mt-1 text-xs text-[var(--foreground-soft)]">
+                            {getWarModeLabel(
+                              warModes.find((mode) => normalizeWarModeCode(mode.code) === normalizeWarModeCode(record.warModeCode)) ?? {
+                                code: record.warModeCode,
+                                nameRu: record.warModeCode,
+                                nameEn: record.warModeCode,
+                                descriptionRu: '',
+                                descriptionEn: '',
+                                sortOrder: 0,
+                              },
+                              heroLocale,
+                            )}
+                            {' • '}
+                            {record.battleDate}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteWarStatRecord(warStatHistoryModal.teamId, record.id)}
+                          title={messages.profile.warStatsDeleteRecord}
+                          aria-label={messages.profile.warStatsDeleteRecord}
+                          disabled={savingWarStatTeams}
+                          className="rounded-lg border border-red-500/30 bg-[var(--surface-strong)] p-1 text-red-400 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
+                    {messages.profile.warStatsNoRecords}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatAddRecordModal ? (
+        <div
+          className="fixed inset-0 z-[97] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatAddRecordModal(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                  {messages.profile.warStatsAddRecord}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setWarStatAddRecordModal(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {(() => {
+                const teamId = warStatAddRecordModal.teamId;
+                const draft = warStatDraftsByTeamId[teamId] ?? buildWarStatDraft(warModes);
+                return (
+                  <div className="space-y-3">
+                    <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                      <span>{messages.profile.warStatsRecordType}</span>
+                      <select
+                        value={draft.resultType}
+                        onChange={(event) => handleWarStatDraftChange(teamId, { resultType: event.target.value as WarStatAttackResultType })}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                      >
+                        <option value="SUCCESS_ONE_SHOT">{messages.profile.warStatsOneShot}</option>
+                        <option value="SUCCESS_CLEANUP">{messages.profile.warStatsCleanup}</option>
+                        <option value="FAIL_FULL_ATTACK">{messages.profile.warStatsFailFull}</option>
+                        <option value="FAIL_CLEANUP">{messages.profile.warStatsFailCleanup}</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                      <span>{messages.profile.warStatsWarMode}</span>
+                      <select
+                        value={draft.warModeCode}
+                        onChange={(event) => handleWarStatDraftChange(teamId, { warModeCode: event.target.value })}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                      >
+                        {warModes.map((warMode) => (
+                          <option key={warMode.code} value={warMode.code}>
+                            {getWarModeLabel(warMode, heroLocale)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                      <span>{messages.profile.warStatsBattleDate}</span>
+                      <input
+                        type="date"
+                        value={draft.battleDate}
+                        onChange={(event) => handleWarStatDraftChange(teamId, { battleDate: event.target.value })}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleAddWarStatRecord(teamId)}
+                      disabled={savingWarStatTeams}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>{messages.profile.warStatsAddRecord}</span>
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

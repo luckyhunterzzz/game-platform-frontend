@@ -75,6 +75,7 @@ export type Messages = {
     tabInfo: string;
     tabHeroes: string;
     tabWar: string;
+    tabWarStats: string;
     heroesTitle: string;
     heroesEmpty: string;
     addHero: string;
@@ -96,6 +97,29 @@ export type Messages = {
     warSaveError: string;
     warAvailableHeroes: string;
     warNoAvailableHeroes: string;
+    warStatsTitle: string;
+    warStatsEmpty: string;
+    warStatsAddTeam: string;
+    warStatsDeleteTeam: string;
+    warStatsSaveTeam: string;
+    warStatsSaving: string;
+    warStatsSuccess: string;
+    warStatsFailed: string;
+    warStatsOneShot: string;
+    warStatsCleanup: string;
+    warStatsFailFull: string;
+    warStatsFailCleanup: string;
+    warStatsAddRecord: string;
+    warStatsRecordType: string;
+    warStatsWarMode: string;
+    warStatsBattleDate: string;
+    warStatsRecords: string;
+    warStatsNoRecords: string;
+    warStatsDeleteRecord: string;
+    warStatsSaveError: string;
+    warStatsSelectHeroes: string;
+    warStatsImportTeam: string;
+    warStatsLockedTeam: string;
   };
   jointPurchases: {
     pageTitle: string;
