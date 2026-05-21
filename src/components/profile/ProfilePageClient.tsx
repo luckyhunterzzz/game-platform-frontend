@@ -469,7 +469,7 @@ function CostumeCollectionBadge({
         sizeClassName={sizeClassName}
       />
       {level > 1 ? (
-        <span className={`absolute -right-2 -bottom-1 px-1 py-[1px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
+        <span className={`absolute bottom-[-1px] right-[-1px] z-20 flex min-w-[0.9em] items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
           {`x${level}`}
         </span>
       ) : null}
@@ -1417,6 +1417,7 @@ function HeroPreviewTile({
           locale={locale}
           onChange={(nextTalentLevel) => onTalentLevelChange(profileHeroId, nextTalentLevel)}
           sizeClassName="h-[16px] w-[16px] sm:h-[30px] sm:w-[30px]"
+          textClassName="text-[7px] sm:text-[16px]"
         />
       </div>
       <span className="line-clamp-2 min-h-[1.75rem] text-[10px] font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
