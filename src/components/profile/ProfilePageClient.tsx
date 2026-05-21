@@ -647,6 +647,7 @@ function TalentBadge({
   locale,
   onChange,
   sizeClassName = 'h-[18px] w-[18px] sm:h-[24px] sm:w-[24px]',
+  textClassName = 'text-[7px] sm:text-[8px]',
 }: {
   talentLevel: number;
   interactive?: boolean;
@@ -654,6 +655,7 @@ function TalentBadge({
   locale: HeroLocale;
   onChange?: (nextTalentLevel: number) => void;
   sizeClassName?: string;
+  textClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [draftValue, setDraftValue] = useState<string>(String(talentLevel));
@@ -777,7 +779,7 @@ function TalentBadge({
                 className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
               />
               {talentLevel > 0 ? (
-                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] sm:text-[8px]">
+                <span className={`absolute inset-0 flex items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
                   {talentLevel}
                 </span>
               ) : null}
@@ -794,7 +796,7 @@ function TalentBadge({
             alt={titleLabel}
             className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
           />
-          <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] sm:text-[8px]">
+          <span className={`absolute inset-0 flex items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
             {talentLevel}
           </span>
         </div>
@@ -1483,7 +1485,7 @@ function OverviewHeroTile({
             locale={locale}
             className="left-1 top-4 sm:top-5"
             sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-            textClassName="text-[6px] sm:text-[7px]"
+            textClassName="text-[6px] sm:text-[9px]"
           />
         ) : null}
         <div className={`overflow-hidden rounded-md border p-[2px] ${accentClass}`}>
@@ -1503,7 +1505,12 @@ function OverviewHeroTile({
           locale={locale}
           sizeClassName="h-3.5 w-3.5 sm:h-5 sm:w-5"
         />
-        <TalentBadge talentLevel={hero.talentLevel} locale={locale} sizeClassName="h-[15px] w-[15px] sm:h-[22px] sm:w-[22px]" />
+        <TalentBadge
+          talentLevel={hero.talentLevel}
+          locale={locale}
+          sizeClassName="h-[15px] w-[15px] sm:h-[22px] sm:w-[22px]"
+          textClassName="text-[7px] sm:text-[11px]"
+        />
       </div>
       <div className="mt-1 line-clamp-2 min-h-[1.25rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.45rem] sm:text-[9px]">
         {hero.name}
@@ -1604,7 +1611,7 @@ function WarHeroSlot({
               locale={locale}
               className="left-1 top-7"
               sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
-              textClassName={compact ? 'text-[6px]' : 'text-[6px] sm:text-[7px]'}
+              textClassName={compact ? 'text-[6px] sm:text-[9px]' : 'text-[7px] sm:text-[11px] lg:text-[12px]'}
             />
           ) : null}
             <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
@@ -1632,6 +1639,7 @@ function WarHeroSlot({
             talentLevel={hero.talentLevel}
             locale={locale}
             sizeClassName={compact ? 'h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]' : 'h-[20px] w-[20px] sm:h-[28px] sm:w-[28px] lg:h-[32px] lg:w-[32px]'}
+            textClassName={compact ? 'text-[7px] sm:text-[11px]' : 'text-[8px] sm:text-[14px] lg:text-[16px]'}
           />
         </div>
 
@@ -4284,7 +4292,7 @@ export default function ProfilePageClient() {
                                 locale={heroLocale}
                                 className="left-1 top-5"
                                 sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-                                textClassName="text-[6px] sm:text-[7px]"
+                                textClassName="text-[6px] sm:text-[9px]"
                               />
                             ) : null}
                             <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
@@ -4312,6 +4320,7 @@ export default function ProfilePageClient() {
                             talentLevel={hero.talentLevel}
                             locale={heroLocale}
                             sizeClassName="h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]"
+                            textClassName="text-[7px] sm:text-[11px]"
                           />
                         </div>
 
@@ -4400,7 +4409,7 @@ export default function ProfilePageClient() {
                               locale={heroLocale}
                               className="left-1 top-5"
                               sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-                              textClassName="text-[6px] sm:text-[7px]"
+                              textClassName="text-[6px] sm:text-[9px]"
                             />
                           ) : null}
                           <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
@@ -4428,6 +4437,7 @@ export default function ProfilePageClient() {
                             talentLevel={hero.talentLevel}
                             locale={heroLocale}
                             sizeClassName="h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]"
+                            textClassName="text-[7px] sm:text-[11px]"
                           />
                         </div>
 
