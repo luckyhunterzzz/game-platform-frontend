@@ -825,7 +825,7 @@ const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequ
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_nature.png`, label: 'Legendary Nature Aether', quantity: 1 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_nature.png`, label: 'Epic Nature Aether', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 10 },
       ],
@@ -861,7 +861,7 @@ const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequ
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_ice.png`, label: 'Legendary Ice Aether', quantity: 1 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_ice.png`, label: 'Epic Ice Aether', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 10 },
       ],
@@ -897,7 +897,7 @@ const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequ
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_fire.png`, label: 'Legendary Fire Aether', quantity: 1 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_fire.png`, label: 'Epic Fire Aether', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 10 },
       ],
@@ -927,14 +927,13 @@ const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequ
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/trap_tools.png`, label: 'Trap Tools', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 1 },
       ],
     },
     {
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_dark.png`, label: 'Legendary Dark Aether', quantity: 1 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_dark.png`, label: 'Epic Dark Aether', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 10 },
       ],
@@ -970,7 +969,7 @@ const LIMIT_BREAK_REQUIREMENTS: Record<LimitBreakElementKey, Omit<LimitBreakRequ
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 10 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 5 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary_holy.png`, label: 'Legendary Holy Aether', quantity: 1 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_epic_holy.png`, label: 'Epic Holy Aether', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 10 },
       ],
@@ -1008,7 +1007,7 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_nature.png`, label: 'Rare Nature Aether', quantity: 5 },
       ],
     },
     {
@@ -1038,7 +1037,7 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_ice.png`, label: 'Rare Ice Aether', quantity: 5 },
       ],
     },
     {
@@ -1068,7 +1067,7 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_fire.png`, label: 'Rare Fire Aether', quantity: 5 },
       ],
     },
     {
@@ -1092,14 +1091,13 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/battle_manual.png`, label: 'Battle Manual', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/tall_boots.png`, label: 'Tall Boots', quantity: 5 },
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/trap_tools.png`, label: 'Trap Tools', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/scabbard.png`, label: 'Scabbard', quantity: 1 },
       ],
     },
     {
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_dark.png`, label: 'Rare Dark Aether', quantity: 5 },
       ],
     },
     {
@@ -1129,7 +1127,7 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
       iconUrl: SECOND_LIMIT_BREAK_ICON,
       items: [
         { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`, label: 'Alpha Aether', quantity: 1 },
-        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 3 },
+        { imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_rare_holy.png`, label: 'Rare Holy Aether', quantity: 5 },
       ],
     },
     {
@@ -2415,7 +2413,8 @@ export default function PublicHeroDetailsModal({
     locale === 'RU'
       ? 'Для этого героя подходящие отряды пока не найдены.'
       : 'Matching troops are not configured for this hero yet.';
-  const limitBreakSource = currentHeroIsCostume
+  const currentHeroIsMimic = currentHeroSlug?.toLocaleLowerCase() === 'mimic';
+  const limitBreakSource = currentHeroIsCostume || currentHeroIsMimic
     ? COSTUME_LIMIT_BREAK_REQUIREMENTS
     : LIMIT_BREAK_REQUIREMENTS;
   const limitBreakRows = limitBreakElementKey
