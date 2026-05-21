@@ -469,7 +469,7 @@ function CostumeCollectionBadge({
         sizeClassName={sizeClassName}
       />
       {level > 1 ? (
-        <span className={`absolute -right-2 -bottom-1 rounded-full bg-black/80 px-1 py-[1px] font-extrabold leading-none text-white shadow-[0_0_4px_rgba(0,0,0,0.9)] ${textClassName}`}>
+        <span className={`absolute -right-2 -bottom-1 px-1 py-[1px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
           {`x${level}`}
         </span>
       ) : null}
@@ -577,7 +577,7 @@ function PowerGradeBadge({
           aria-label={controlLabel}
           title={label}
           className={`transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${
-            highlight ? 'animate-pulse ring-1 ring-cyan-300/60' : ''
+            highlight ? 'animate-pulse [filter:drop-shadow(0_0_4px_rgba(34,211,238,0.65))_drop-shadow(0_0_10px_rgba(34,211,238,0.45))]' : ''
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -777,7 +777,7 @@ function TalentBadge({
                 className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
               />
               {talentLevel > 0 ? (
-                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_4px_rgba(0,0,0,0.95)] sm:text-[8px]">
+                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] sm:text-[8px]">
                   {talentLevel}
                 </span>
               ) : null}
@@ -794,7 +794,7 @@ function TalentBadge({
             alt={titleLabel}
             className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
           />
-          <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_4px_rgba(0,0,0,0.95)] sm:text-[8px]">
+          <span className="absolute inset-0 flex items-center justify-center text-[7px] font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] sm:text-[8px]">
             {talentLevel}
           </span>
         </div>
@@ -4357,8 +4357,8 @@ export default function ProfilePageClient() {
 
               <div className="mb-4">
                 <input
-                  value={warSlotPickerSearch}
-                  onChange={(event) => setWarSlotPickerSearch(event.target.value)}
+                  value={warStatSlotPickerSearch}
+                  onChange={(event) => setWarStatSlotPickerSearch(event.target.value)}
                   placeholder={messages.profile.searchHeroes}
                   autoComplete="off"
                   autoCorrect="off"
@@ -4368,8 +4368,8 @@ export default function ProfilePageClient() {
               </div>
               <div className="mb-4">
                 <input
-                  value={warStatSlotPickerSearch}
-                  onChange={(event) => setWarStatSlotPickerSearch(event.target.value)}
+                  value={warSlotPickerSearch}
+                  onChange={(event) => setWarSlotPickerSearch(event.target.value)}
                   placeholder={messages.profile.searchHeroes}
                   autoComplete="off"
                   autoCorrect="off"
