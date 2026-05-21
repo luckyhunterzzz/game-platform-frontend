@@ -1405,6 +1405,7 @@ export default function ProfilePageClient() {
   const [powerGradeFilters, setPowerGradeFilters] = useState<HeroPowerGrade[]>([]);
   const [elementFilters, setElementFilters] = useState<string[]>([]);
   const [heroClassFilters, setHeroClassFilters] = useState<string[]>([]);
+  const [heroSearchQuery, setHeroSearchQuery] = useState('');
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
@@ -1864,6 +1865,8 @@ export default function ProfilePageClient() {
   }, [rosterCards]);
 
   const filteredRosterCards = useMemo(() => {
+    const normalizedSearchQuery = heroSearchQuery.trim().toLocaleLowerCase();
+
     return rosterCards.filter((hero) => {
       if (powerGradeFilters.length > 0 && !powerGradeFilters.includes(hero.powerGrade)) {
         return false;
@@ -1877,9 +1880,13 @@ export default function ProfilePageClient() {
         return false;
       }
 
+      if (normalizedSearchQuery && !hero.name.toLocaleLowerCase().includes(normalizedSearchQuery)) {
+        return false;
+      }
+
       return true;
     });
-  }, [elementFilters, heroClassFilters, powerGradeFilters, rosterCards]);
+  }, [elementFilters, heroClassFilters, heroSearchQuery, powerGradeFilters, rosterCards]);
 
   const allSortedRosterCards = useMemo<RosterHeroCard[]>(
     () => sortRosterCardList(rosterCards, heroLocale, heroSortField, heroSortOrder),
@@ -2253,6 +2260,7 @@ export default function ProfilePageClient() {
     setPowerGradeFilters([]);
     setElementFilters([]);
     setHeroClassFilters([]);
+    setHeroSearchQuery('');
   };
 
   useEffect(() => {
@@ -2745,6 +2753,21 @@ export default function ProfilePageClient() {
                     onChange={setHeroClassFilters}
                     locale={heroLocale}
                   />
+                </div>
+
+                <div>
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Поиск по героям' : 'Hero search'}</span>
+                    <input
+                      value={heroSearchQuery}
+                      onChange={(event) => setHeroSearchQuery(event.target.value)}
+                      placeholder={locale === 'ru' ? 'Введите имя героя' : 'Type hero name'}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </label>
                 </div>
               </div>
             </div>
