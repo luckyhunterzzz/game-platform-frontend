@@ -45,13 +45,24 @@ export type PlayerWarAttackSlotResponse = {
   playerProfileHeroId: string | null;
 };
 
+export type PlayerWarModeResponse = {
+  code: string;
+  nameRu: string;
+  nameEn: string;
+  descriptionRu: string;
+  descriptionEn: string;
+  sortOrder: number;
+};
+
 export type PlayerWarAttackTeamResponse = {
   id: string;
+  warModeCode: string;
   teamIndex: number;
   slots: PlayerWarAttackSlotResponse[];
 };
 
 export type PlayerWarAttackTeamsResponse = {
+  warModes: PlayerWarModeResponse[];
   teams: PlayerWarAttackTeamResponse[];
 };
 
@@ -61,10 +72,58 @@ export type PlayerWarAttackSlotUpdateRequest = {
 };
 
 export type PlayerWarAttackTeamUpdateRequest = {
+  warModeCode: string;
   teamIndex: number;
   slots: PlayerWarAttackSlotUpdateRequest[];
 };
 
 export type PlayerWarAttackTeamsUpdateRequest = {
   teams: PlayerWarAttackTeamUpdateRequest[];
+};
+
+export type WarStatAttackResultType =
+  | 'SUCCESS_ONE_SHOT'
+  | 'SUCCESS_CLEANUP'
+  | 'FAIL_FULL_ATTACK'
+  | 'FAIL_CLEANUP';
+
+export type PlayerWarStatAttackTeamSlotResponse = {
+  slot: number;
+  playerProfileHeroId: string | null;
+};
+
+export type PlayerWarStatAttackRecordResponse = {
+  id: string;
+  warModeCode: string;
+  resultType: WarStatAttackResultType;
+  battleDate: string;
+};
+
+export type PlayerWarStatAttackTeamResponse = {
+  id: string;
+  name: string;
+  teamOrder: number;
+  slots: PlayerWarStatAttackTeamSlotResponse[];
+  records: PlayerWarStatAttackRecordResponse[];
+};
+
+export type PlayerWarStatAttackTeamsResponse = {
+  warModes: PlayerWarModeResponse[];
+  teams: PlayerWarStatAttackTeamResponse[];
+};
+
+export type PlayerWarStatAttackTeamSlotUpdateRequest = {
+  slot: number;
+  playerProfileHeroId: string | null;
+};
+
+export type PlayerWarStatAttackTeamUpdateRequest = {
+  name: string;
+  slots: PlayerWarStatAttackTeamSlotUpdateRequest[];
+};
+
+export type PlayerWarStatAttackRecordUpsertRequest = {
+  warModeCode: string;
+  resultType: WarStatAttackResultType;
+  battleDate: string;
 };
