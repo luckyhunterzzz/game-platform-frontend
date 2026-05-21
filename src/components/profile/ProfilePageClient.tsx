@@ -577,7 +577,7 @@ function PowerGradeBadge({
           aria-label={controlLabel}
           title={label}
           className={`transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70 ${
-            highlight ? 'animate-pulse [filter:drop-shadow(0_0_4px_rgba(34,211,238,0.65))_drop-shadow(0_0_10px_rgba(34,211,238,0.45))]' : ''
+            highlight ? 'animate-pulse [filter:drop-shadow(0_0_4px_rgba(34,211,238,0.55))_drop-shadow(0_0_9px_rgba(34,211,238,0.35))]' : ''
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1607,16 +1607,16 @@ function WarHeroSlot({
               textClassName={compact ? 'text-[6px]' : 'text-[6px] sm:text-[7px]'}
             />
           ) : null}
-          <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
-            {hero.previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={hero.previewUrl}
-                alt={hero.name}
-                className={compact ? 'h-12 w-12 rounded-[12px] object-cover sm:h-16 sm:w-16' : 'h-14 w-14 rounded-[12px] object-cover sm:h-20 sm:w-20'}
-              />
-            ) : (
-              <div className={compact ? 'flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16' : 'flex h-14 w-14 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-20 sm:w-20'}>
+            <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
+              {hero.previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={hero.previewUrl}
+                  alt={hero.name}
+                  className={compact ? 'h-12 w-12 rounded-[12px] object-cover sm:h-16 sm:w-16' : 'h-16 w-16 rounded-[12px] object-cover sm:h-24 sm:w-24 lg:h-28 lg:w-28'}
+                />
+              ) : (
+              <div className={compact ? 'flex h-12 w-12 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-16 sm:w-16' : 'flex h-16 w-16 items-center justify-center rounded-[12px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 lg:h-28 lg:w-28'}>
                 ?
               </div>
             )}
@@ -1626,12 +1626,12 @@ function WarHeroSlot({
             label={getPowerGradeLabel(hero.powerGrade, locale)}
             imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
             locale={locale}
-            sizeClassName={compact ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5 sm:h-7 sm:w-7'}
+            sizeClassName={compact ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5 sm:h-8 sm:w-8 lg:h-9 lg:w-9'}
           />
           <TalentBadge
             talentLevel={hero.talentLevel}
             locale={locale}
-            sizeClassName={compact ? 'h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]' : 'h-[22px] w-[22px] sm:h-[30px] sm:w-[30px]'}
+            sizeClassName={compact ? 'h-[16px] w-[16px] sm:h-[20px] sm:w-[20px]' : 'h-[20px] w-[20px] sm:h-[28px] sm:w-[28px] lg:h-[32px] lg:w-[32px]'}
           />
         </div>
 
@@ -4246,6 +4246,18 @@ export default function ProfilePageClient() {
                 </button>
               </div>
 
+              <div className="mb-4">
+                <input
+                  value={warSlotPickerSearch}
+                  onChange={(event) => setWarSlotPickerSearch(event.target.value)}
+                  placeholder={messages.profile.searchHeroes}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                />
+              </div>
+
               <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
                 {availableWarRosterCards.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
@@ -4303,13 +4315,9 @@ export default function ProfilePageClient() {
                           />
                         </div>
 
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-2">
                           <div className="line-clamp-2 min-h-[2rem] text-[11px] font-semibold text-[var(--foreground)] sm:text-xs">
                             {hero.name}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-soft)] sm:text-xs">
-                            <span>{hero.rarityStars}*</span>
-                            {hero.releaseDate ? <span>{formatReleaseDate(hero.releaseDate, heroLocale)}</span> : null}
                           </div>
                         </div>
                       </button>
@@ -4359,17 +4367,6 @@ export default function ProfilePageClient() {
                 <input
                   value={warStatSlotPickerSearch}
                   onChange={(event) => setWarStatSlotPickerSearch(event.target.value)}
-                  placeholder={messages.profile.searchHeroes}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  className="w-full rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-                />
-              </div>
-              <div className="mb-4">
-                <input
-                  value={warSlotPickerSearch}
-                  onChange={(event) => setWarSlotPickerSearch(event.target.value)}
                   placeholder={messages.profile.searchHeroes}
                   autoComplete="off"
                   autoCorrect="off"
@@ -4434,13 +4431,9 @@ export default function ProfilePageClient() {
                           />
                         </div>
 
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-2">
                           <div className="line-clamp-2 min-h-[2rem] text-[11px] font-semibold text-[var(--foreground)] sm:text-xs">
                             {hero.name}
-                          </div>
-                          <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-soft)] sm:text-xs">
-                            <span>{hero.rarityStars}*</span>
-                            {hero.releaseDate ? <span>{formatReleaseDate(hero.releaseDate, heroLocale)}</span> : null}
                           </div>
                         </div>
                       </button>
