@@ -45,13 +45,24 @@ export type PlayerWarAttackSlotResponse = {
   playerProfileHeroId: string | null;
 };
 
+export type PlayerWarModeResponse = {
+  code: string;
+  nameRu: string;
+  nameEn: string;
+  descriptionRu: string;
+  descriptionEn: string;
+  sortOrder: number;
+};
+
 export type PlayerWarAttackTeamResponse = {
   id: string;
+  warModeCode: string;
   teamIndex: number;
   slots: PlayerWarAttackSlotResponse[];
 };
 
 export type PlayerWarAttackTeamsResponse = {
+  warModes: PlayerWarModeResponse[];
   teams: PlayerWarAttackTeamResponse[];
 };
 
@@ -61,6 +72,7 @@ export type PlayerWarAttackSlotUpdateRequest = {
 };
 
 export type PlayerWarAttackTeamUpdateRequest = {
+  warModeCode: string;
   teamIndex: number;
   slots: PlayerWarAttackSlotUpdateRequest[];
 };

@@ -19,6 +19,7 @@ import type {
   PlayerProfileResponse,
   PlayerProfileUpdateRequest,
   PlayerWarAttackTeamResponse,
+  PlayerWarModeResponse,
   PlayerWarAttackTeamsResponse,
   PlayerWarAttackTeamsUpdateRequest,
 } from '@/lib/types/player-profile';
@@ -970,37 +971,146 @@ function IconFilterSelect({
 }
 
 type WarSlotPickerState = {
+  warModeCode: string;
   teamIndex: number;
   slot: number;
 } | null;
 
-function buildEmptyWarTeams(): PlayerWarAttackTeamResponse[] {
-  return Array.from({ length: 6 }, (_, teamIndex) => ({
-    id: `local-team-${teamIndex + 1}`,
-    teamIndex: teamIndex + 1,
-    slots: Array.from({ length: 5 }, (_, slotIndex) => ({
-      slot: slotIndex + 1,
-      playerProfileHeroId: null,
-    })),
-  }));
+function buildDefaultWarModes(): PlayerWarModeResponse[] {
+  return [
+    {
+      code: 'UNIVERSAL',
+      nameRu: 'Универсальная',
+      nameEn: 'Universal',
+      descriptionRu: 'Команды для любого режима войны',
+      descriptionEn: 'Teams for any war mode',
+      sortOrder: 1,
+    },
+    {
+      code: 'SKYFIRE',
+      nameRu: 'Небесное пламя',
+      nameEn: 'Skyfire',
+      descriptionRu: 'Атакующие драконы становятся сильнее',
+      descriptionEn: 'Attacking dragons are more powerful',
+      sortOrder: 2,
+    },
+    {
+      code: 'RUSH_ATTACK',
+      nameRu: 'Стремительная атака',
+      nameEn: 'Rush Attack',
+      descriptionRu: 'Все герои: очень быстрая мана',
+      descriptionEn: 'All heroes: very fast mana',
+      sortOrder: 3,
+    },
+    {
+      code: 'WAR_EQUALIZER',
+      nameRu: 'Боевое равенство',
+      nameEn: 'War Equalizer',
+      descriptionRu: 'Каждые 3 хода: все статус-эффекты снимаются',
+      descriptionEn: 'Every 3 turns: status effects removed',
+      sortOrder: 4,
+    },
+    {
+      code: 'ARROW_BARRAGE',
+      nameRu: 'Град стрел',
+      nameEn: 'Arrow Barrage',
+      descriptionRu: 'При активации: атакующие теряют 25% текущего здоровья',
+      descriptionEn: 'When activated: attackers lose 25% current HP',
+      sortOrder: 5,
+    },
+    {
+      code: 'ATTACK_BOOST',
+      nameRu: 'Бонус к атаке',
+      nameEn: 'Attack Boost',
+      descriptionRu: 'Нарастающий бонус атаки для защитников (неснимаемый)',
+      descriptionEn: 'Scaling attack buff for defenders (undispellable)',
+      sortOrder: 6,
+    },
+    {
+      code: 'UNDEAD_HORDE',
+      nameRu: 'Орда зомби',
+      nameEn: 'Undead Horde',
+      descriptionRu: 'Каждые 5 ходов появляются скелеты-прислужники',
+      descriptionEn: 'Every 5 turns: skeletal minions',
+      sortOrder: 7,
+    },
+    {
+      code: 'BLOODY_BATTLE',
+      nameRu: 'Кровавая война',
+      nameEn: 'Bloody Battle',
+      descriptionRu: 'Нельзя лечиться и воскрешаться',
+      descriptionEn: 'No healing / revival',
+      sortOrder: 8,
+    },
+    {
+      code: 'CLOVERFIELD',
+      nameRu: 'Поле клевера',
+      nameEn: 'Cloverfield',
+      descriptionRu: 'Шанс применить особый навык дважды',
+      descriptionEn: 'Chance to cast special skill twice',
+      sortOrder: 9,
+    },
+    {
+      code: 'ANCIENT_TERROR',
+      nameRu: 'Древний ужас',
+      nameEn: 'Ancient Terror',
+      descriptionRu: 'При активации: атакующие / защитники получают +10 / +20 Безумия',
+      descriptionEn: 'When activated: attackers / defenders get +10 / +20 insanity',
+      sortOrder: 10,
+    },
+  ];
 }
 
-function normalizeWarTeams(teams: PlayerWarAttackTeamResponse[]): PlayerWarAttackTeamResponse[] {
-  const teamMap = new Map(teams.map((team) => [team.teamIndex, team]));
+function normalizeWarModeCode(code: string): string {
+  return code.trim().toUpperCase();
+}
 
-  return Array.from({ length: 6 }, (_, teamIndex) => {
-    const currentTeam = teamMap.get(teamIndex + 1);
-    const slotMap = new Map(currentTeam?.slots.map((slot) => [slot.slot, slot]));
+function getWarModeLabel(mode: PlayerWarModeResponse, locale: HeroLocale): string {
+  return locale === 'RU' ? mode.nameRu : mode.nameEn;
+}
 
-    return {
-      id: currentTeam?.id ?? `local-team-${teamIndex + 1}`,
+function getWarModeDescription(mode: PlayerWarModeResponse, locale: HeroLocale): string {
+  return locale === 'RU' ? mode.descriptionRu : mode.descriptionEn;
+}
+
+function buildEmptyWarTeams(warModes: PlayerWarModeResponse[] = buildDefaultWarModes()): PlayerWarAttackTeamResponse[] {
+  return warModes.flatMap((warMode) =>
+    Array.from({ length: 6 }, (_, teamIndex) => ({
+      id: `local-team-${warMode.code}-${teamIndex + 1}`,
+      warModeCode: normalizeWarModeCode(warMode.code),
       teamIndex: teamIndex + 1,
       slots: Array.from({ length: 5 }, (_, slotIndex) => ({
         slot: slotIndex + 1,
-        playerProfileHeroId: slotMap.get(slotIndex + 1)?.playerProfileHeroId ?? null,
+        playerProfileHeroId: null,
       })),
-    };
-  });
+    })),
+  );
+}
+
+function normalizeWarTeams(
+  teams: PlayerWarAttackTeamResponse[],
+  warModes: PlayerWarModeResponse[] = buildDefaultWarModes(),
+): PlayerWarAttackTeamResponse[] {
+  const teamMap = new Map(
+    teams.map((team) => [`${normalizeWarModeCode(team.warModeCode)}:${team.teamIndex}`, team] as const),
+  );
+
+  return warModes.flatMap((warMode) =>
+    Array.from({ length: 6 }, (_, teamIndex) => {
+      const currentTeam = teamMap.get(`${normalizeWarModeCode(warMode.code)}:${teamIndex + 1}`);
+      const slotMap = new Map(currentTeam?.slots.map((slot) => [slot.slot, slot]));
+
+      return {
+        id: currentTeam?.id ?? `local-team-${warMode.code}-${teamIndex + 1}`,
+        warModeCode: normalizeWarModeCode(warMode.code),
+        teamIndex: teamIndex + 1,
+        slots: Array.from({ length: 5 }, (_, slotIndex) => ({
+          slot: slotIndex + 1,
+          playerProfileHeroId: slotMap.get(slotIndex + 1)?.playerProfileHeroId ?? null,
+        })),
+      };
+    }),
+  );
 }
 
 function buildWarTeamsPayload(
@@ -1008,6 +1118,7 @@ function buildWarTeamsPayload(
 ): PlayerWarAttackTeamsUpdateRequest {
   return {
     teams: teams.map((team) => ({
+      warModeCode: team.warModeCode,
       teamIndex: team.teamIndex,
       slots: team.slots.map((slot) => ({
         slot: slot.slot,
@@ -1424,7 +1535,9 @@ export default function ProfilePageClient() {
   const [updatingPowerGradeHeroId, setUpdatingPowerGradeHeroId] = useState<string | null>(null);
   const [updatingTalentLevelHeroId, setUpdatingTalentLevelHeroId] = useState<string | null>(null);
   const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
-  const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>(buildEmptyWarTeams);
+  const [warModes, setWarModes] = useState<PlayerWarModeResponse[]>(buildDefaultWarModes);
+  const [activeWarModeCode, setActiveWarModeCode] = useState('UNIVERSAL');
+  const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>(() => buildEmptyWarTeams(buildDefaultWarModes()));
   const [loadingWarTeams, setLoadingWarTeams] = useState(false);
   const [savingWarTeams, setSavingWarTeams] = useState(false);
   const [warSaveError, setWarSaveError] = useState<string | null>(null);
@@ -1530,7 +1643,10 @@ export default function ProfilePageClient() {
 
   useEffect(() => {
     if (!authenticated) {
-      setWarTeams(buildEmptyWarTeams());
+      const defaultWarModes = buildDefaultWarModes();
+      setWarModes(defaultWarModes);
+      setActiveWarModeCode('UNIVERSAL');
+      setWarTeams(buildEmptyWarTeams(defaultWarModes));
       return;
     }
 
@@ -1544,14 +1660,19 @@ export default function ProfilePageClient() {
         const response = await apiJson<PlayerWarAttackTeamsResponse>('/api/v1/profile/me/war-attack-teams');
 
         if (!cancelled) {
-          setWarTeams(normalizeWarTeams(response.teams));
+          const nextWarModes = response.warModes.length > 0 ? response.warModes : buildDefaultWarModes();
+          setWarModes(nextWarModes);
+          setWarTeams(normalizeWarTeams(response.teams, nextWarModes));
         }
       } catch (error) {
         if (cancelled) {
           return;
         }
 
-        setWarTeams(buildEmptyWarTeams());
+        const defaultWarModes = buildDefaultWarModes();
+        setWarModes(defaultWarModes);
+        setActiveWarModeCode('UNIVERSAL');
+        setWarTeams(buildEmptyWarTeams(defaultWarModes));
 
         if (error instanceof ApiError) {
           setWarSaveError(error.message || messages.profile.warSaveError);
@@ -1571,6 +1692,18 @@ export default function ProfilePageClient() {
       cancelled = true;
     };
   }, [apiJson, authenticated, messages.profile.warSaveError]);
+
+  useEffect(() => {
+    if (warModes.some((warMode) => normalizeWarModeCode(warMode.code) === activeWarModeCode)) {
+      return;
+    }
+
+    setActiveWarModeCode(normalizeWarModeCode(warModes[0]?.code ?? 'UNIVERSAL'));
+  }, [activeWarModeCode, warModes]);
+
+  useEffect(() => {
+    setWarSlotPicker(null);
+  }, [activeWarModeCode]);
 
   useEffect(() => {
     if (!heroModalOpen) {
@@ -1963,15 +2096,26 @@ export default function ProfilePageClient() {
       ? `\u0413\u0435\u0440\u043e\u0438: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` \u2022 \u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430 ${overviewPage + 1}/${overviewPageCount}` : ''}`
       : `Heroes: ${sortedRosterCards.length}${overviewPageCount > 1 ? ` • Page ${overviewPage + 1}/${overviewPageCount}` : ''}`;
 
+  const activeWarMode = useMemo(
+    () => warModes.find((mode) => normalizeWarModeCode(mode.code) === activeWarModeCode) ?? warModes[0] ?? null,
+    [activeWarModeCode, warModes],
+  );
+  const activeWarTeams = useMemo(
+    () =>
+      warTeams
+        .filter((team) => normalizeWarModeCode(team.warModeCode) === activeWarModeCode)
+        .sort((left, right) => left.teamIndex - right.teamIndex),
+    [activeWarModeCode, warTeams],
+  );
   const usedWarHeroIds = useMemo(() => {
     return new Set(
-      warTeams.flatMap((team) =>
+      activeWarTeams.flatMap((team) =>
         team.slots
           .map((slot) => slot.playerProfileHeroId)
           .filter((playerProfileHeroId): playerProfileHeroId is string => playerProfileHeroId !== null),
       ),
     );
-  }, [warTeams]);
+  }, [activeWarTeams]);
 
   const usedWarHeroCount = usedWarHeroIds.size;
 
@@ -1981,14 +2125,14 @@ export default function ProfilePageClient() {
     }
 
     const selectedSlotHeroId =
-      warTeams
+      activeWarTeams
         .find((team) => team.teamIndex === warSlotPicker.teamIndex)
         ?.slots.find((slot) => slot.slot === warSlotPicker.slot)?.playerProfileHeroId ?? null;
 
     return allSortedRosterCards.filter(
       (hero) => hero.profileHeroId === selectedSlotHeroId || !usedWarHeroIds.has(hero.profileHeroId),
     );
-  }, [allSortedRosterCards, usedWarHeroIds, warSlotPicker, warTeams]);
+  }, [activeWarTeams, allSortedRosterCards, usedWarHeroIds, warSlotPicker]);
 
   const queueWarTeamsSave = useCallback(async (nextTeams: PlayerWarAttackTeamResponse[]) => {
     const payload = buildWarTeamsPayload(nextTeams);
@@ -2011,7 +2155,9 @@ export default function ProfilePageClient() {
           nextPayload,
         );
 
-        setWarTeams(normalizeWarTeams(response.teams));
+        const nextWarModes = response.warModes.length > 0 ? response.warModes : warModes;
+        setWarModes(nextWarModes);
+        setWarTeams(normalizeWarTeams(response.teams, nextWarModes));
         setWarSaveError(null);
       }
     } catch (error) {
@@ -2024,7 +2170,7 @@ export default function ProfilePageClient() {
       warSaveInFlightRef.current = false;
       setSavingWarTeams(false);
     }
-  }, [apiPutJson, messages.profile.warSaveError]);
+  }, [apiPutJson, messages.profile.warSaveError, warModes]);
 
   useEffect(() => {
     if (loadingProfileHeroes || loadingWarTeams) {
@@ -2138,8 +2284,9 @@ export default function ProfilePageClient() {
     setSelectorPage((current) => current + 1);
   };
 
-  const openWarSlotPicker = (teamIndex: number, slot: number) => {
+  const openWarSlotPicker = (warModeCode: string, teamIndex: number, slot: number) => {
     setWarSlotPicker({
+      warModeCode,
       teamIndex,
       slot,
     });
@@ -2153,7 +2300,10 @@ export default function ProfilePageClient() {
     }
 
     const nextTeams = warTeams.map((team) => {
-      if (team.teamIndex !== warSlotPicker.teamIndex) {
+      if (
+        normalizeWarModeCode(team.warModeCode) !== normalizeWarModeCode(warSlotPicker.warModeCode) ||
+        team.teamIndex !== warSlotPicker.teamIndex
+      ) {
         return team;
       }
 
@@ -2174,7 +2324,7 @@ export default function ProfilePageClient() {
 
   const handleClearWarSlot = async (teamIndex: number, slotIndex: number) => {
     const nextTeams = warTeams.map((team) => {
-      if (team.teamIndex !== teamIndex) {
+      if (normalizeWarModeCode(team.warModeCode) !== activeWarModeCode || team.teamIndex !== teamIndex) {
         return team;
       }
 
@@ -2194,7 +2344,7 @@ export default function ProfilePageClient() {
 
   const handleClearWarTeam = async (teamIndex: number) => {
     const nextTeams = warTeams.map((team) => {
-      if (team.teamIndex !== teamIndex) {
+      if (normalizeWarModeCode(team.warModeCode) !== activeWarModeCode || team.teamIndex !== teamIndex) {
         return team;
       }
 
@@ -2212,7 +2362,19 @@ export default function ProfilePageClient() {
   };
 
   const handleClearAllWarTeams = async () => {
-    const nextTeams = normalizeWarTeams(buildEmptyWarTeams());
+    const nextTeams = warTeams.map((team) => {
+      if (normalizeWarModeCode(team.warModeCode) !== activeWarModeCode) {
+        return team;
+      }
+
+      return {
+        ...team,
+        slots: team.slots.map((slot) => ({
+          ...slot,
+          playerProfileHeroId: null,
+        })),
+      };
+    });
     setWarTeams(nextTeams);
     await queueWarTeamsSave(nextTeams);
   };
@@ -2841,6 +3003,34 @@ export default function ProfilePageClient() {
                 {messages.profile.warTitle}
               </h2>
 
+              <div className="flex flex-wrap gap-2">
+                {warModes.map((warMode) => {
+                  const modeCode = normalizeWarModeCode(warMode.code);
+                  const selected = modeCode === activeWarModeCode;
+
+                  return (
+                    <button
+                      key={warMode.code}
+                      type="button"
+                      onClick={() => setActiveWarModeCode(modeCode)}
+                      className={`rounded-2xl border px-3 py-2 text-left text-xs font-semibold transition sm:text-sm ${
+                        selected
+                          ? 'border-cyan-400/40 bg-cyan-400/12 text-cyan-200'
+                          : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                      }`}
+                    >
+                      {getWarModeLabel(warMode, heroLocale)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeWarMode ? (
+                <p className="text-sm text-[var(--foreground-soft)]">
+                  {getWarModeDescription(activeWarMode, heroLocale)}
+                </p>
+              ) : null}
+
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2 text-sm text-[var(--foreground-soft)] sm:gap-3">
                   <span className="font-medium text-[var(--foreground)]">{messages.profile.warUsed}:</span>
@@ -2888,9 +3078,9 @@ export default function ProfilePageClient() {
             </div>
           ) : (
             <div className="space-y-4">
-              {warTeams.map((team) => (
+              {activeWarTeams.map((team) => (
                 <div
-                  key={team.teamIndex}
+                  key={`${team.warModeCode}-${team.teamIndex}`}
                   className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm sm:p-4"
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">
@@ -2916,7 +3106,7 @@ export default function ProfilePageClient() {
 
                       return (
                         <WarHeroSlot
-                          key={`${team.teamIndex}-${slot.slot}`}
+                          key={`${team.warModeCode}-${team.teamIndex}-${slot.slot}`}
                           hero={hero}
                           locale={heroLocale}
                           compact={warCompactMode}
@@ -2926,7 +3116,7 @@ export default function ProfilePageClient() {
                           onClick={
                             hero && hero.slug !== String(hero.heroId)
                               ? () => handleOpenRosterHero(hero.slug)
-                              : () => openWarSlotPicker(team.teamIndex, slot.slot)
+                              : () => openWarSlotPicker(team.warModeCode, team.teamIndex, slot.slot)
                           }
                           onRemove={
                             hero
