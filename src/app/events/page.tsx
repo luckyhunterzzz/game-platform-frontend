@@ -26,8 +26,9 @@ export default function EventsPage() {
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
       { label: locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
-      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? '\u0421\u0443\u043D\u0434\u0443\u043A\u0438' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
+      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
+      { label: messages.home.navHeroCoach, href: '/hero-coach', imageSrc: '/heroes/activity-icons/hero-coach.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
       {
         label: messages.home.navJointPurchases,
@@ -42,6 +43,7 @@ export default function EventsPage() {
       messages.home.navAlliances,
       messages.home.navEvents,
       messages.home.navHeroes,
+      messages.home.navHeroCoach,
       messages.home.navJointPurchases,
       messages.home.navJointPurchasesAuthHint,
     ],
@@ -79,6 +81,15 @@ export default function EventsPage() {
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.menuPageTwo}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/hero-coach"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navHeroCoach}
                 </Link>
               </li>
               <li>

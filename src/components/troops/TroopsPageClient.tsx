@@ -612,6 +612,7 @@ export default function TroopsPageClient() {
   const quickLinks = useMemo<QuickLinkItem[]>(
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
+      { label: messages.home.navHeroCoach, href: '/hero-coach', imageSrc: '/heroes/activity-icons/hero-coach.png' },
       { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
       { label: locale === 'ru' ? 'События' : 'Events', href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
@@ -627,10 +628,25 @@ export default function TroopsPageClient() {
       authenticated,
       locale,
       messages.home.navHeroes,
+      messages.home.navHeroCoach,
       messages.home.navJointPurchases,
       messages.home.navJointPurchasesAuthHint,
     ],
   );
+
+  const orderedQuickLinks = useMemo(() => {
+    const order = [
+      messages.home.navHeroes,
+      locale === 'ru' ? 'Отряды' : 'Troops',
+      locale === 'ru' ? 'Сундуки' : 'Chests',
+      locale === 'ru' ? 'События' : 'Events',
+      messages.home.navHeroCoach,
+      locale === 'ru' ? 'Альянсы' : 'Alliances',
+      messages.home.navJointPurchases,
+    ];
+
+    return [...quickLinks].sort((left, right) => order.indexOf(left.label) - order.indexOf(right.label));
+  }, [locale, messages.home.navHeroes, messages.home.navHeroCoach, messages.home.navJointPurchases, quickLinks]);
 
   const legendaryTroops = useMemo(() => buildLegendaryTroopEntries(), []);
   const epicTroops = useMemo(() => buildEpicTroopEntries(), []);
@@ -750,6 +766,15 @@ export default function TroopsPageClient() {
               </li>
               <li>
                 <Link
+                  href="/hero-coach"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navHeroCoach}
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/troops"
                   onClick={() => setSidebarOpen(false)}
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
@@ -780,7 +805,7 @@ export default function TroopsPageClient() {
 
       <main className="flex flex-1 flex-col items-center px-4 py-12">
         <div className="mb-12 flex flex-wrap justify-center gap-4">
-          {quickLinks.map((item) => (
+          {orderedQuickLinks.map((item) => (
             <Link
               key={item.label}
               href={item.href}

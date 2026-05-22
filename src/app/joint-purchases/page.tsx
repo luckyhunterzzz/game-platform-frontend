@@ -59,6 +59,15 @@ export default function JointPurchasesPage() {
               </li>
               <li>
                 <Link
+                  href="/hero-coach"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navHeroCoach}
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/troops"
                   onClick={() => setSidebarOpen(false)}
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
