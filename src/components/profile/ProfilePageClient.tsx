@@ -155,6 +155,17 @@ type WarStatSummary = {
 const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
+const WAR_MODE_ICON_BY_CODE: Record<string, string> = {
+  SKYFIRE: '/war-modes/skyfire.png',
+  RUSH_ATTACK: '/war-modes/rush_attack.png',
+  WAR_EQUALIZER: '/war-modes/war_equalizer.png',
+  ARROW_BARRAGE: '/war-modes/arrow_barrage.png',
+  ATTACK_BOOST: '/war-modes/attack_boost.png',
+  UNDEAD_HORDE: '/war-modes/undead_horde.png',
+  BLOODY_BATTLE: '/war-modes/bloody_battle.png',
+  CLOVERFIELD: '/war-modes/cloverfield.png',
+  ANCIENT_TERROR: '/war-modes/ancient_terror.png',
+};
 const POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
   FIRST_TIER: `${POWER_GRADE_ASSET_BASE}/power_grade_first_tier.png`,
   FIRST_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_first_ascension.webp`,
@@ -1117,6 +1128,194 @@ function getWarModeDescription(mode: PlayerWarModeResponse, locale: HeroLocale):
   return locale === 'RU' ? mode.descriptionRu : mode.descriptionEn;
 }
 
+function getWarModeIconUrl(code: string): string | null {
+  return WAR_MODE_ICON_BY_CODE[normalizeWarModeCode(code)] ?? null;
+}
+
+function WarModeIcon({
+  warModeCode,
+  label,
+  sizeClassName = 'h-4 w-4',
+}: {
+  warModeCode: string;
+  label: string;
+  sizeClassName?: string;
+}) {
+  const imageUrl = getWarModeIconUrl(warModeCode);
+
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={label}
+        className={`${sizeClassName} shrink-0 object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.75))]`}
+      />
+    );
+  }
+
+  return <Shield className={`${sizeClassName} shrink-0`} />;
+}
+
+function WarModeLabel({
+  mode,
+  locale,
+  iconSizeClassName = 'h-4 w-4',
+  textClassName = '',
+}: {
+  mode: PlayerWarModeResponse;
+  locale: HeroLocale;
+  iconSizeClassName?: string;
+  textClassName?: string;
+}) {
+  const label = getWarModeLabel(mode, locale);
+
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-2 ${textClassName}`}>
+      <WarModeIcon warModeCode={mode.code} label={label} sizeClassName={iconSizeClassName} />
+      <span className="min-w-0 truncate">{label}</span>
+    </span>
+  );
+}
+
+function WarModeSelect({
+  value,
+  options,
+  locale,
+  onChange,
+  includeAllOption = false,
+  allLabel,
+}: {
+  value: string;
+  options: PlayerWarModeResponse[];
+  locale: HeroLocale;
+  onChange: (nextValue: string) => void;
+  includeAllOption?: boolean;
+  allLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverPanelRef = useRef<HTMLDivElement | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const normalizedValue = value.trim().toUpperCase();
+  const selectedMode = options.find((option) => normalizeWarModeCode(option.code) === normalizedValue) ?? null;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setPopoverStyle(
+        buildFloatingPopoverStyle({
+          triggerRect: triggerRef.current.getBoundingClientRect(),
+          preferredWidth: 260,
+          estimatedHeight: 320,
+          align: 'left',
+        }),
+      );
+    };
+
+    updatePopoverPosition();
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      if (!popoverRef.current?.contains(targetNode) && !popoverPanelRef.current?.contains(targetNode)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
+    };
+  }, [open]);
+
+  return (
+    <div ref={popoverRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-left text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
+      >
+        {selectedMode ? (
+          <WarModeLabel mode={selectedMode} locale={locale} />
+        ) : (
+          <span className="inline-flex items-center gap-2">
+            <Shield className="h-4 w-4 shrink-0" />
+            <span>{allLabel ?? (locale === 'RU' ? 'Все режимы' : 'All war modes')}</span>
+          </span>
+        )}
+        <ChevronDown className={`h-4 w-4 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && popoverStyle && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={popoverPanelRef}
+              className="fixed z-[230] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
+              style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
+            >
+              <div className="max-h-80 overflow-y-auto">
+                {includeAllOption ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange('ALL');
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                      normalizedValue === 'ALL'
+                        ? 'bg-cyan-400/12 text-cyan-200'
+                        : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                    }`}
+                  >
+                    <Shield className="h-4 w-4 shrink-0" />
+                    <span>{allLabel ?? (locale === 'RU' ? 'Все режимы' : 'All war modes')}</span>
+                  </button>
+                ) : null}
+
+                {options.map((option) => {
+                  const selected = normalizeWarModeCode(option.code) === normalizedValue;
+
+                  return (
+                    <button
+                      key={option.code}
+                      type="button"
+                      onClick={() => {
+                        onChange(option.code);
+                        setOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                        selected
+                          ? 'bg-cyan-400/12 text-cyan-200'
+                          : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      <WarModeLabel mode={option} locale={locale} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
 function buildEmptyWarTeams(warModes: PlayerWarModeResponse[] = buildDefaultWarModes()): PlayerWarAttackTeamResponse[] {
   return warModes.flatMap((warMode) =>
     Array.from({ length: 6 }, (_, teamIndex) => ({
@@ -1191,9 +1390,11 @@ function normalizeWarStatTeams(
 }
 
 function buildWarStatDraft(warModes: PlayerWarModeResponse[]): WarStatRecordDraft {
+  const firstWarMode = warModes.find((mode) => normalizeWarModeCode(mode.code) !== 'UNIVERSAL') ?? warModes[0];
+
   return {
     teamName: '',
-    warModeCode: warModes[0]?.code ?? 'UNIVERSAL',
+    warModeCode: firstWarMode?.code ?? 'SKYFIRE',
     resultType: DEFAULT_WAR_STAT_RESULT_TYPE,
     battleDate: getTodayDateInputValue(),
   };
@@ -1229,9 +1430,20 @@ function getWarStatResultTypeLabel(resultType: WarStatAttackResultType, locale: 
   }
 }
 
-function buildWarStatSummary(records: PlayerWarStatAttackRecordResponse[]): WarStatSummary {
+function buildWarStatSummary(
+  records: PlayerWarStatAttackRecordResponse[],
+  warModeCodeFilter?: string,
+): WarStatSummary {
   return records.reduce<WarStatSummary>(
     (summary, record) => {
+      if (
+        warModeCodeFilter &&
+        warModeCodeFilter !== 'ALL' &&
+        normalizeWarModeCode(record.warModeCode) !== normalizeWarModeCode(warModeCodeFilter)
+      ) {
+        return summary;
+      }
+
       switch (record.resultType) {
         case 'SUCCESS_ONE_SHOT':
           summary.success += 1;
@@ -1730,6 +1942,7 @@ export default function ProfilePageClient() {
   const [warStatControlsOpen, setWarStatControlsOpen] = useState(false);
   const [warStatSortField, setWarStatSortField] = useState<WarStatSortField>('successRate');
   const [warStatSortOrder, setWarStatSortOrder] = useState<WarStatSortOrder>('desc');
+  const [warStatModeFilterCode, setWarStatModeFilterCode] = useState('ALL');
   const [warStatExpandedTeamIds, setWarStatExpandedTeamIds] = useState<string[]>([]);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
@@ -2412,8 +2625,8 @@ export default function ProfilePageClient() {
       : warStatTeams.filter((team) => team.name.toLocaleLowerCase().includes(query));
 
     return [...filteredTeams].sort((left, right) => {
-      const leftSummary = buildWarStatSummary(left.records);
-      const rightSummary = buildWarStatSummary(right.records);
+      const leftSummary = buildWarStatSummary(left.records, warStatModeFilterCode);
+      const rightSummary = buildWarStatSummary(right.records, warStatModeFilterCode);
 
       const leftValue =
         warStatSortField === 'successRate'
@@ -2438,7 +2651,7 @@ export default function ProfilePageClient() {
 
       return warStatSortOrder === 'asc' ? leftValue - rightValue : rightValue - leftValue;
     });
-  }, [warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTeams]);
+  }, [warStatModeFilterCode, warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTeams]);
   const availableWarStatRosterCards = useMemo(() => {
     if (!warStatSlotPicker) {
       return [];
@@ -3691,6 +3904,7 @@ export default function ProfilePageClient() {
                       setWarStatSearchQuery('');
                       setWarStatSortField('successRate');
                       setWarStatSortOrder('desc');
+                      setWarStatModeFilterCode('ALL');
                     }}
                     title={locale === 'ru' ? 'Сбросить поиск и сортировку' : 'Reset search and sorting'}
                     aria-label={locale === 'ru' ? 'Сбросить поиск и сортировку' : 'Reset search and sorting'}
@@ -3703,7 +3917,7 @@ export default function ProfilePageClient() {
               </button>
 
               {warStatControlsOpen ? (
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
                     <span>{locale === 'ru' ? 'Название команды' : 'Team name'}</span>
                     <input
@@ -3714,6 +3928,18 @@ export default function ProfilePageClient() {
                       autoCorrect="off"
                       spellCheck={false}
                       className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                    <span>{locale === 'ru' ? 'Режим войны' : 'War mode'}</span>
+                    <WarModeSelect
+                      value={warStatModeFilterCode}
+                      options={warModes.filter((mode) => normalizeWarModeCode(mode.code) !== 'UNIVERSAL')}
+                      locale={heroLocale}
+                      onChange={setWarStatModeFilterCode}
+                      includeAllOption
+                      allLabel={locale === 'ru' ? 'Все режимы' : 'All war modes'}
                     />
                   </label>
 
@@ -3767,7 +3993,7 @@ export default function ProfilePageClient() {
           ) : (
             <div className="space-y-4">
               {visibleWarStatTeams.map((team) => {
-                const summary = buildWarStatSummary(team.records);
+                const summary = buildWarStatSummary(team.records, warStatModeFilterCode);
                 const draft = warStatDraftsByTeamId[team.id] ?? buildWarStatDraft(warModes);
                 const teamLocked = team.records.length > 0;
                 const teamExpanded = warStatExpandedTeamIds.includes(team.id);
@@ -3959,16 +4185,26 @@ export default function ProfilePageClient() {
                           : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
                       }`}
                     >
-                      {getWarModeLabel(warMode, heroLocale)}
+                      <WarModeLabel
+                        mode={warMode}
+                        locale={heroLocale}
+                        iconSizeClassName="h-4 w-4 sm:h-5 sm:w-5"
+                        textClassName="justify-center"
+                      />
                     </button>
                   );
                 })}
               </div>
 
               {activeWarMode ? (
-                <p className="text-sm text-[var(--foreground-soft)]">
-                  {getWarModeDescription(activeWarMode, heroLocale)}
-                </p>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-[var(--foreground)]">
+                    <WarModeLabel mode={activeWarMode} locale={heroLocale} iconSizeClassName="h-5 w-5" />
+                  </div>
+                  <p className="text-sm text-[var(--foreground-soft)]">
+                    {getWarModeDescription(activeWarMode, heroLocale)}
+                  </p>
+                </div>
               ) : null}
 
               <div className="flex items-center justify-between gap-3">
@@ -4496,20 +4732,23 @@ export default function ProfilePageClient() {
                           <div className="text-sm font-medium text-[var(--foreground)]">
                             {getWarStatResultTypeLabel(record.resultType, heroLocale)}
                           </div>
-                          <div className="mt-1 text-xs text-[var(--foreground-soft)]">
-                            {getWarModeLabel(
-                              warModes.find((mode) => normalizeWarModeCode(mode.code) === normalizeWarModeCode(record.warModeCode)) ?? {
-                                code: record.warModeCode,
-                                nameRu: record.warModeCode,
-                                nameEn: record.warModeCode,
-                                descriptionRu: '',
-                                descriptionEn: '',
-                                sortOrder: 0,
-                              },
-                              heroLocale,
-                            )}
-                            {' • '}
-                            {record.battleDate}
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--foreground-soft)]">
+                            <WarModeLabel
+                              mode={
+                                warModes.find((mode) => normalizeWarModeCode(mode.code) === normalizeWarModeCode(record.warModeCode)) ?? {
+                                  code: record.warModeCode,
+                                  nameRu: record.warModeCode,
+                                  nameEn: record.warModeCode,
+                                  descriptionRu: '',
+                                  descriptionEn: '',
+                                  sortOrder: 0,
+                                }
+                              }
+                              locale={heroLocale}
+                              iconSizeClassName="h-3.5 w-3.5"
+                            />
+                            <span>•</span>
+                            <span>{record.battleDate}</span>
                           </div>
                         </div>
                         <button
@@ -4579,17 +4818,12 @@ export default function ProfilePageClient() {
                     </label>
                     <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
                       <span>{messages.profile.warStatsWarMode}</span>
-                      <select
+                      <WarModeSelect
                         value={draft.warModeCode}
-                        onChange={(event) => handleWarStatDraftChange(teamId, { warModeCode: event.target.value })}
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-                      >
-                        {warModes.map((warMode) => (
-                          <option key={warMode.code} value={warMode.code}>
-                            {getWarModeLabel(warMode, heroLocale)}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(nextValue) => handleWarStatDraftChange(teamId, { warModeCode: nextValue })}
+                        options={warModes.filter((mode) => normalizeWarModeCode(mode.code) !== 'UNIVERSAL')}
+                        locale={heroLocale}
+                      />
                     </label>
                     <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
                       <span>{messages.profile.warStatsBattleDate}</span>
