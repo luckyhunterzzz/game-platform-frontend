@@ -680,7 +680,7 @@ export default function HeroCoachPageClient() {
             </span>
           </div>
 
-          <section className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
+          <section className="relative z-20 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
             <div className="mb-6 flex items-start gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/heroes/activity-icons/hero-coach.png" alt="" className="h-16 w-16 object-contain" />
@@ -754,7 +754,7 @@ export default function HeroCoachPageClient() {
             </form>
           </section>
 
-          <section className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
+          <section className="relative z-0 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
             <div className="mb-5">
               <h2 className="text-2xl font-bold text-[var(--foreground)]">{text.availableTitle}</h2>
               <p className="mt-2 text-sm text-[var(--foreground-soft)]">{text.availableDescription}</p>
