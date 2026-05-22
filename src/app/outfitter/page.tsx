@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
-import HeroCoachPageClient from '@/components/hero-coach/HeroCoachPageClient';
+import OutfitterPageClient from '@/components/outfitter/OutfitterPageClient';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
-export default function HeroCoachPage() {
+export default function OutfitterPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
@@ -99,7 +99,7 @@ export default function HeroCoachPage() {
         </div>
       )}
 
-      <HeroCoachPageClient />
+      <OutfitterPageClient />
     </div>
   );
 }
