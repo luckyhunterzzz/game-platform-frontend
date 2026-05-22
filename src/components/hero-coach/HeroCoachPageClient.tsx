@@ -332,7 +332,7 @@ export default function HeroCoachPageClient() {
     () =>
       locale === 'ru'
         ? {
-            pageTitle: 'Качалка героев',
+            pageTitle: 'Тренер героев',
             pageBadge: 'Hero Coach',
             calculatorTitle: 'Следующие доступные герои',
             helpLabel: 'Что такое Тренер героев',
