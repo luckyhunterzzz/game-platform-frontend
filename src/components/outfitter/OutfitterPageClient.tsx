@@ -84,7 +84,7 @@ const OUTFITTER_INFO_RU = `Это регулярное событие позво
 
 После выбора героя Приезжий портной покажет, какой костюм доступен.
 
-Приезжий портной всегда предлагает самый старый отсутствующий костюм для выбранного героя и предлагает только те костюмы, которые были выпущены более чем за 18 месяцев до начала события.
+Приезжий портной всегда предлагает самый старый отсутствующий костюм для выбранного героя и предлагает только те костюмы, для которых прошло 548 полных дней без учёта даты релиза.
 
 Вы можете выбрать только тех героев, у которых есть отсутствующий у вас костюм.
 
@@ -99,7 +99,7 @@ const OUTFITTER_INFO_RU = `Это регулярное событие позво
 
 const OUTFITTER_INFO_EN = `This recurring event allows players to get certain Costumes for their Heroes, in exchange for Gems.
 After selecting a Hero, the Visiting Outfitter will show which Costume is available.
-The Visiting Outfitter will always offer the oldest missing Costume for the selected Hero, and only offers Costumes released earlier than 18 months before the start of the event.
+The Visiting Outfitter will always offer the oldest missing Costume for the selected Hero, and only offers Costumes after 548 full days have passed, not counting the release date.
 You can only choose those heroes which have a costume that you do not have.
 Once you select a hero, then you can see which costume you will get.
 Players can get one Costume per event.
@@ -414,7 +414,7 @@ export default function OutfitterPageClient() {
             forecastEmpty: 'Для выбранной даты новых костюмов не найдено.',
             effectivePreviousDate: 'Использована предыдущая дата',
             availableTitle: 'Уже доступно в Ателье',
-            availableDescription: 'Список костюмных версий героев, которые уже проходят правило 18 месяцев.',
+            availableDescription: 'Список костюмных версий героев, для которых уже прошло 548 полных дней без учёта даты релиза.',
             loadMore: 'Посмотреть еще',
             loading: 'Загрузка костюмов...',
             loadError: 'Не удалось загрузить данные Приезжего портного.',
@@ -440,7 +440,7 @@ export default function OutfitterPageClient() {
             forecastEmpty: 'No new costumes found for selected date.',
             effectivePreviousDate: 'Used previous date',
             availableTitle: 'Already available in Atelier',
-            availableDescription: 'Costume hero versions that already pass the 18 months rule.',
+            availableDescription: 'Costume hero versions that already pass the 548 full days rule without counting the release date.',
             loadMore: 'Load more',
             loading: 'Loading costumes...',
             loadError: 'Failed to load Visiting Outfitter data.',
