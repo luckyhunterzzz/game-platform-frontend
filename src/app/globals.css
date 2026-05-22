@@ -262,18 +262,21 @@ select optgroup {
 /* DatePicker wrapper */
 .gp-datepicker-wrapper {
   width: 100%;
+  display: block;
 }
 
 .gp-datepicker-wrapper .react-datepicker-wrapper {
   width: 100%;
+  display: block;
 }
 
 .gp-datepicker-wrapper .react-datepicker__input-container {
   width: 100%;
+  display: block;
 }
 
 .gp-datepicker-popper {
-  z-index: 60;
+  z-index: 9999 !important;
 }
 
 /* Main popup */
