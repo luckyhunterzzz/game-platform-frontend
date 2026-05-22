@@ -613,6 +613,7 @@ export default function TroopsPageClient() {
     () => [
       { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
       { label: messages.home.navHeroCoach, href: '/hero-coach', imageSrc: '/heroes/activity-icons/hero-coach.png' },
+      { label: messages.home.navOutfitter, href: '/outfitter', imageSrc: '/heroes/activity-icons/visiting-outfitter.png' },
       { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
       { label: locale === 'ru' ? 'События' : 'Events', href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
@@ -629,6 +630,7 @@ export default function TroopsPageClient() {
       locale,
       messages.home.navHeroes,
       messages.home.navHeroCoach,
+      messages.home.navOutfitter,
       messages.home.navJointPurchases,
       messages.home.navJointPurchasesAuthHint,
     ],
@@ -641,12 +643,13 @@ export default function TroopsPageClient() {
       locale === 'ru' ? 'Сундуки' : 'Chests',
       locale === 'ru' ? 'События' : 'Events',
       messages.home.navHeroCoach,
+      messages.home.navOutfitter,
       locale === 'ru' ? 'Альянсы' : 'Alliances',
       messages.home.navJointPurchases,
     ];
 
     return [...quickLinks].sort((left, right) => order.indexOf(left.label) - order.indexOf(right.label));
-  }, [locale, messages.home.navHeroes, messages.home.navHeroCoach, messages.home.navJointPurchases, quickLinks]);
+  }, [locale, messages.home.navHeroes, messages.home.navHeroCoach, messages.home.navOutfitter, messages.home.navJointPurchases, quickLinks]);
 
   const legendaryTroops = useMemo(() => buildLegendaryTroopEntries(), []);
   const epicTroops = useMemo(() => buildEpicTroopEntries(), []);
@@ -771,6 +774,15 @@ export default function TroopsPageClient() {
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
                 >
                   {messages.home.navHeroCoach}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/outfitter"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navOutfitter}
                 </Link>
               </li>
               <li>

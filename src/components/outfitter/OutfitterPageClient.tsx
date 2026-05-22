@@ -33,7 +33,7 @@ type HeroCoachHeroItem = {
   baseArmor?: number | null;
   baseHp?: number | null;
   releaseDate?: string | null;
-  heroCoachDate?: string | null;
+  visitingOutfitterDate?: string | null;
 };
 
 type HeroCoachPageResponse = {
@@ -66,6 +66,7 @@ type HeroClassKey =
   | 'wizard';
 
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
+const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
 const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   barbarian: `${HERO_CLASS_ASSET_BASE}/barbarian.png`,
   cleric: `${HERO_CLASS_ASSET_BASE}/cleric.png`,
@@ -79,37 +80,34 @@ const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   wizard: `${HERO_CLASS_ASSET_BASE}/wizard.png`,
 };
 
-const HERO_COACH_INFO_RU = `Это регулярное событие позволяет игрокам прокачивать легендарных героев до 4/90 в обмен на гемы.
-Костюмы нельзя прокачивать с помощью Тренера героев.
-После выбора героя Тренер героев покажет, как будет выглядеть ваш герой на уровне 4/90.
-Вы можете выбрать для тренировки только героя, который был выпущен более чем за 730 дней до начала события.
-Можно тренировать только одного героя за событие.
+const OUTFITTER_INFO_RU = `Это регулярное событие позволяет игрокам получать определённые костюмы для своих героев в обмен на гемы.
 
-Примеры стоимости в гемах:
-Прокачка с 4/85: 18 гемов
-Прокачка с 4/80: 37 гемов
-Прокачка с 3/70 и 4/1: 334 гема
-Прокачка с 2/60 и 3/1: 593 гема
-Прокачка с 1/50 и 2/1: 815 гемов
-Прокачка с 1/1: 1000 гемов
+После выбора героя Приезжий портной покажет, какой костюм доступен.
 
-Каждый уровень уменьшает стоимость на 3-4 гема.
-(~3.7 гема за уровень в среднем.)`;
+Приезжий портной всегда предлагает самый старый отсутствующий костюм для выбранного героя и предлагает только те костюмы, которые были выпущены более чем за 18 месяцев до начала события.
 
-const HERO_COACH_INFO_EN = `This recurring event allows players to level their Legendary Heroes to 4/90, in exchange for Gems.
-Costumes can't be leveled up with Hero Coach.
-After selecting a Hero, the Hero Coach will show you how your hero will look like at 4/90.
-You can only select a Hero to train, which is released earlier than 2 years before the start of the event.
-In the live game, players will be able to train one Hero per event.
+Вы можете выбрать только тех героев, у которых есть отсутствующий у вас костюм.
 
-Example Gem Costs in Beta:
-Training from 4/85: 18 Gems
-Training from 4/80: 37 Gems
-Training from 3/70 and 4/1: 334 Gems
-Training from 2/60 and 3/1: 593 Gems
-Training from 1/50 and 2/1: 815 Gems
-Training from 1/1: 1000 Gems
-Each level is reducing the Gem cost with 3-4 Gems. (~3.7 Gems / level on average.)`;
+После выбора героя вы сможете увидеть, какой именно костюм получите.
+
+Игроки могут получить только один костюм за событие.
+
+Стоимость покупки отсутствующих костюмов по редкости:
+Костюм для Редкого (3*) героя: 100 гемов
+Костюм для Эпического (4*) героя: 200 гемов
+Костюм для Легендарного (5*) героя: 300 гемов`;
+
+const OUTFITTER_INFO_EN = `This recurring event allows players to get certain Costumes for their Heroes, in exchange for Gems.
+After selecting a Hero, the Visiting Outfitter will show which Costume is available.
+The Visiting Outfitter will always offer the oldest missing Costume for the selected Hero, and only offers Costumes released earlier than 18 months before the start of the event.
+You can only choose those heroes which have a costume that you do not have.
+Once you select a hero, then you can see which costume you will get.
+Players can get one Costume per event.
+
+Costs of purchasing the missing costumes per rarity:
+Rare costume: 100 Gem
+Epic costume: 200 Gem
+Legendary costume: 300 Gem`;
 
 function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | null {
   const normalized = (value ?? '').trim().toLocaleLowerCase();
@@ -341,6 +339,11 @@ function HeroCoachPreviewTile({
             className="pointer-events-none absolute left-1 top-1 z-10"
           />
         ) : null}
+        <CornerIconBadge
+          imageUrl={COSTUME_ICON_URL}
+          alt={locale === 'ru' ? 'Костюм' : 'Costume'}
+          className="pointer-events-none absolute left-1 top-6 z-10"
+        />
         <div className={`inline-block overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
           {previewSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -363,7 +366,7 @@ function HeroCoachPreviewTile({
   );
 }
 
-export default function HeroCoachPageClient() {
+export default function OutfitterPageClient() {
   const { apiJson } = useApi();
   const { locale } = useI18n();
   const heroLocale = locale === 'ru' ? 'RU' : 'EN';
@@ -395,53 +398,53 @@ export default function HeroCoachPageClient() {
     () =>
       locale === 'ru'
         ? {
-            pageTitle: 'Тренер героев',
-            pageBadge: 'Hero Coach',
-            calculatorTitle: 'Следующие доступные герои',
-            helpLabel: 'Что такое Тренер героев',
-            helpContent: HERO_COACH_INFO_RU,
-            previousDateLabel: 'Дата предыдущей качалки',
+            pageTitle: 'Приезжий портной',
+            pageBadge: 'Visiting Outfitter',
+            calculatorTitle: 'Следующие доступные костюмы',
+            helpLabel: 'Что такое Приезжий портной',
+            helpContent: OUTFITTER_INFO_RU,
+            previousDateLabel: 'Дата предыдущего Приезжего портного',
             previousDateHint: 'Необязательно. Если пусто, при расчете используем Желаемая дата - 3 месяца.',
             targetDateLabel: 'Желаемая дата',
             targetDateHint: 'Обязательное поле.',
             calculateButton: 'Рассчитать',
             resetButton: 'Сбросить',
             calculating: 'Считаем...',
-            forecastTitle: 'Герои для следующей качалки',
-            forecastEmpty: 'Для выбранной даты новых героев не найдено.',
+            forecastTitle: 'Костюмы для следующего Приезжего портного',
+            forecastEmpty: 'Для выбранной даты новых костюмов не найдено.',
             effectivePreviousDate: 'Использована предыдущая дата',
-            availableTitle: 'Уже доступны в качалке',
-            availableDescription: 'Список базовых легендарных героев, которые уже проходят правило 730 дней.',
+            availableTitle: 'Уже доступно в Ателье',
+            availableDescription: 'Список костюмных версий героев, которые уже проходят правило 18 месяцев.',
             loadMore: 'Посмотреть еще',
-            loading: 'Загрузка героев...',
-            loadError: 'Не удалось загрузить Hero Coach данные.',
-            forecastError: 'Не удалось рассчитать следующих героев.',
+            loading: 'Загрузка костюмов...',
+            loadError: 'Не удалось загрузить данные Приезжего портного.',
+            forecastError: 'Не удалось рассчитать следующие костюмы.',
             modalError: 'Не удалось загрузить героя.',
             noDateSelected: 'Сначала выбери желаемую дату.',
             invalidDate: 'Проверь формат даты.',
           }
         : {
-            pageTitle: 'Hero Coach',
-            pageBadge: 'Hero Coach',
-            calculatorTitle: 'Next available heroes',
-            helpLabel: 'What is Hero Coach',
-            helpContent: HERO_COACH_INFO_EN,
-            previousDateLabel: 'Previous Hero Coach date',
+            pageTitle: 'Visiting Outfitter',
+            pageBadge: 'Visiting Outfitter',
+            calculatorTitle: 'Next available costumes',
+            helpLabel: 'What is Visiting Outfitter',
+            helpContent: OUTFITTER_INFO_EN,
+            previousDateLabel: 'Previous Visiting Outfitter date',
             previousDateHint: 'Optional. If empty, calculation uses Target date - 3 months.',
             targetDateLabel: 'Target date',
             targetDateHint: 'Required field.',
             calculateButton: 'Calculate',
             resetButton: 'Reset',
             calculating: 'Calculating...',
-            forecastTitle: 'Heroes for next Hero Coach',
-            forecastEmpty: 'No new heroes found for selected date.',
+            forecastTitle: 'Costumes for next Visiting Outfitter',
+            forecastEmpty: 'No new costumes found for selected date.',
             effectivePreviousDate: 'Used previous date',
-            availableTitle: 'Already available in Hero Coach',
-            availableDescription: 'Base Legendary Heroes that already pass the 730 days rule.',
+            availableTitle: 'Already available in Atelier',
+            availableDescription: 'Costume hero versions that already pass the 18 months rule.',
             loadMore: 'Load more',
-            loading: 'Loading heroes...',
-            loadError: 'Failed to load Hero Coach data.',
-            forecastError: 'Failed to calculate next heroes.',
+            loading: 'Loading costumes...',
+            loadError: 'Failed to load Visiting Outfitter data.',
+            forecastError: 'Failed to calculate next costumes.',
             modalError: 'Failed to load hero.',
             noDateSelected: 'Select target date first.',
             invalidDate: 'Check date format.',
@@ -486,7 +489,7 @@ export default function HeroCoachPageClient() {
 
       try {
         const response = await apiJson<HeroCoachPageResponse>(
-          `/api/v1/public/hero-coach?page=0&size=${pageSize}&language=${heroLocale}`,
+          `/api/v1/public/outfitter?page=0&size=${pageSize}&language=${heroLocale}`,
         );
 
         if (cancelled) {
@@ -620,7 +623,7 @@ export default function HeroCoachPageClient() {
     try {
       const nextPage = availableData.page + 1;
       const response = await apiJson<HeroCoachPageResponse>(
-        `/api/v1/public/hero-coach?page=${nextPage}&size=${availableData.size}&language=${heroLocale}`,
+        `/api/v1/public/outfitter?page=${nextPage}&size=${availableData.size}&language=${heroLocale}`,
       );
       setAvailableData(response);
       setAvailableHeroes((current) => [...current, ...response.items]);
@@ -658,7 +661,7 @@ export default function HeroCoachPageClient() {
       }
 
       const response = await apiJson<HeroCoachForecastResponse>(
-        `/api/v1/public/hero-coach/forecast?${params.toString()}`,
+        `/api/v1/public/outfitter/forecast?${params.toString()}`,
       );
       setForecastResult(response);
     } catch (error) {
@@ -694,7 +697,7 @@ export default function HeroCoachPageClient() {
           <section className="relative z-20 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
             <div className="mb-6 flex items-start gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/heroes/activity-icons/hero-coach.png" alt="" className="h-16 w-16 object-contain" />
+              <img src="/heroes/activity-icons/visiting-outfitter.png" alt="" className="h-16 w-16 object-contain" />
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-bold text-[var(--foreground)]">{text.calculatorTitle}</h2>
                 <HeroInfoPopover label={text.helpLabel} content={text.helpContent} />
