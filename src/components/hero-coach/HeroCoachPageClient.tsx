@@ -405,6 +405,7 @@ export default function HeroCoachPageClient() {
             targetDateLabel: 'Желаемая дата',
             targetDateHint: 'Обязательное поле.',
             calculateButton: 'Рассчитать',
+            resetButton: 'Сбросить',
             calculating: 'Считаем...',
             forecastTitle: 'Герои для следующей качалки',
             forecastEmpty: 'Для выбранной даты новых героев не найдено.',
@@ -430,6 +431,7 @@ export default function HeroCoachPageClient() {
             targetDateLabel: 'Target date',
             targetDateHint: 'Required field.',
             calculateButton: 'Calculate',
+            resetButton: 'Reset',
             calculating: 'Calculating...',
             forecastTitle: 'Heroes for next Hero Coach',
             forecastEmpty: 'No new heroes found for selected date.',
@@ -666,6 +668,15 @@ export default function HeroCoachPageClient() {
     }
   };
 
+  const handleForecastReset = () => {
+    setPreviousEventDate(null);
+    setPreviousEventDateIso('');
+    setTargetDate(null);
+    setTargetDateIso('');
+    setForecastResult(null);
+    setForecastError(null);
+  };
+
   return (
     <>
       <main className="flex flex-1 flex-col items-center px-4 py-10">
@@ -717,6 +728,15 @@ export default function HeroCoachPageClient() {
                 >
                   {forecastLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
                   {forecastLoading ? text.calculating : text.calculateButton}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleForecastReset}
+                  disabled={forecastLoading}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {text.resetButton}
                 </button>
 
                 {forecastResult ? (

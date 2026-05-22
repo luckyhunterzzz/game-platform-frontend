@@ -27,7 +27,7 @@ export const Navbar = ({
   onMenuClick: () => void;
   onHomeClick?: () => void;
 }) => {
-  const { authenticated, login, logout, displayName } = useAuth();
+  const { authenticated, login, logout } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -90,11 +90,6 @@ export const Navbar = ({
   };
 
   const currentLocaleLabel = locale.toUpperCase();
-
-  const currentThemeLabel =
-    theme === 'light'
-      ? messages.navbar.themeLight
-      : messages.navbar.themeDark;
 
   const ThemeIcon = theme === 'light' ? Sun : Moon;
 
@@ -174,28 +169,28 @@ export const Navbar = ({
         </Link>
       </div>
 
-      <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-3 md:gap-6">
+      <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2 md:gap-3">
         <button
           type="button"
           onClick={() => setIsAboutModalOpen(true)}
-          className="flex shrink items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
           title={aboutProjectContent.button}
+          aria-label={aboutProjectContent.button}
         >
-          <Info size={15} className="sm:h-[18px] sm:w-[18px]" />
-          <span className="hidden sm:inline">{aboutProjectContent.button}</span>
+          <Info size={18} />
         </button>
 
         <div className="relative" ref={themeMenuRef}>
           <button
             type="button"
             onClick={() => setIsThemeMenuOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
             title={messages.navbar.theme}
+            aria-label={messages.navbar.theme}
             aria-haspopup="menu"
             aria-expanded={isThemeMenuOpen}
           >
-            <ThemeIcon size={15} className="sm:h-[18px] sm:w-[18px]" />
-            <span className="hidden sm:inline">{currentThemeLabel}</span>
+            <ThemeIcon size={18} />
           </button>
 
           {isThemeMenuOpen && (
@@ -281,37 +276,33 @@ export const Navbar = ({
         </div>
 
         {authenticated ? (
-          <div className="flex items-center gap-2 border-l border-[var(--border)] pl-2 sm:gap-4 sm:pl-4">
-            {displayName && (
-              <div className="hidden max-w-[12rem] flex-col items-end md:flex">
-                <span className="truncate text-sm font-medium">{displayName}</span>
-              </div>
-            )}
-
+          <div className="flex items-center gap-2 border-l border-[var(--border)] pl-2 sm:pl-3">
             <Link
               href="/profile"
-              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:px-3 sm:py-2"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
               title={messages.navbar.profile}
+              aria-label={messages.navbar.profile}
             >
-              <User size={15} className="sm:h-[18px] sm:w-[18px]" />
-              <span className="hidden md:inline">{messages.navbar.profile}</span>
+              <User size={18} />
             </Link>
 
             <button
               onClick={logout}
-              className="rounded-lg bg-[var(--surface)] p-1.5 text-red-400 transition-colors hover:bg-red-500/10 sm:p-2"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--surface)] text-red-400 transition-colors hover:bg-red-500/10"
               title={messages.navbar.logout}
+              aria-label={messages.navbar.logout}
             >
-              <LogOut size={16} className="sm:h-5 sm:w-5" />
+              <LogOut size={18} />
             </button>
           </div>
         ) : (
           <button
             onClick={login}
-            className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 sm:gap-2 sm:px-4 sm:py-2"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700"
+            title={messages.navbar.login}
+            aria-label={messages.navbar.login}
           >
-            <User size={15} className="sm:h-[18px] sm:w-[18px]" />
-            <span className="hidden md:inline">{messages.navbar.login}</span>
+            <User size={18} />
           </button>
         )}
       </div>
