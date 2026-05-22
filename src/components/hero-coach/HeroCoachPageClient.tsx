@@ -226,9 +226,9 @@ const DatePickerButton = forwardRef<
     ref={ref}
     type="button"
     onClick={onClick}
-    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm text-[var(--foreground)] outline-none transition hover:border-cyan-400/30 hover:bg-[var(--surface-hover)]"
+    className="flex min-h-[72px] w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm text-[var(--foreground)] outline-none transition hover:border-cyan-400/30 hover:bg-[var(--surface-hover)]"
   >
-    <div className="flex min-w-0 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col">
       <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--foreground-soft)]">{label}</span>
       <span className={`truncate pt-1 ${value ? 'text-[var(--foreground)]' : 'text-[var(--foreground-soft)]'}`}>
         {value || placeholder}
@@ -259,7 +259,7 @@ function CalendarField({
   const placeholder = locale === 'ru' ? 'Выберите дату' : 'Select date';
 
   return (
-    <label className="flex flex-col gap-2">
+    <label className="flex h-full w-full flex-col gap-2">
       <DatePicker
         selected={selected}
         onChange={(value: Date | null) => onChange(value)}
