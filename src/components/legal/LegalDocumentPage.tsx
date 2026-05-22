@@ -236,6 +236,15 @@ export default function LegalDocumentPage({ kind }: LegalDocumentPageProps) {
                   {messages.home.menuPageTwo}
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/hero-coach"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navHeroCoach}
+                </Link>
+              </li>
             </ul>
           </div>
 

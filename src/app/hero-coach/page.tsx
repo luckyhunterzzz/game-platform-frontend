@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-
 import { Navbar } from '@/components/Navbar';
-import ProfilePageClient from '@/components/profile/ProfilePageClient';
+import HeroCoachPageClient from '@/components/hero-coach/HeroCoachPageClient';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
-export default function ProfilePage() {
+export default function HeroCoachPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
@@ -69,15 +68,6 @@ export default function ProfilePage() {
               </li>
               <li>
                 <Link
-                  href="/profile"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground)] transition hover:text-cyan-300"
-                >
-                  {messages.navbar.profile}
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/joint-purchases"
                   onClick={() => setSidebarOpen(false)}
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
@@ -100,9 +90,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <main className="flex flex-1 flex-col items-center px-4 py-10">
-        <ProfilePageClient />
-      </main>
+      <HeroCoachPageClient />
     </div>
   );
 }

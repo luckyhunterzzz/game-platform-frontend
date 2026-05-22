@@ -21,6 +21,7 @@ export const enMessages: Messages = {
     menuTitle: 'Menu',
     menuPageOne: 'Home',
     menuPageTwo: 'Heroes',
+    navHeroCoach: 'Hero Coach',
     navHeroes: 'Heroes',
     navEvents: 'Events',
     navGuides: 'Guides',

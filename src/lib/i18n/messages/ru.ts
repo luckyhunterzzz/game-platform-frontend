@@ -21,6 +21,7 @@ export const ruMessages: Messages = {
     menuTitle: '\u041c\u0435\u043d\u044e',
     menuPageOne: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f',
     menuPageTwo: '\u0413\u0435\u0440\u043e\u0438',
+    navHeroCoach: '\u041a\u0430\u0447\u0430\u043b\u043a\u0430 \u0433\u0435\u0440\u043e\u0435\u0432',
     navHeroes: '\u0413\u0435\u0440\u043e\u0438',
     navEvents: '\u0421\u043e\u0431\u044b\u0442\u0438\u044f',
     navGuides: '\u0413\u0430\u0439\u0434\u044b',
