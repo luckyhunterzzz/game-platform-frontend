@@ -432,6 +432,15 @@ export default function ChestsPage() {
               </li>
               <li>
                 <Link
+                  href="/hero-coach"
+                  onClick={() => setSidebarOpen(false)}
+                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
+                >
+                  {messages.home.navHeroCoach}
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/alliance"
                   onClick={() => setSidebarOpen(false)}
                   className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"

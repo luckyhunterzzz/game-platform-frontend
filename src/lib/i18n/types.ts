@@ -23,6 +23,7 @@ export type Messages = {
     menuTitle: string;
     menuPageOne: string;
     menuPageTwo: string;
+    navHeroCoach: string;
     navHeroes: string;
     navEvents: string;
     navGuides: string;
