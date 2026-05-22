@@ -1,7 +1,9 @@
 'use client';
 
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { forwardRef, type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import { enUS, ru } from 'date-fns/locale';
 
 import HeroInfoPopover from '@/components/heroes/admin/HeroInfoPopover';
 import PublicHeroDetailsModal, {
@@ -161,42 +163,6 @@ function resolveInitialPageSize(width: number, height: number) {
   return columns * rows;
 }
 
-function parseLocalizedDateInput(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parts = trimmed.split(/[./-]/).map((part) => part.trim());
-  if (parts.length !== 3) {
-    return null;
-  }
-
-  const [dayRaw, monthRaw, yearRaw] = parts;
-  const day = Number(dayRaw);
-  const month = Number(monthRaw);
-  const year = Number(yearRaw);
-
-  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) {
-    return null;
-  }
-
-  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) {
-    return null;
-  }
-
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  if (
-    candidate.getUTCFullYear() !== year ||
-    candidate.getUTCMonth() !== month - 1 ||
-    candidate.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
 function formatIsoDateForLocale(value: string | null | undefined) {
   if (!value) {
     return '';
@@ -210,39 +176,137 @@ function formatIsoDateForLocale(value: string | null | undefined) {
   return `${day}.${month}.${year}`;
 }
 
-function LocalizedDateInput({
+function dateToIso(value: Date | null) {
+  if (!value) {
+    return '';
+  }
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isoToDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  const candidate = new Date(year, month - 1, day);
+  if (
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== month - 1 ||
+    candidate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return candidate;
+}
+
+const DatePickerButton = forwardRef<
+  HTMLButtonElement,
+  {
+    label: string;
+    placeholder: string;
+    value?: string;
+    onClick?: () => void;
+  }
+>(({ label, placeholder, value, onClick }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm text-[var(--foreground)] outline-none transition hover:border-cyan-400/30 hover:bg-[var(--surface-hover)]"
+  >
+    <div className="flex min-w-0 flex-col">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--foreground-soft)]">{label}</span>
+      <span className={`truncate pt-1 ${value ? 'text-[var(--foreground)]' : 'text-[var(--foreground-soft)]'}`}>
+        {value || placeholder}
+      </span>
+    </div>
+    <CalendarDays className="h-5 w-5 shrink-0 text-cyan-300" />
+  </button>
+));
+
+DatePickerButton.displayName = 'DatePickerButton';
+
+function CalendarField({
   locale,
   label,
   hint,
-  value,
+  selected,
   onChange,
   required = false,
 }: {
   locale: 'ru' | 'en';
   label: string;
   hint: string;
-  value: string;
-  onChange: (value: string) => void;
+  selected: Date | null;
+  onChange: (value: Date | null) => void;
   required?: boolean;
 }) {
-  const placeholder = locale === 'ru' ? '\u0434\u0434.\u043c\u043c.\u0433\u0433\u0433\u0433' : 'dd.mm.yyyy';
+  const pickerLocale = locale === 'ru' ? ru : enUS;
+  const placeholder = locale === 'ru' ? 'Выберите дату' : 'Select date';
 
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-[var(--foreground)]">{label}</span>
-      <input
-        key={locale}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        spellCheck={false}
-        lang={locale === 'ru' ? 'ru-RU' : 'en-US'}
-        dir="ltr"
+      <DatePicker
+        selected={selected}
+        onChange={(value: Date | null) => onChange(value)}
+        locale={pickerLocale}
+        dateFormat="dd.MM.yyyy"
         required={required}
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+        calendarClassName="gp-datepicker"
+        popperClassName="gp-datepicker-popper"
+        wrapperClassName="gp-datepicker-wrapper"
+        customInput={
+          <DatePickerButton
+            label={label}
+            placeholder={placeholder}
+          />
+        }
+        renderCustomHeader={({
+          date,
+          decreaseMonth,
+          increaseMonth,
+          prevMonthButtonDisabled,
+          nextMonthButtonDisabled,
+        }) => (
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            <button
+              type="button"
+              onClick={decreaseMonth}
+              disabled={prevMonthButtonDisabled}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--datepicker-border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-semibold text-[var(--foreground)]">
+              {date.toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={increaseMonth}
+              disabled={nextMonthButtonDisabled}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--datepicker-border)] bg-[var(--surface-strong)] text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       />
       <span className="text-xs text-[var(--foreground-soft)]">{hint}</span>
     </label>
@@ -305,9 +369,9 @@ export default function HeroCoachPageClient() {
   const heroLocale = locale === 'ru' ? 'RU' : 'EN';
   const [pageSize, setPageSize] = useState(20);
   const [previousEventDateIso, setPreviousEventDateIso] = useState('');
-  const [previousEventDateInput, setPreviousEventDateInput] = useState('');
+  const [previousEventDate, setPreviousEventDate] = useState<Date | null>(null);
   const [targetDateIso, setTargetDateIso] = useState('');
-  const [targetDateInput, setTargetDateInput] = useState('');
+  const [targetDate, setTargetDate] = useState<Date | null>(null);
   const [availableData, setAvailableData] = useState<HeroCoachPageResponse | null>(null);
   const [availableHeroes, setAvailableHeroes] = useState<HeroCoachHeroItem[]>([]);
   const [availableLoading, setAvailableLoading] = useState(true);
@@ -325,7 +389,6 @@ export default function HeroCoachPageClient() {
   const [selectedHeroError, setSelectedHeroError] = useState<string | null>(null);
   const [selectedHeroOpinionsLoading, setSelectedHeroOpinionsLoading] = useState(false);
   const [selectedHeroOpinionsError, setSelectedHeroOpinionsError] = useState<string | null>(null);
-  const lastLocaleRef = useRef(locale);
   const contentRef = useRef<HTMLElement | null>(null);
 
   const text = useMemo(
@@ -413,16 +476,6 @@ export default function HeroCoachPageClient() {
   }, []);
 
   useEffect(() => {
-    if (lastLocaleRef.current === locale) {
-      return;
-    }
-
-    setPreviousEventDateInput(formatIsoDateForLocale(previousEventDateIso));
-    setTargetDateInput(formatIsoDateForLocale(targetDateIso));
-    lastLocaleRef.current = locale;
-  }, [locale, previousEventDateIso, targetDateIso]);
-
-  useEffect(() => {
     let cancelled = false;
 
     const loadInitial = async () => {
@@ -443,7 +496,7 @@ export default function HeroCoachPageClient() {
 
         const suggestedDate = response.suggestedPreviousEventDate ?? '';
         setPreviousEventDateIso((current) => current || suggestedDate);
-        setPreviousEventDateInput((current) => current || formatIsoDateForLocale(suggestedDate));
+        setPreviousEventDate((current) => current ?? isoToDate(suggestedDate));
       } catch (error) {
         if (cancelled) {
           return;
@@ -544,14 +597,14 @@ export default function HeroCoachPageClient() {
     };
   }, [apiJson, heroLocale, selectedHeroSlug, text.modalError]);
 
-  const handlePreviousDateChange = (value: string) => {
-    setPreviousEventDateInput(value);
-    setPreviousEventDateIso(parseLocalizedDateInput(value) ?? '');
+  const handlePreviousDateChange = (value: Date | null) => {
+    setPreviousEventDate(value);
+    setPreviousEventDateIso(dateToIso(value));
   };
 
-  const handleTargetDateChange = (value: string) => {
-    setTargetDateInput(value);
-    setTargetDateIso(parseLocalizedDateInput(value) ?? '');
+  const handleTargetDateChange = (value: Date | null) => {
+    setTargetDate(value);
+    setTargetDateIso(dateToIso(value));
   };
 
   const handleLoadMore = async () => {
@@ -579,12 +632,12 @@ export default function HeroCoachPageClient() {
   const handleForecastSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!targetDateInput.trim()) {
+    if (!targetDate) {
       setForecastError(text.noDateSelected);
       return;
     }
 
-    if (!targetDateIso || (previousEventDateInput.trim() && !previousEventDateIso)) {
+    if (!targetDateIso) {
       setForecastError(text.invalidDate);
       return;
     }
@@ -639,18 +692,18 @@ export default function HeroCoachPageClient() {
 
             <form className="space-y-5" onSubmit={handleForecastSubmit}>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <LocalizedDateInput
+                <CalendarField
                   locale={locale}
                   label={text.previousDateLabel}
                   hint={text.previousDateHint}
-                  value={previousEventDateInput}
+                  selected={previousEventDate}
                   onChange={handlePreviousDateChange}
                 />
-                <LocalizedDateInput
+                <CalendarField
                   locale={locale}
                   label={text.targetDateLabel}
                   hint={text.targetDateHint}
-                  value={targetDateInput}
+                  selected={targetDate}
                   onChange={handleTargetDateChange}
                   required
                 />
