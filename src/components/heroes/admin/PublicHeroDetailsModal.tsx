@@ -1554,12 +1554,88 @@ function normalizeFamilyIdentifier(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
 
+function familyMatches(normalizedFamily: string, ...patterns: string[]): boolean {
+  return patterns.some((pattern) => normalizedFamily.includes(pattern));
+}
+
 function resolveFamilyManaConfig(
   familyName: string | null | undefined,
   heroSlug: string | null | undefined,
 ): FamilyManaConfig | null {
   const normalizedFamily = normalizeFamilyIdentifier(familyName);
   const normalizedSlug = (heroSlug ?? '').trim().toLowerCase();
+
+  if (familyMatches(normalizedFamily, 'the institute', 'институтская')) {
+    return {
+      defaultBonusPercent: 5,
+      variants: [
+        { bonusPercent: 9, membersRequired: 2 },
+        { bonusPercent: 13, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'wonderland', 'страны чудес')) {
+    return {
+      variants: [
+        { bonusPercent: 2, membersRequired: 2, conditional: true },
+        { bonusPercent: 4, membersRequired: 3, conditional: true },
+        { bonusPercent: 7, membersRequired: 4, conditional: true },
+        { bonusPercent: 12, membersRequired: 5, conditional: true },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'pirates', 'пираты')) {
+    return {
+      variants: [
+        { bonusPercent: 2, membersRequired: 2, conditional: true },
+        { bonusPercent: 4, membersRequired: 3, conditional: true },
+        { bonusPercent: 7, membersRequired: 4, conditional: true },
+        { bonusPercent: 12, membersRequired: 5, conditional: true },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'sakura', 'сакуры')) {
+    return {
+      defaultBonusPercent: 3,
+      variants: [
+        { bonusPercent: 6, membersRequired: 2 },
+        { bonusPercent: 9, membersRequired: 3 },
+        { bonusPercent: 11, membersRequired: 4 },
+        { bonusPercent: 13, membersRequired: 5 },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'morlovia', 'морловии')) {
+    return {
+      defaultBonusPercent: 3,
+      variants: [
+        { bonusPercent: 6, membersRequired: 2 },
+        { bonusPercent: 9, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'legends 2017', 'легенд 2017')) {
+    return {
+      defaultBonusPercent: 5,
+      variants: [
+        { bonusPercent: 10, membersRequired: 2 },
+        { bonusPercent: 15, membersRequired: 3 },
+      ],
+    };
+  }
+
+  if (familyMatches(normalizedFamily, 'bard', 'бардов')) {
+    return {
+      variants: [
+        { bonusPercent: 5, membersRequired: 1, conditional: true, customConditionKey: 'bards_solo' },
+      ],
+    };
+  }
 
   if (
     normalizedFamily.includes('the institute') ||
