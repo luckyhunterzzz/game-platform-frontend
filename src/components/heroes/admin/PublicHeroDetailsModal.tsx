@@ -2467,6 +2467,7 @@ export default function PublicHeroDetailsModal({
     ? `${isDateInPastOrToday(heroDetails?.visitingOutfitterDate) ? availableSinceLabel : availableAfterLabel}: ${visitingOutfitterDateFormatted}`
     : `${availableAfterLabel}: ${t.noValue}`;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
+  const isLegendaryHero = resolvedRarityStars === 5;
   const resolvedCostumes = heroVariants?.costumes ?? [];
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
   const hasLongSpecialSkill = specialSkillDescription.length > 320;
@@ -3006,13 +3007,22 @@ export default function PublicHeroDetailsModal({
                   <div className="space-y-1.5">
                     <div className="text-base font-bold text-[var(--foreground)]">{t.rarity}:</div>
                     <div className="flex min-h-[25px] items-center">
-                      {heroDetails.rarity?.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={heroDetails.rarity.imageUrl}
-                          alt={resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
-                          className="h-[25px] w-[180px] max-w-full object-contain object-left"
-                        />
+                      {resolvedRarityStars != null ? (
+                        <div
+                          className="flex items-center gap-0.5"
+                          aria-label={t.rarityStars(resolvedRarityStars)}
+                          title={t.rarityStars(resolvedRarityStars)}
+                        >
+                          {Array.from({ length: resolvedRarityStars }).map((_, index) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={`hero-rarity-star-${index}`}
+                              src={HERO_STAR_ASSET}
+                              alt=""
+                              className="h-5 w-5 object-contain"
+                            />
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-base font-semibold text-[var(--foreground)]">
                           {resolvedRarityStars != null ? t.rarityStars(resolvedRarityStars) : t.noValue}
@@ -3142,22 +3152,26 @@ export default function PublicHeroDetailsModal({
             error={heroExpertOpinionsError}
           />
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <HeroAvailabilityInfoCard
-              title={heroCoachInfoTitle}
-              imageUrl="/heroes/activity-icons/hero-coach.png"
-              tooltipContent={heroCoachTooltip}
-              statusText={heroCoachStatusText}
-            />
-            {currentHeroIsCostume ? (
-              <HeroAvailabilityInfoCard
-                title={visitingOutfitterInfoTitle}
-                imageUrl="/heroes/activity-icons/visiting-outfitter.png"
-                tooltipContent={visitingOutfitterTooltip}
-                statusText={visitingOutfitterStatusText}
-              />
-            ) : null}
-          </div>
+          {(isLegendaryHero || currentHeroIsCostume) ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {isLegendaryHero ? (
+                <HeroAvailabilityInfoCard
+                  title={heroCoachInfoTitle}
+                  imageUrl="/heroes/activity-icons/hero-coach.png"
+                  tooltipContent={heroCoachTooltip}
+                  statusText={heroCoachStatusText}
+                />
+              ) : null}
+              {currentHeroIsCostume ? (
+                <HeroAvailabilityInfoCard
+                  title={visitingOutfitterInfoTitle}
+                  imageUrl="/heroes/activity-icons/visiting-outfitter.png"
+                  tooltipContent={visitingOutfitterTooltip}
+                  statusText={visitingOutfitterStatusText}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -3225,41 +3239,43 @@ export default function PublicHeroDetailsModal({
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-                <button
-                  type="button"
-                  onClick={() => setLimitBreakOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-4 text-left"
-                  aria-expanded={limitBreakOpen}
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--foreground)]">{t.limitBreakRequirements}</div>
-                    <div className="mt-1 text-sm text-[var(--foreground-soft)]">
-                      {limitBreakOpen ? t.hide : t.show}
-                    </div>
-                  </div>
-                  <AccordionChevronIcon open={limitBreakOpen} />
-                </button>
-
-                {limitBreakOpen ? (
-                  <div className="mt-4 space-y-3">
-                    {limitBreakRows.length > 0 ? (
-                      limitBreakRows.map((row) => (
-                        <LimitBreakRequirementRowCard
-                          key={`${row.title}-${row.subtitle}`}
-                          row={row}
-                          quantityAriaLabel={t.quantityLabel}
-                          elementKey={limitBreakElementKey}
-                        />
-                      ))
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                        {t.limitBreakUnavailable}
+              {isLegendaryHero ? (
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                  <button
+                    type="button"
+                    onClick={() => setLimitBreakOpen((prev) => !prev)}
+                    className="flex w-full items-center justify-between gap-4 text-left"
+                    aria-expanded={limitBreakOpen}
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--foreground)]">{t.limitBreakRequirements}</div>
+                      <div className="mt-1 text-sm text-[var(--foreground-soft)]">
+                        {limitBreakOpen ? t.hide : t.show}
                       </div>
-                    )}
-                  </div>
-                ) : null}
-              </div>
+                    </div>
+                    <AccordionChevronIcon open={limitBreakOpen} />
+                  </button>
+
+                  {limitBreakOpen ? (
+                    <div className="mt-4 space-y-3">
+                      {limitBreakRows.length > 0 ? (
+                        limitBreakRows.map((row) => (
+                          <LimitBreakRequirementRowCard
+                            key={`${row.title}-${row.subtitle}`}
+                            row={row}
+                            quantityAriaLabel={t.quantityLabel}
+                            elementKey={limitBreakElementKey}
+                          />
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                          {t.limitBreakUnavailable}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <button
@@ -3309,23 +3325,25 @@ export default function PublicHeroDetailsModal({
                 ) : null}
               </div>
 
-              <HeroStatCalculatorPanel
-                locale={locale}
-                heroId={heroDetails.id}
-                heroSlug={heroDetails.slug}
-                calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
-                isCostume={heroDetails.baseHeroId != null}
-                currentCostumeIndex={
-                  heroDetails.baseHeroId != null
-                    ? heroVariants?.costumes.find((item) => item.slug === heroDetails.slug)?.costumeIndex ?? null
-                    : null
-                }
-                baseAttack={heroDetails.baseAttack ?? heroCard.baseAttack ?? null}
-                baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
-                baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
-                costumes={heroDetails.costumes}
-                troopOptions={calculatorTroopOptions}
-              />
+              {isLegendaryHero ? (
+                <HeroStatCalculatorPanel
+                  locale={locale}
+                  heroId={heroDetails.id}
+                  heroSlug={heroDetails.slug}
+                  calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
+                  isCostume={heroDetails.baseHeroId != null}
+                  currentCostumeIndex={
+                    heroDetails.baseHeroId != null
+                      ? heroVariants?.costumes.find((item) => item.slug === heroDetails.slug)?.costumeIndex ?? null
+                      : null
+                  }
+                  baseAttack={heroDetails.baseAttack ?? heroCard.baseAttack ?? null}
+                  baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
+                  baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
+                  costumes={heroDetails.costumes}
+                  troopOptions={calculatorTroopOptions}
+                />
+              ) : null}
 
               {releaseDate ? (
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--foreground)]">
