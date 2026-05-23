@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Search, X } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import { enUS, ru } from 'date-fns/locale';
 
@@ -51,6 +51,32 @@ type HeroCoachForecastResponse = {
   effectivePreviousEventDate: string;
   targetDate: string;
   newlyAvailableHeroes: HeroCoachHeroItem[];
+};
+
+type HeroCatalogSearchItem = {
+  id: number;
+  slug: string;
+  baseHeroId?: number | null;
+  isCostume?: boolean | null;
+  costumeIndex?: number | null;
+  name: string;
+  imageUrl?: string | null;
+  previewUrl?: string | null;
+  elementName: string;
+  rarityName: string;
+  rarityStars: number;
+  heroClassName: string;
+  manaSpeedName: string;
+  familyName?: string | null;
+  alphaTalentName?: string | null;
+  baseAttack?: number | null;
+  baseArmor?: number | null;
+  baseHp?: number | null;
+  releaseDate?: string | null;
+};
+
+type HeroCatalogSearchResponse = {
+  items: HeroCatalogSearchItem[];
 };
 
 type HeroClassKey =
@@ -185,6 +211,33 @@ function dateToIso(value: Date | null) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysToIsoDate(value: string | null | undefined, days: number) {
+  if (!value) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  const candidate = new Date(year, month - 1, day);
+  if (
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== month - 1 ||
+    candidate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  candidate.setDate(candidate.getDate() + days);
+  return dateToIso(candidate);
+}
+
 function isoToDate(value: string | null | undefined) {
   if (!value) {
     return null;
@@ -315,10 +368,14 @@ function HeroCoachPreviewTile({
   hero,
   locale,
   onClick,
+  unavailable = false,
+  statusLabel,
 }: {
   hero: HeroCoachHeroItem;
   locale: 'ru' | 'en';
   onClick: () => void;
+  unavailable?: boolean;
+  statusLabel?: string | null;
 }) {
   const accentClass = getHeroPreviewAccentClass(hero.elementName);
   const heroClassKey = resolveHeroClassKey(hero.heroClassName);
@@ -329,7 +386,11 @@ function HeroCoachPreviewTile({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full flex-col items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--surface-hover)]"
+      className={`group flex w-full flex-col items-center gap-2 rounded-xl border p-2 text-center shadow-sm transition hover:-translate-y-0.5 ${
+        unavailable
+          ? 'border-slate-500/40 bg-slate-900/40 hover:bg-slate-900/55'
+          : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
+      }`}
     >
       <div className="relative inline-block overflow-visible">
         {heroClassKey ? (
@@ -350,18 +411,23 @@ function HeroCoachPreviewTile({
             <img
               src={previewSrc}
               alt={hero.name}
-              className="h-20 w-20 rounded-[14px] object-cover sm:h-24 sm:w-24"
+              className={`h-20 w-20 rounded-[14px] object-cover sm:h-24 sm:w-24 ${unavailable ? 'grayscale opacity-60' : ''}`}
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-[14px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 sm:text-xs">
+            <div className={`flex h-20 w-20 items-center justify-center rounded-[14px] bg-[var(--surface-strong)] text-[10px] text-[var(--foreground-soft)] sm:h-24 sm:w-24 sm:text-xs ${unavailable ? 'grayscale opacity-60' : ''}`}>
               ?
             </div>
           )}
         </div>
       </div>
-      <span className="line-clamp-2 min-h-[2rem] text-xs font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
+      <span className={`line-clamp-2 min-h-[2rem] text-xs font-medium leading-tight sm:min-h-[2.5rem] sm:text-sm ${unavailable ? 'text-slate-300' : 'text-[var(--foreground)]'}`}>
         {hero.name}
       </span>
+      {statusLabel ? (
+        <span className={`rounded-full px-2 py-1 text-[10px] font-semibold sm:text-[11px] ${unavailable ? 'bg-slate-700/70 text-slate-200' : 'bg-emerald-500/15 text-emerald-300'}`}>
+          {statusLabel}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -392,6 +458,10 @@ export default function OutfitterPageClient() {
   const [selectedHeroError, setSelectedHeroError] = useState<string | null>(null);
   const [selectedHeroOpinionsLoading, setSelectedHeroOpinionsLoading] = useState(false);
   const [selectedHeroOpinionsError, setSelectedHeroOpinionsError] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [searchResults, setSearchResults] = useState<HeroCatalogSearchItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
 
   const text = useMemo(
@@ -415,6 +485,13 @@ export default function OutfitterPageClient() {
             effectivePreviousDate: 'Использована предыдущая дата',
             availableTitle: 'Уже доступно в Ателье',
             availableDescription: 'Список костюмных версий героев, для которых уже прошло 548 полных дней без учёта даты релиза.',
+            searchTitle: 'Быстрый поиск костюма',
+            searchPlaceholder: 'Начни вводить имя героя или костюма',
+            searchHint: 'Покажем, доступен ли этот костюм уже сейчас в Ателье.',
+            searchEmpty: 'По этому запросу костюмы не найдены.',
+            searchError: 'Не удалось выполнить поиск костюмов.',
+            availableNow: 'Уже доступен',
+            unavailableAfter: 'После',
             loadMore: 'Посмотреть еще',
             loading: 'Загрузка костюмов...',
             loadError: 'Не удалось загрузить данные Приезжего портного.',
@@ -441,6 +518,13 @@ export default function OutfitterPageClient() {
             effectivePreviousDate: 'Used previous date',
             availableTitle: 'Already available in Atelier',
             availableDescription: 'Costume hero versions that already pass the 548 full days rule without counting the release date.',
+            searchTitle: 'Quick costume search',
+            searchPlaceholder: 'Start typing hero or costume name',
+            searchHint: 'We will show whether this costume is already available in Atelier.',
+            searchEmpty: 'No costumes found for this query.',
+            searchError: 'Failed to search costumes.',
+            availableNow: 'Already available',
+            unavailableAfter: 'After',
             loadMore: 'Load more',
             loading: 'Loading costumes...',
             loadError: 'Failed to load Visiting Outfitter data.',
@@ -602,6 +686,55 @@ export default function OutfitterPageClient() {
     };
   }, [apiJson, heroLocale, selectedHeroSlug, text.modalError]);
 
+  useEffect(() => {
+    const normalizedQuery = searchValue.trim();
+
+    if (normalizedQuery.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setSearchLoading(true);
+      setSearchError(null);
+
+      try {
+        const params = new URLSearchParams({
+          page: '0',
+          size: '50',
+          search: normalizedQuery,
+          language: heroLocale,
+        });
+
+        const response = await apiJson<HeroCatalogSearchResponse>(`/api/v1/public/heroes?${params.toString()}`);
+
+        if (cancelled) {
+          return;
+        }
+
+        setSearchResults(response.items.filter((hero) => hero.isCostume === true));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setSearchError(error instanceof ApiError ? error.message : text.searchError);
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [apiJson, heroLocale, searchValue, text.searchError]);
+
   const handlePreviousDateChange = (value: Date | null) => {
     setPreviousEventDate(value);
     setPreviousEventDateIso(dateToIso(value));
@@ -679,6 +812,8 @@ export default function OutfitterPageClient() {
     setForecastResult(null);
     setForecastError(null);
   };
+
+  const showSearchSection = searchValue.trim().length >= 2;
 
   return (
     <>
@@ -775,6 +910,68 @@ export default function OutfitterPageClient() {
                 </div>
               ) : null}
             </form>
+          </section>
+
+          <section className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
+            <div className="mb-5">
+              <h2 className="text-2xl font-bold text-[var(--foreground)]">{text.searchTitle}</h2>
+              <p className="mt-2 text-sm text-[var(--foreground-soft)]">{text.searchHint}</p>
+            </div>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--foreground-soft)]" />
+              <input
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder={text.searchPlaceholder}
+                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] py-3 pl-12 pr-12 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--foreground-soft)] focus:border-cyan-400/40"
+              />
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchValue('')}
+                  className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            {showSearchSection ? (
+              <div className="mt-5">
+                {searchLoading ? (
+                  <div className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]">
+                    <LoaderCircle className="h-5 w-5 animate-spin text-cyan-400" />
+                    <span>{text.loading}</span>
+                  </div>
+                ) : searchError ? (
+                  <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                    {searchError}
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <p className="text-sm text-[var(--foreground-soft)]">{text.searchEmpty}</p>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(148px,1fr))]">
+                    {searchResults.map((hero) => {
+                      const availabilityIso = addDaysToIsoDate(hero.releaseDate, 549);
+                      const availabilityDate = formatIsoDateForLocale(availabilityIso);
+                      const isAvailable = Boolean(availabilityIso && availabilityIso <= dateToIso(new Date()));
+
+                      return (
+                        <HeroCoachPreviewTile
+                          key={`search-${hero.id}`}
+                          hero={hero}
+                          locale={locale}
+                          unavailable={!isAvailable}
+                          statusLabel={isAvailable ? text.availableNow : `${text.unavailableAfter} ${availabilityDate || '...'}`}
+                          onClick={() => setSelectedHeroSlug(hero.slug)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </section>
 
           <section className="relative z-0 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm">
