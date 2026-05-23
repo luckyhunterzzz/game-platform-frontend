@@ -85,6 +85,7 @@ const FAMILIES_API = '/api/v1/admin/heroes/families';
 const ALPHA_TALENTS_API = '/api/v1/admin/heroes/alpha-talents';
 const PASSIVE_SKILLS_API = '/api/v1/admin/heroes/passive-skills';
 const HERO_IMAGE_UPLOAD_API = '/api/v1/admin/media/images/heroes';
+const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 
@@ -2283,8 +2284,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const rarityOptions = sortedRarities.map((item) => ({
       value: String(item.id),
       label: getLocalizedText(item.name, locale),
-      imageUrl: item.imageUrl,
+      imageUrl: null,
       badge: `${item.stars}★`,
+      starCount: item.stars,
     }));
     const heroClassOptions = sortedHeroClasses.map((item) => ({
       value: String(item.id),
@@ -2746,7 +2748,19 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                                       className="mt-0.5 h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-cyan-400"
                                     />
                                     <span className="flex min-w-0 items-center gap-2 leading-5">
-                                      {'imageUrl' in option ? (
+                                      {'stars' in option ? (
+                                        <span className="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">
+                                          {Array.from({ length: option.stars }).map((_, index) => (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                              key={`${option.id}-filter-star-${index}`}
+                                              src={HERO_STAR_ASSET}
+                                              alt=""
+                                              className="h-[14px] w-[14px] object-contain"
+                                            />
+                                          ))}
+                                        </span>
+                                      ) : 'imageUrl' in option ? (
                                         <DictionaryMiniIcon
                                           imageUrl={option.imageUrl}
                                           label={label}
