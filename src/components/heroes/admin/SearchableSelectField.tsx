@@ -5,12 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import SearchField from './SearchField';
 
+const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
+
 type SearchableSelectOption = {
   value: string;
   label: string;
   imageUrl?: string | null;
   secondaryLabel?: string | null;
   badge?: string | null;
+  starCount?: number | null;
 };
 
 type SearchableSelectFieldProps = {
@@ -118,7 +121,19 @@ export default function SearchableSelectField({
         className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
       >
         <span className={`flex min-w-0 items-center gap-2 ${selectedOption ? 'text-[var(--foreground)]' : 'text-[var(--foreground-soft)]'}`}>
-          {selectedOption ? (
+          {selectedOption?.starCount ? (
+            <span className="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">
+              {Array.from({ length: selectedOption.starCount }).map((_, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${selectedOption.value}-selected-star-${index}`}
+                  src={HERO_STAR_ASSET}
+                  alt=""
+                  className="h-4 w-4 object-contain"
+                />
+              ))}
+            </span>
+          ) : selectedOption ? (
             <DictionaryMiniIcon
               imageUrl={selectedOption.imageUrl}
               label={selectedOption.label}
@@ -180,12 +195,26 @@ export default function SearchableSelectField({
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <DictionaryMiniIcon
-                      imageUrl={option.imageUrl}
-                      label={option.label}
-                      size={22}
-                      className="mt-0.5"
-                    />
+                    {option.starCount ? (
+                      <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">
+                        {Array.from({ length: option.starCount }).map((_, index) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={`${option.value}-option-star-${index}`}
+                            src={HERO_STAR_ASSET}
+                            alt=""
+                            className="h-[18px] w-[18px] object-contain"
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      <DictionaryMiniIcon
+                        imageUrl={option.imageUrl}
+                        label={option.label}
+                        size={22}
+                        className="mt-0.5"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate">{option.label}</span>
