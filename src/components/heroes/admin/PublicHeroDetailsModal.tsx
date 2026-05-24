@@ -1142,6 +1142,262 @@ const COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
   ],
 };
 
+const LIMIT_BREAK_ELEMENTS: LimitBreakElementKey[] = ['nature', 'ice', 'fire', 'dark', 'holy'];
+
+const LIMIT_BREAK_ELEMENT_LABELS: Record<LimitBreakElementKey, string> = {
+  nature: 'Nature',
+  ice: 'Ice',
+  fire: 'Fire',
+  dark: 'Dark',
+  holy: 'Holy',
+};
+
+const LIMIT_BREAK_ITEM_URLS = {
+  battleManual: `${LIMIT_BREAK_ASSET_BASE}/dark_holy_ice_battle_manual_rare.webp`,
+  chainmailShirt: `${LIMIT_BREAK_ASSET_BASE}/nature_fire_chainmail_shirt_rare.webp`,
+  scabbard: `${LIMIT_BREAK_ASSET_BASE}/fire_ice_scabbard_rare.webp`,
+  tallBoots: `${LIMIT_BREAK_ASSET_BASE}/nature_dark_holy_tall_boots_rare.webp`,
+  sturdyShield: `${LIMIT_BREAK_ASSET_BASE}/nature_sturdy_shield_rare.webp`,
+  trapTools: `${LIMIT_BREAK_ASSET_BASE}/dark_trap_tools_rare.webp`,
+  orbOfMagic: `${LIMIT_BREAK_ASSET_BASE}/holy_orb_of_magic_rare.webp`,
+  hiddenBlade: `${LIMIT_BREAK_ASSET_BASE}/hidden_blade_rare.webp`,
+  warmCape: `${LIMIT_BREAK_ASSET_BASE}/ice_warm_cape_rare.webp`,
+  uncommonLeatherArmor: `${LIMIT_BREAK_ASSET_BASE}/uncommon_leather_armor.webp`,
+  commonWoodenShield: `${LIMIT_BREAK_ASSET_BASE}/common_wooden_shield.webp`,
+} as const;
+
+function createLimitBreakItem(imageUrl: string, label: string, quantity: number): LimitBreakRequirementItem {
+  return { imageUrl, label, quantity };
+}
+
+function createElementAetherItem(
+  elementKey: LimitBreakElementKey,
+  tier: 'rare' | 'epic' | 'legendary',
+  quantity: number,
+): LimitBreakRequirementItem {
+  return {
+    imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_${tier}_${elementKey}.png`,
+    label: `${tier.charAt(0).toUpperCase() + tier.slice(1)} ${LIMIT_BREAK_ELEMENT_LABELS[elementKey]} Aether`,
+    quantity,
+  };
+}
+
+function createAlphaAetherItem(quantity: number): LimitBreakRequirementItem {
+  return {
+    imageUrl: `${LIMIT_BREAK_ASSET_BASE}/aether_legendary.png`,
+    label: 'Alpha Aether',
+    quantity,
+  };
+}
+
+function createThreeStarSharedRareItem(elementKey: LimitBreakElementKey): LimitBreakRequirementItem {
+  if (elementKey === 'fire' || elementKey === 'holy') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.chainmailShirt, 'Chainmail Shirt', 1);
+  }
+
+  if (elementKey === 'ice') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.battleManual, 'Battle Manual', 1);
+  }
+
+  return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.scabbard, 'Scabbard', 1);
+}
+
+function createThreeStarArmorItem(elementKey: LimitBreakElementKey): LimitBreakRequirementItem {
+  if (elementKey === 'nature' || elementKey === 'dark') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.commonWoodenShield, 'Wooden Shield', 3);
+  }
+
+  return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.uncommonLeatherArmor, 'Leather Armor', 3);
+}
+
+function createFourStarFirstBreakCostItem(elementKey: LimitBreakElementKey): LimitBreakRequirementItem {
+  if (elementKey === 'dark' || elementKey === 'holy') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.tallBoots, 'Tall Boots', 5);
+  }
+
+  return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.battleManual, 'Battle Manual', 5);
+}
+
+function createFourStarSecondBreakSharedRareItem(elementKey: LimitBreakElementKey): LimitBreakRequirementItem {
+  if (elementKey === 'nature' || elementKey === 'dark') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.scabbard, 'Scabbard', 5);
+  }
+
+  if (elementKey === 'holy' || elementKey === 'fire') {
+    return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.chainmailShirt, 'Chainmail Shirt', 5);
+  }
+
+  return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.battleManual, 'Battle Manual', 5);
+}
+
+function createFourStarSecondBreakUniqueItem(elementKey: LimitBreakElementKey): LimitBreakRequirementItem {
+  switch (elementKey) {
+    case 'nature':
+      return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.sturdyShield, 'Sturdy Shield', 1);
+    case 'dark':
+      return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.trapTools, 'Trap Tools', 1);
+    case 'holy':
+      return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.orbOfMagic, 'Orb of Magic', 1);
+    case 'fire':
+      return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.hiddenBlade, 'Hidden Blade', 1);
+    case 'ice':
+      return createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.warmCape, 'Warm Cape', 1);
+  }
+}
+
+const THREE_STAR_LIMIT_BREAK_REQUIREMENTS: Record<
+  LimitBreakElementKey,
+  Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]
+> = Object.fromEntries(
+  LIMIT_BREAK_ELEMENTS.map((elementKey) => [
+    elementKey,
+    [
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createElementAetherItem(elementKey, 'rare', 5)],
+      },
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [createAlphaAetherItem(1), createElementAetherItem(elementKey, 'rare', 1)],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [
+          createElementAetherItem(elementKey, 'rare', 1),
+          createThreeStarSharedRareItem(elementKey),
+          createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.tallBoots, 'Tall Boots', 5),
+          createThreeStarArmorItem(elementKey),
+        ],
+      },
+    ],
+  ]),
+) as Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]>;
+
+const THREE_STAR_COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
+  LimitBreakElementKey,
+  Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]
+> = Object.fromEntries(
+  LIMIT_BREAK_ELEMENTS.map((elementKey) => [
+    elementKey,
+    [
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createElementAetherItem(elementKey, 'rare', 1)],
+      },
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [createAlphaAetherItem(1), createElementAetherItem(elementKey, 'rare', 1)],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [
+          createElementAetherItem(elementKey, 'rare', 1),
+          createThreeStarSharedRareItem(elementKey),
+          createLimitBreakItem(LIMIT_BREAK_ITEM_URLS.tallBoots, 'Tall Boots', 5),
+          createThreeStarArmorItem(elementKey),
+        ],
+      },
+    ],
+  ]),
+) as Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]>;
+
+const FOUR_STAR_LIMIT_BREAK_REQUIREMENTS: Record<
+  LimitBreakElementKey,
+  Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]
+> = Object.fromEntries(
+  LIMIT_BREAK_ELEMENTS.map((elementKey) => [
+    elementKey,
+    [
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createElementAetherItem(elementKey, 'epic', 5), createElementAetherItem(elementKey, 'rare', 20)],
+      },
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createFourStarFirstBreakCostItem(elementKey)],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [
+          createAlphaAetherItem(3),
+          createElementAetherItem(elementKey, 'epic', 1),
+          createElementAetherItem(elementKey, 'rare', 5),
+        ],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [
+          createElementAetherItem(elementKey, 'epic', 3),
+          createElementAetherItem(elementKey, 'rare', 6),
+          createFourStarSecondBreakSharedRareItem(elementKey),
+          createFourStarSecondBreakUniqueItem(elementKey),
+        ],
+      },
+    ],
+  ]),
+) as Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]>;
+
+const FOUR_STAR_COSTUME_LIMIT_BREAK_REQUIREMENTS: Record<
+  LimitBreakElementKey,
+  Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]
+> = Object.fromEntries(
+  LIMIT_BREAK_ELEMENTS.map((elementKey) => [
+    elementKey,
+    [
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createElementAetherItem(elementKey, 'rare', 3)],
+      },
+      {
+        iconUrl: FIRST_LIMIT_BREAK_ICON,
+        items: [createFourStarFirstBreakCostItem(elementKey)],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [createAlphaAetherItem(1), createElementAetherItem(elementKey, 'rare', 3)],
+      },
+      {
+        iconUrl: SECOND_LIMIT_BREAK_ICON,
+        items: [
+          createElementAetherItem(elementKey, 'epic', 3),
+          createElementAetherItem(elementKey, 'rare', 6),
+          createFourStarSecondBreakSharedRareItem(elementKey),
+          createFourStarSecondBreakUniqueItem(elementKey),
+        ],
+      },
+    ],
+  ]),
+) as Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]>;
+
+function resolveLimitBreakRequirementsSource(
+  rarityStars: number | null,
+  isCostumeLike: boolean,
+):
+  | Record<LimitBreakElementKey, Omit<LimitBreakRequirementRow, 'title' | 'subtitle'>[]>
+  | null {
+  if (rarityStars === 3) {
+    return isCostumeLike ? THREE_STAR_COSTUME_LIMIT_BREAK_REQUIREMENTS : THREE_STAR_LIMIT_BREAK_REQUIREMENTS;
+  }
+
+  if (rarityStars === 4) {
+    return isCostumeLike ? FOUR_STAR_COSTUME_LIMIT_BREAK_REQUIREMENTS : FOUR_STAR_LIMIT_BREAK_REQUIREMENTS;
+  }
+
+  if (rarityStars === 5) {
+    return isCostumeLike ? COSTUME_LIMIT_BREAK_REQUIREMENTS : LIMIT_BREAK_REQUIREMENTS;
+  }
+
+  return null;
+}
+
 function formatDate(value: string | null | undefined, locale: 'RU' | 'EN', fallback: string) {
   if (!value) return fallback;
 
@@ -2194,10 +2450,12 @@ function LimitBreakRequirementRowCard({
   row,
   quantityAriaLabel,
   elementKey,
+  emptyLabel = '-',
 }: {
   row: LimitBreakRequirementRow;
   quantityAriaLabel: (quantity: number) => string;
   elementKey?: LimitBreakElementKey | null;
+  emptyLabel?: string;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
@@ -2210,43 +2468,49 @@ function LimitBreakRequirementRowCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        {row.items.map((item) => {
-          const resolvedImageUrl = resolveLimitBreakItemImageUrl(item.imageUrl, elementKey);
-          const starCount = resolveLimitBreakItemStarCount(resolvedImageUrl);
-          const imageClassName = resolveLimitBreakItemImageClassName(resolvedImageUrl);
+      {row.items.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-5 text-center text-sm text-[var(--foreground-soft)]">
+          {emptyLabel}
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-3">
+          {row.items.map((item) => {
+            const resolvedImageUrl = resolveLimitBreakItemImageUrl(item.imageUrl, elementKey);
+            const starCount = resolveLimitBreakItemStarCount(resolvedImageUrl);
+            const imageClassName = resolveLimitBreakItemImageClassName(resolvedImageUrl);
 
-          return (
-            <div
-              key={`${row.title}-${row.subtitle}-${item.imageUrl}`}
-              className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2"
-              title={item.label}
-              aria-label={item.quantity ? `${item.label}, ${quantityAriaLabel(item.quantity)}` : item.label}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={resolvedImageUrl} alt={item.label} className={imageClassName} />
-              {starCount ? (
-                <div className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-0.5 rounded-md bg-slate-950/72 px-1 py-0.5">
-                  {Array.from({ length: starCount }).map((_, index) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={`${resolvedImageUrl}-star-${index}`}
-                      src={HERO_STAR_ASSET}
-                      alt=""
-                      className="h-2.5 w-2.5 object-contain"
-                    />
-                  ))}
-                </div>
-              ) : null}
-              {item.quantity ? (
-                <div className="absolute right-1 top-1 min-w-[1.5rem] rounded-md bg-black px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-lg">
-                  {item.quantity}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div
+                key={`${row.title}-${row.subtitle}-${item.imageUrl}`}
+                className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2"
+                title={item.label}
+                aria-label={item.quantity ? `${item.label}, ${quantityAriaLabel(item.quantity)}` : item.label}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={resolvedImageUrl} alt={item.label} className={imageClassName} />
+                {starCount ? (
+                  <div className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-0.5 rounded-md bg-slate-950/72 px-1 py-0.5">
+                    {Array.from({ length: starCount }).map((_, index) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={`${resolvedImageUrl}-star-${index}`}
+                        src={HERO_STAR_ASSET}
+                        alt=""
+                        className="h-2.5 w-2.5 object-contain"
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {item.quantity ? (
+                  <div className="absolute right-1 top-1 min-w-[1.5rem] rounded-md bg-black px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-lg">
+                    {item.quantity}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2468,6 +2732,8 @@ export default function PublicHeroDetailsModal({
     : `${availableAfterLabel}: ${t.noValue}`;
   const resolvedRarityStars = heroDetails?.rarity?.stars ?? heroCard?.rarityStars ?? null;
   const isLegendaryHero = resolvedRarityStars === 5;
+  const shouldShowLimitBreakRequirements =
+    resolvedRarityStars === 3 || resolvedRarityStars === 4 || resolvedRarityStars === 5;
   const resolvedCostumes = heroVariants?.costumes ?? [];
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
   const hasLongSpecialSkill = specialSkillDescription.length > 320;
@@ -2491,10 +2757,9 @@ export default function PublicHeroDetailsModal({
       ? 'Для этого героя подходящие отряды пока не найдены.'
       : 'Matching troops are not configured for this hero yet.';
   const currentHeroIsMimic = currentHeroSlug?.toLocaleLowerCase().includes('mimic') === true;
-  const limitBreakSource = currentHeroIsCostume || currentHeroIsMimic
-    ? COSTUME_LIMIT_BREAK_REQUIREMENTS
-    : LIMIT_BREAK_REQUIREMENTS;
-  const limitBreakRows = limitBreakElementKey
+  const isCostumeLikeForLimitBreak = currentHeroIsCostume || currentHeroIsMimic;
+  const limitBreakSource = resolveLimitBreakRequirementsSource(resolvedRarityStars, isCostumeLikeForLimitBreak);
+  const limitBreakRows = limitBreakElementKey && limitBreakSource
     ? limitBreakSource[limitBreakElementKey].map((row, index) => ({
         ...row,
         title: index < 2 ? t.firstLimitBreakTitle : t.secondLimitBreakTitle,
@@ -3239,7 +3504,7 @@ export default function PublicHeroDetailsModal({
                 </div>
               ) : null}
 
-              {isLegendaryHero ? (
+              {shouldShowLimitBreakRequirements ? (
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                   <button
                     type="button"
@@ -3325,12 +3590,13 @@ export default function PublicHeroDetailsModal({
                 ) : null}
               </div>
 
-              {isLegendaryHero ? (
+              {heroDetails.baseAttack != null || heroCard.baseAttack != null ? (
                 <HeroStatCalculatorPanel
                   locale={locale}
                   heroId={heroDetails.id}
                   heroSlug={heroDetails.slug}
                   calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
+                  rarityStars={resolvedRarityStars}
                   isCostume={heroDetails.baseHeroId != null}
                   currentCostumeIndex={
                     heroDetails.baseHeroId != null
