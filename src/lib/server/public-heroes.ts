@@ -113,7 +113,23 @@ async function fetchApiJson<TResponse>(
 }
 
 export function getHeroPageUrl(slug: string): string {
-  return `${SITE_URL}/heroes/${slug}`;
+  return `${SITE_URL}/heroes?hero=${encodeURIComponent(slug)}`;
+}
+
+export function getHeroSharePageUrl(slug: string): string {
+  return `${SITE_URL}/heroes/share/${encodeURIComponent(slug)}`;
+}
+
+export function toAbsoluteSiteUrl(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  return `${SITE_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
 export async function getHeroNames(language: HeroLanguage = 'RU'): Promise<HeroLookupItem[]> {

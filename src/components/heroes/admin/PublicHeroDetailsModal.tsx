@@ -3128,8 +3128,7 @@ export default function PublicHeroDetailsModal({
       return;
     }
 
-    const url = new URL('/heroes', window.location.origin);
-    url.searchParams.set('hero', currentHeroSlug);
+    const url = new URL(`/heroes/share/${encodeURIComponent(currentHeroSlug)}`, window.location.origin);
 
     try {
       await navigator.clipboard.writeText(url.toString());
