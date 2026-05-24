@@ -58,6 +58,7 @@ type HeroStatCalculatorPanelProps = {
   heroId: number;
   heroSlug: string;
   calculateEndpoint: string;
+  rarityStars?: number | null;
   isCostume: boolean;
   currentCostumeIndex?: number | null;
   baseAttack?: number | null;
@@ -155,6 +156,7 @@ export default function HeroStatCalculatorPanel({
   heroId,
   heroSlug,
   calculateEndpoint,
+  rarityStars = null,
   isCostume,
   currentCostumeIndex = null,
   baseAttack,
@@ -177,6 +179,18 @@ export default function HeroStatCalculatorPanel({
   const [troopDropdownOpen, setTroopDropdownOpen] = useState(false);
   const troopDropdownRef = useRef<HTMLDivElement | null>(null);
 
+  const resolveStageLabel = (stage: EvolutionStageCode) => {
+    if (rarityStars === 3) {
+      return stage === 'ASCENSION_4_80' ? '3.50' : stage === 'ASCENSION_4_85' ? '3.55' : '3.60';
+    }
+
+    if (rarityStars === 4) {
+      return stage === 'ASCENSION_4_80' ? '4.70' : stage === 'ASCENSION_4_85' ? '4.75' : '4.80';
+    }
+
+    return stage === 'ASCENSION_4_80' ? '4.80' : stage === 'ASCENSION_4_85' ? '4.85' : '4.90';
+  };
+
   const t = useMemo(
     () =>
       locale === 'RU'
@@ -197,8 +211,7 @@ export default function HeroStatCalculatorPanel({
             attack: 'Атака',
             armor: 'Броня',
             hp: 'HP',
-            stageLabel: (stage: EvolutionStageCode) =>
-              stage === 'ASCENSION_4_80' ? '4.80' : stage === 'ASCENSION_4_85' ? '4.85' : '4.90',
+            stageLabel: resolveStageLabel,
           }
         : {
             title: 'Calculated stats',
@@ -217,10 +230,9 @@ export default function HeroStatCalculatorPanel({
             attack: 'Attack',
             armor: 'Armor',
             hp: 'HP',
-            stageLabel: (stage: EvolutionStageCode) =>
-              stage === 'ASCENSION_4_80' ? '4.80' : stage === 'ASCENSION_4_85' ? '4.85' : '4.90',
+            stageLabel: resolveStageLabel,
           },
-    [locale],
+    [locale, rarityStars],
   );
 
   useEffect(() => {
