@@ -15,23 +15,54 @@ type HeroSharePageProps = {
   params: Promise<{
     slug: string;
   }>;
+  searchParams?: Promise<{
+    locale?: string;
+  }>;
 };
 
-function resolveLanguage(): HeroLanguage {
-  return 'EN';
+function resolveLanguage(value?: string): HeroLanguage {
+  return value?.toUpperCase() === 'RU' ? 'RU' : 'EN';
 }
 
-function buildHeroDescription(details: NonNullable<Awaited<ReturnType<typeof getHeroVariantsBySlug>>>['currentHero']) {
-  if (details.rarity?.stars) {
-    return `${details.rarity.stars}* hero. View details.`;
+function buildHeroDescription(
+  details: NonNullable<Awaited<ReturnType<typeof getHeroVariantsBySlug>>>['currentHero'],
+  language: HeroLanguage,
+) {
+  const rarityText = details.rarity?.stars ? `${details.rarity.stars}*` : null;
+  const elementText = details.element?.name?.trim() || null;
+  const classText = details.heroClass?.name?.trim() || null;
+  const familyText = details.family?.name?.trim() || null;
+  const manaSpeedText = details.manaSpeed?.name?.trim() || null;
+
+  if (language === 'RU') {
+    const prefix = [rarityText, elementText, 'герой.'].filter(Boolean).join(' ');
+    const parts = [
+      prefix || 'Герой.',
+      classText ? `Класс: ${classText}.` : null,
+      familyText ? `Семья: ${familyText}.` : null,
+      manaSpeedText ? `Скорость: ${manaSpeedText}.` : null,
+      'Посмотреть детали.',
+    ].filter(Boolean);
+
+    return parts.join(' ');
   }
 
-  return 'Hero card. View details.';
+  const prefix = [rarityText, elementText, 'hero.'].filter(Boolean).join(' ');
+  const parts = [
+    prefix || 'Hero.',
+    classText ? `Class: ${classText}.` : null,
+    familyText ? `Family: ${familyText}.` : null,
+    manaSpeedText ? `Speed: ${manaSpeedText}.` : null,
+    'View details.',
+  ].filter(Boolean);
+
+  return parts.join(' ');
 }
 
-export async function generateMetadata({ params }: HeroSharePageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: HeroSharePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const language = resolveLanguage();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const language = resolveLanguage(resolvedSearchParams?.locale);
   const variants = await getHeroVariantsBySlug(slug, language);
 
   if (!variants?.currentHero) {
@@ -43,9 +74,9 @@ export async function generateMetadata({ params }: HeroSharePageProps): Promise<
 
   const details = variants.currentHero;
   const title = details.name;
-  const description = buildHeroDescription(details);
-  const imageUrl = toAbsoluteSiteUrl(details.previewUrl ?? details.imageUrl ?? '/favicon.ico');
-  const shareUrl = getHeroSharePageUrl(slug);
+  const description = buildHeroDescription(details, language);
+  const imageUrl = toAbsoluteSiteUrl(details.imageUrl ?? details.previewUrl ?? '/favicon.ico');
+  const shareUrl = `${getHeroSharePageUrl(slug)}?locale=${language.toLowerCase()}`;
 
   return {
     title,
@@ -76,9 +107,10 @@ export async function generateMetadata({ params }: HeroSharePageProps): Promise<
   };
 }
 
-export default async function HeroSharePage({ params }: HeroSharePageProps) {
+export default async function HeroSharePage({ params, searchParams }: HeroSharePageProps) {
   const { slug } = await params;
-  const language = resolveLanguage();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const language = resolveLanguage(resolvedSearchParams?.locale);
   const variants = await getHeroVariantsBySlug(slug, language);
 
   if (!variants?.currentHero) {
@@ -87,8 +119,8 @@ export default async function HeroSharePage({ params }: HeroSharePageProps) {
 
   const details = variants.currentHero;
   const targetUrl = `/heroes?hero=${encodeURIComponent(slug)}`;
-  const description = buildHeroDescription(details);
-  const previewUrl = toAbsoluteSiteUrl(details.previewUrl ?? details.imageUrl ?? null);
+  const description = buildHeroDescription(details, language);
+  const previewUrl = toAbsoluteSiteUrl(details.imageUrl ?? details.previewUrl ?? null);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#08111f] px-4 py-10 text-white">
@@ -103,13 +135,15 @@ export default async function HeroSharePage({ params }: HeroSharePageProps) {
             <h1 className="text-2xl font-bold">{details.name}</h1>
             <p className="mt-2 text-sm text-white/70">{description}</p>
             <p className="mt-4 text-sm text-white/60">
-              If the redirect did not happen automatically, open the hero card manually.
+              {language === 'RU'
+                ? 'Если переход не сработал автоматически, откройте карточку героя вручную.'
+                : 'If the redirect did not happen automatically, open the hero card manually.'}
             </p>
             <Link
               href={targetUrl}
               className="mt-4 inline-flex rounded-2xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
             >
-              Open hero
+              {language === 'RU' ? 'Открыть героя' : 'Open hero'}
             </Link>
           </div>
         </div>
