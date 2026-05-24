@@ -3129,6 +3129,7 @@ export default function PublicHeroDetailsModal({
     }
 
     const url = new URL(`/heroes/share/${encodeURIComponent(currentHeroSlug)}`, window.location.origin);
+    url.searchParams.set('locale', locale.toLowerCase());
 
     try {
       await navigator.clipboard.writeText(url.toString());
