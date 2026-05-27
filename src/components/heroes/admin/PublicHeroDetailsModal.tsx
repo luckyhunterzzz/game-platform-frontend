@@ -1499,6 +1499,83 @@ function getSpecialSkillOverlayClass(elementName: string | null | undefined) {
   return 'border-white/20 bg-gradient-to-br from-slate-900/96 via-slate-800/92 to-slate-950/96';
 }
 
+function resolveElementKeyFromSources(
+  elementName: string | null | undefined,
+  elementImageUrl?: string | null,
+): LimitBreakElementKey | null {
+  const normalizedImageUrl = (elementImageUrl ?? '').trim().toLocaleLowerCase();
+
+  if (normalizedImageUrl.includes('herald_green') || normalizedImageUrl.includes('nature')) {
+    return 'nature';
+  }
+
+  if (normalizedImageUrl.includes('herald_blue') || normalizedImageUrl.includes('ice')) {
+    return 'ice';
+  }
+
+  if (normalizedImageUrl.includes('herald_red') || normalizedImageUrl.includes('fire')) {
+    return 'fire';
+  }
+
+  if (normalizedImageUrl.includes('herald_purple') || normalizedImageUrl.includes('dark')) {
+    return 'dark';
+  }
+
+  if (normalizedImageUrl.includes('herald_yellow') || normalizedImageUrl.includes('holy')) {
+    return 'holy';
+  }
+
+  return resolveLimitBreakElementKey(elementName);
+}
+
+function getPreviewAccentClassByKey(elementKey: LimitBreakElementKey | null) {
+  if (elementKey === 'ice') {
+    return 'border-sky-300/60 bg-gradient-to-b from-sky-400/72 via-sky-400/28 to-sky-950/12 shadow-[0_0_28px_rgba(56,189,248,0.32)]';
+  }
+
+  if (elementKey === 'fire') {
+    return 'border-rose-300/60 bg-gradient-to-b from-rose-400/72 via-rose-400/28 to-red-950/12 shadow-[0_0_28px_rgba(251,113,133,0.3)]';
+  }
+
+  if (elementKey === 'nature') {
+    return 'border-emerald-300/60 bg-gradient-to-b from-emerald-400/72 via-emerald-400/28 to-emerald-950/12 shadow-[0_0_28px_rgba(52,211,153,0.3)]';
+  }
+
+  if (elementKey === 'dark') {
+    return 'border-violet-300/60 bg-gradient-to-b from-violet-400/68 via-violet-400/28 to-purple-950/16 shadow-[0_0_28px_rgba(167,139,250,0.3)]';
+  }
+
+  if (elementKey === 'holy') {
+    return 'border-amber-300/70 bg-gradient-to-b from-amber-300/70 via-amber-300/28 to-yellow-950/10 shadow-[0_0_28px_rgba(251,191,36,0.28)]';
+  }
+
+  return 'border-[var(--border)] bg-gradient-to-b from-[var(--surface-strong)] to-[var(--surface)]';
+}
+
+function getSpecialSkillOverlayClassByKey(elementKey: LimitBreakElementKey | null) {
+  if (elementKey === 'ice') {
+    return 'border-sky-300/50 bg-gradient-to-br from-sky-900/96 via-cyan-900/92 to-sky-950/96';
+  }
+
+  if (elementKey === 'fire') {
+    return 'border-rose-300/50 bg-gradient-to-br from-red-900/96 via-rose-900/92 to-red-950/96';
+  }
+
+  if (elementKey === 'nature') {
+    return 'border-emerald-300/50 bg-gradient-to-br from-emerald-900/96 via-green-900/92 to-emerald-950/96';
+  }
+
+  if (elementKey === 'dark') {
+    return 'border-violet-300/50 bg-gradient-to-br from-violet-900/96 via-fuchsia-900/92 to-violet-950/96';
+  }
+
+  if (elementKey === 'holy') {
+    return 'border-amber-300/55 bg-gradient-to-br from-amber-800/96 via-yellow-800/92 to-amber-950/96';
+  }
+
+  return 'border-white/20 bg-gradient-to-br from-slate-900/96 via-slate-800/92 to-slate-950/96';
+}
+
 function formatCostumeVariantName(name: string | null | undefined, costumeIndex?: number | null) {
   const resolvedName = relationName(name, '');
   if (!resolvedName) {
@@ -2797,8 +2874,12 @@ export default function PublicHeroDetailsModal({
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
   const hasSpecialSkillContent = specialSkillName.length > 0 || specialSkillDescription.length > 0;
   const resolvedElementName = heroDetails?.element?.name ?? heroCard?.elementName ?? null;
-  const previewAccentClass = getPreviewAccentClass(resolvedElementName);
-  const specialSkillOverlayClass = getSpecialSkillOverlayClass(resolvedElementName);
+  const resolvedElementKey = resolveElementKeyFromSources(
+    resolvedElementName,
+    heroDetails?.element?.imageUrl ?? null,
+  );
+  const previewAccentClass = getPreviewAccentClassByKey(resolvedElementKey);
+  const specialSkillOverlayClass = getSpecialSkillOverlayClassByKey(resolvedElementKey);
   const showSpecialSkillOverlay = Boolean(resolvedImageUrl && hasSpecialSkillContent);
   const specialSkillToggleLabel = `${specialSkillOverlayOpen ? t.hide : t.show}: ${t.specialSkill}`;
   const heroClassTooltip = [
@@ -2815,7 +2896,7 @@ export default function PublicHeroDetailsModal({
   const specialSkillTextShadow = {
     textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.45)',
   } as const;
-  const limitBreakElementKey = resolveLimitBreakElementKey(resolvedElementName);
+  const limitBreakElementKey = resolvedElementKey;
   const troopsTitle = locale === 'RU' ? 'Отряды' : 'Troops';
   const troopsUnavailableText =
     locale === 'RU'
