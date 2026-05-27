@@ -2647,6 +2647,7 @@ export default function PublicHeroDetailsModal({
   });
   const [specialSkillAccordionOpen, setSpecialSkillAccordionOpen] = useState(false);
   const [specialSkillOverlayMetrics, setSpecialSkillOverlayMetrics] = useState<{
+    heroKey: string;
     top: number;
     height: number;
     extraHeight: number;
@@ -2895,6 +2896,9 @@ export default function PublicHeroDetailsModal({
   const specialSkillTextShadow = {
     textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.45)',
   } as const;
+  const currentOverlayHeroKey = String(heroDetails?.id ?? heroCard?.id ?? heroDetails?.slug ?? heroCard?.slug ?? 'unknown');
+  const hasMeasuredOverlayForCurrentHero =
+    specialSkillOverlayMetrics?.heroKey === currentOverlayHeroKey;
   const limitBreakElementKey = resolvedElementKey;
   const troopsTitle = locale === 'RU' ? 'Отряды' : 'Troops';
   const troopsUnavailableText =
@@ -3302,6 +3306,7 @@ export default function PublicHeroDetailsModal({
       setSpecialSkillOverlayMetrics((prev) => {
         if (
           prev &&
+          prev.heroKey === currentOverlayHeroKey &&
           Math.abs(prev.top - top) < 1 &&
           Math.abs(prev.height - measuredHeight) < 1 &&
           Math.abs(prev.extraHeight - extraHeight) < 1
@@ -3310,6 +3315,7 @@ export default function PublicHeroDetailsModal({
         }
 
         return {
+          heroKey: currentOverlayHeroKey,
           top,
           height: measuredHeight,
           extraHeight,
@@ -3365,6 +3371,7 @@ export default function PublicHeroDetailsModal({
     specialSkillDescription,
     specialSkillName,
     specialSkillOverlayOpen,
+    currentOverlayHeroKey,
   ]);
 
   const handleCopyHeroLink = async () => {
@@ -3509,7 +3516,7 @@ export default function PublicHeroDetailsModal({
                   </div>
                 </div>
               )}
-              {showSpecialSkillOverlay && specialSkillOverlayMetrics ? (
+              {showSpecialSkillOverlay && hasMeasuredOverlayForCurrentHero && specialSkillOverlayMetrics ? (
                 <>
                   <div
                     className="pointer-events-none absolute inset-x-0 z-10"
@@ -3574,7 +3581,7 @@ export default function PublicHeroDetailsModal({
                   </button>
                 </>
               ) : null}
-              {showSpecialSkillOverlay && specialSkillOverlayOpen && specialSkillOverlayMetrics?.extraHeight ? (
+              {showSpecialSkillOverlay && hasMeasuredOverlayForCurrentHero && specialSkillOverlayOpen && specialSkillOverlayMetrics?.extraHeight ? (
                 <div aria-hidden="true" style={{ height: `${specialSkillOverlayMetrics.extraHeight}px` }} />
               ) : null}
             </div>
