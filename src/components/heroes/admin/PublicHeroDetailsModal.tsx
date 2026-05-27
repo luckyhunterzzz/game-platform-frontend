@@ -14,8 +14,7 @@ import { buildEpicTroopEntries } from '@/lib/static/troops';
 
 const MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT = 2;
 const SPECIAL_SKILL_OVERLAY_STORAGE_KEY = 'public-hero-modal-special-skill-overlay-open';
-// This anchor matches the start of the "Special Skill" area in the source card art.
-const SPECIAL_SKILL_OVERLAY_ANCHOR_Y = 928;
+const SPECIAL_SKILL_OVERLAY_WIDTH_TO_Y_RATIO = 1.11;
 const SPECIAL_SKILL_OVERLAY_MIN_HEIGHT = 180;
 const SPECIAL_SKILL_OVERLAY_MIN_VISIBLE_HEIGHT = 88;
 
@@ -3282,18 +3281,16 @@ export default function PublicHeroDetailsModal({
         return;
       }
 
-      const naturalWidth = image.naturalWidth;
       const renderedWidth = image.clientWidth;
       const renderedHeight = image.clientHeight;
 
-      if (!naturalWidth || !renderedWidth || !renderedHeight) {
+      if (!renderedWidth || !renderedHeight) {
         setSpecialSkillOverlayMetrics(null);
         return;
       }
 
-      const scale = renderedWidth / naturalWidth;
       const top = Math.min(
-        SPECIAL_SKILL_OVERLAY_ANCHOR_Y * scale,
+        renderedWidth * SPECIAL_SKILL_OVERLAY_WIDTH_TO_Y_RATIO,
         Math.max(0, renderedHeight - SPECIAL_SKILL_OVERLAY_MIN_VISIBLE_HEIGHT),
       );
       const visibleHeight = Math.max(SPECIAL_SKILL_OVERLAY_MIN_HEIGHT, renderedHeight - top);

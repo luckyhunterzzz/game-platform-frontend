@@ -568,7 +568,11 @@ function normalizeReleaseDateInput(value: string): string | null {
     return formatDateValue(directDate, 'yyyy-MM-dd');
   }
 
-  const sanitizedValue = trimmedValue.replace(/\s*г\.?$/i, '').replace(/,/g, '').trim();
+  const sanitizedValue = trimmedValue
+    .replace(/\s*г\.?$/i, '')
+    .replace(/,/g, '')
+    .replace(/\bфевр\./i, 'фев.')
+    .trim();
   const referenceDate = new Date();
   const formats: Array<{ pattern: string; locale?: Locale }> = [
     { pattern: 'yyyy-MM-dd' },
