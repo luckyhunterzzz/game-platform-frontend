@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import DictionaryModal from './DictionaryModal';
 import DictionaryInlineValue from '../DictionaryInlineValue';
@@ -13,6 +13,11 @@ import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert
 import { buildEpicTroopEntries } from '@/lib/static/troops';
 
 const MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT = 2;
+const SPECIAL_SKILL_OVERLAY_STORAGE_KEY = 'public-hero-modal-special-skill-overlay-open';
+// This anchor matches the start of the "Special Skill" area in the source card art.
+const SPECIAL_SKILL_OVERLAY_ANCHOR_Y = 928;
+const SPECIAL_SKILL_OVERLAY_MIN_HEIGHT = 180;
+const SPECIAL_SKILL_OVERLAY_MIN_VISIBLE_HEIGHT = 88;
 
 export type PublicHeroCardItem = {
   id: number;
@@ -1468,6 +1473,32 @@ function getPreviewAccentClass(elementName: string | null | undefined) {
   return 'border-[var(--border)] bg-gradient-to-b from-[var(--surface-strong)] to-[var(--surface)]';
 }
 
+function getSpecialSkillOverlayClass(elementName: string | null | undefined) {
+  const normalized = (elementName ?? '').trim().toLocaleLowerCase();
+
+  if (normalized.includes('ice') || normalized.includes('Р»РµРґ') || normalized.includes('Р»С‘Рґ')) {
+    return 'border-sky-300/50 bg-gradient-to-br from-sky-900/96 via-cyan-900/92 to-sky-950/96';
+  }
+
+  if (normalized.includes('fire') || normalized.includes('РѕРіРѕРЅСЊ')) {
+    return 'border-rose-300/50 bg-gradient-to-br from-red-900/96 via-rose-900/92 to-red-950/96';
+  }
+
+  if (normalized.includes('nature') || normalized.includes('РїСЂРёСЂРѕРґР°')) {
+    return 'border-emerald-300/50 bg-gradient-to-br from-emerald-900/96 via-green-900/92 to-emerald-950/96';
+  }
+
+  if (normalized.includes('dark') || normalized.includes('С‚СЊРјР°')) {
+    return 'border-violet-300/50 bg-gradient-to-br from-violet-900/96 via-fuchsia-900/92 to-violet-950/96';
+  }
+
+  if (normalized.includes('holy') || normalized.includes('СЃРІСЏС‚')) {
+    return 'border-amber-300/55 bg-gradient-to-br from-amber-800/96 via-yellow-800/92 to-amber-950/96';
+  }
+
+  return 'border-white/20 bg-gradient-to-br from-slate-900/96 via-slate-800/92 to-slate-950/96';
+}
+
 function formatCostumeVariantName(name: string | null | undefined, costumeIndex?: number | null) {
   const resolvedName = relationName(name, '');
   if (!resolvedName) {
@@ -2531,11 +2562,27 @@ export default function PublicHeroDetailsModal({
 }: PublicHeroDetailsModalProps) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
-  const [expandedSpecialSkillHeroId, setExpandedSpecialSkillHeroId] = useState<number | null>(null);
+  const [specialSkillOverlayOpen, setSpecialSkillOverlayOpen] = useState(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+
+    return window.sessionStorage.getItem(SPECIAL_SKILL_OVERLAY_STORAGE_KEY) !== '0';
+  });
+  const [specialSkillAccordionOpen, setSpecialSkillAccordionOpen] = useState(false);
+  const [specialSkillOverlayMetrics, setSpecialSkillOverlayMetrics] = useState<{
+    top: number;
+    height: number;
+    extraHeight: number;
+  } | null>(null);
+  const [overlayMeasureNonce, setOverlayMeasureNonce] = useState(0);
   const [limitBreakOpen, setLimitBreakOpen] = useState(false);
   const [troopsOpen, setTroopsOpen] = useState(false);
   const [selectedTroopBonus, setSelectedTroopBonus] = useState<TroopMeta | null>(null);
   const [selectedManaStrategyId, setSelectedManaStrategyId] = useState<string | null>(null);
+  const imageContainerRef = useRef<HTMLDivElement | null>(null);
+  const heroImageRef = useRef<HTMLImageElement | null>(null);
+  const specialSkillPanelRef = useRef<HTMLDivElement | null>(null);
 
   const t = useMemo(
     () =>
@@ -2553,7 +2600,7 @@ export default function PublicHeroDetailsModal({
             family: 'Семья',
             manaSpeed: 'Скорость маны',
             alphaTalent: 'Альфа-талант',
-            specialSkill: 'Специальный навык',
+            specialSkill: 'Особый навык',
             passiveSkills: 'Пассивные навыки',
             costumes: 'Костюмы',
             baseHero: 'Базовый герой',
@@ -2683,6 +2730,17 @@ export default function PublicHeroDetailsModal({
     [locale],
   );
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      SPECIAL_SKILL_OVERLAY_STORAGE_KEY,
+      specialSkillOverlayOpen ? '1' : '0',
+    );
+  }, [specialSkillOverlayOpen]);
+
   const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
   const heroCoachInfoTitle = locale === 'RU' ? 'Тренер героев' : 'Hero Coach Info';
   const visitingOutfitterInfoTitle =
@@ -2735,10 +2793,14 @@ export default function PublicHeroDetailsModal({
   const shouldShowLimitBreakRequirements =
     resolvedRarityStars === 3 || resolvedRarityStars === 4 || resolvedRarityStars === 5;
   const resolvedCostumes = heroVariants?.costumes ?? [];
+  const specialSkillName = heroDetails?.specialSkill?.name?.trim() ?? '';
   const specialSkillDescription = heroDetails?.specialSkill?.description?.trim() ?? '';
-  const hasLongSpecialSkill = specialSkillDescription.length > 320;
+  const hasSpecialSkillContent = specialSkillName.length > 0 || specialSkillDescription.length > 0;
   const resolvedElementName = heroDetails?.element?.name ?? heroCard?.elementName ?? null;
   const previewAccentClass = getPreviewAccentClass(resolvedElementName);
+  const specialSkillOverlayClass = getSpecialSkillOverlayClass(resolvedElementName);
+  const showSpecialSkillOverlay = Boolean(resolvedImageUrl && hasSpecialSkillContent);
+  const specialSkillToggleLabel = `${specialSkillOverlayOpen ? t.hide : t.show}: ${t.specialSkill}`;
   const heroClassTooltip = [
     heroDetails?.heroClass?.baseName && heroDetails.heroClass.baseDescription
       ? `${heroDetails.heroClass.baseName}: ${heroDetails.heroClass.baseDescription}`
@@ -2750,6 +2812,9 @@ export default function PublicHeroDetailsModal({
     .filter(Boolean)
     .join('\n\n');
   const heroLinkTooltip = copiedHeroLink ? copiedHeroLinkLabel : copyHeroLinkLabel;
+  const specialSkillTextShadow = {
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.45)',
+  } as const;
   const limitBreakElementKey = resolveLimitBreakElementKey(resolvedElementName);
   const troopsTitle = locale === 'RU' ? 'Отряды' : 'Troops';
   const troopsUnavailableText =
@@ -3121,7 +3186,108 @@ export default function PublicHeroDetailsModal({
       })),
     );
 
-  const specialSkillExpanded = heroDetails?.id != null && expandedSpecialSkillHeroId === heroDetails.id;
+  useEffect(() => {
+    if (!open || !showSpecialSkillOverlay) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const updateOverlayMetrics = () => {
+      const image = heroImageRef.current;
+      const panel = specialSkillPanelRef.current;
+      if (!image) {
+        setSpecialSkillOverlayMetrics(null);
+        return;
+      }
+
+      const naturalWidth = image.naturalWidth;
+      const renderedWidth = image.clientWidth;
+      const renderedHeight = image.clientHeight;
+
+      if (!naturalWidth || !renderedWidth || !renderedHeight) {
+        setSpecialSkillOverlayMetrics(null);
+        return;
+      }
+
+      const scale = renderedWidth / naturalWidth;
+      const top = Math.min(
+        SPECIAL_SKILL_OVERLAY_ANCHOR_Y * scale,
+        Math.max(0, renderedHeight - SPECIAL_SKILL_OVERLAY_MIN_VISIBLE_HEIGHT),
+      );
+      const visibleHeight = Math.max(SPECIAL_SKILL_OVERLAY_MIN_HEIGHT, renderedHeight - top);
+      const measuredHeight = Math.max(panel?.scrollHeight ?? visibleHeight, visibleHeight);
+      const extraHeight = specialSkillOverlayOpen
+        ? Math.max(0, measuredHeight - (renderedHeight - top))
+        : 0;
+
+      setSpecialSkillOverlayMetrics((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.top - top) < 1 &&
+          Math.abs(prev.height - measuredHeight) < 1 &&
+          Math.abs(prev.extraHeight - extraHeight) < 1
+        ) {
+          return prev;
+        }
+
+        return {
+          top,
+          height: measuredHeight,
+          extraHeight,
+        };
+      });
+    };
+
+    const requestMeasurement = () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(updateOverlayMetrics);
+    };
+
+    requestMeasurement();
+
+    const image = heroImageRef.current;
+    const container = imageContainerRef.current;
+    const panel = specialSkillPanelRef.current;
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            requestMeasurement();
+          })
+        : null;
+
+    if (resizeObserver && image) {
+      resizeObserver.observe(image);
+    }
+
+    if (resizeObserver && container) {
+      resizeObserver.observe(container);
+    }
+
+    if (resizeObserver && panel) {
+      resizeObserver.observe(panel);
+    }
+
+    window.addEventListener('resize', requestMeasurement);
+
+    return () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', requestMeasurement);
+    };
+  }, [
+    locale,
+    open,
+    overlayMeasureNonce,
+    showSpecialSkillOverlay,
+    specialSkillDescription,
+    specialSkillName,
+    specialSkillOverlayOpen,
+  ]);
 
   const handleCopyHeroLink = async () => {
     if (!currentHeroSlug || typeof window === 'undefined') {
@@ -3236,26 +3402,103 @@ export default function PublicHeroDetailsModal({
       ) : (
         <div className="space-y-6 text-[15px] md:text-base">
           <div className="space-y-4 md:flex md:items-start md:gap-4 md:space-y-0">
-            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] md:w-[360px] md:flex-none">
+            <div
+              ref={imageContainerRef}
+              className="relative rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] md:w-[360px] md:flex-none"
+            >
               {resolvedImageUrl ? (
-                <button
-                  type="button"
-                  onClick={() => setImagePreviewOpen(true)}
-                  className="block aspect-[4/5] w-full bg-[var(--surface-strong)] transition hover:bg-[var(--surface)] sm:aspect-[5/6] md:aspect-auto"
-                  aria-label={t.openImage}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resolvedImageUrl}
-                    alt={heroDetails.name}
-                    className="max-h-[75vh] w-full object-contain object-top"
-                  />
-                </button>
+                <div className="overflow-hidden rounded-[inherit]">
+                  <button
+                    type="button"
+                    onClick={() => setImagePreviewOpen(true)}
+                    className="block aspect-[4/5] w-full bg-[var(--surface-strong)] transition hover:bg-[var(--surface)] sm:aspect-[5/6] md:aspect-auto"
+                    aria-label={t.openImage}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      ref={heroImageRef}
+                      src={resolvedImageUrl}
+                      alt={heroDetails.name}
+                      className="max-h-[75vh] w-full object-contain object-top"
+                      onLoad={() => setOverlayMeasureNonce((prev) => prev + 1)}
+                    />
+                  </button>
+                </div>
               ) : (
-                <div className="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--foreground-muted)] sm:aspect-[5/6] md:min-h-[24rem] md:aspect-auto">
-                  {t.imagePlaceholder}
+                <div className="overflow-hidden rounded-[inherit]">
+                  <div className="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--foreground-muted)] sm:aspect-[5/6] md:min-h-[24rem] md:aspect-auto">
+                    {t.imagePlaceholder}
+                  </div>
                 </div>
               )}
+              {showSpecialSkillOverlay && specialSkillOverlayMetrics ? (
+                <>
+                  <div
+                    className="pointer-events-none absolute inset-x-0 z-10"
+                    style={{
+                      top: `${specialSkillOverlayMetrics.top}px`,
+                      height: `${specialSkillOverlayMetrics.height}px`,
+                    }}
+                  >
+                    <div
+                      ref={specialSkillPanelRef}
+                      className={`flex h-full flex-col border-t border-white/20 backdrop-blur-[3px] transition-all duration-300 ease-out ${
+                        specialSkillOverlayOpen
+                          ? 'translate-x-0 opacity-100'
+                          : 'translate-x-full opacity-0'
+                      } ${specialSkillOverlayClass}`}
+                    >
+                      <div className="border-b border-white/15 bg-black/18 px-4 py-3">
+                        <div
+                          className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/85"
+                          style={specialSkillTextShadow}
+                        >
+                          {t.specialSkill}
+                        </div>
+                        <div className="mt-1 text-lg font-bold text-white" style={specialSkillTextShadow}>
+                          {specialSkillName || t.noValue}
+                        </div>
+                      </div>
+                      <div className="px-4 py-3">
+                        <div
+                          className="whitespace-pre-wrap text-sm leading-5 text-white/95"
+                          style={specialSkillTextShadow}
+                        >
+                          {specialSkillDescription || t.noValue}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSpecialSkillOverlayOpen((prev) => !prev)}
+                    className={`absolute right-3 z-20 inline-flex h-12 w-12 items-center justify-center rounded-xl border transition ${
+                      specialSkillOverlayOpen
+                        ? 'border-white/30 bg-slate-950/92 text-white shadow-lg'
+                        : 'border-white/20 bg-slate-950/55 text-white/90 hover:bg-slate-950/75'
+                    }`}
+                    style={{ top: `${Math.max(12, specialSkillOverlayMetrics.top + 12)}px` }}
+                    aria-label={specialSkillToggleLabel}
+                    title={specialSkillToggleLabel}
+                    aria-pressed={specialSkillOverlayOpen}
+                  >
+                    <svg
+                      viewBox="0 0 20 20"
+                      className={`h-6 w-6 transition-transform duration-300 ${
+                        specialSkillOverlayOpen ? 'rotate-180' : ''
+                      }`}
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </>
+              ) : null}
+              {showSpecialSkillOverlay && specialSkillOverlayOpen && specialSkillOverlayMetrics?.extraHeight ? (
+                <div aria-hidden="true" style={{ height: `${specialSkillOverlayMetrics.extraHeight}px` }} />
+              ) : null}
             </div>
 
             <div className="min-w-0 flex-1 space-y-4">
@@ -3359,29 +3602,30 @@ export default function PublicHeroDetailsModal({
           </div>
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-            <div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.specialSkill}</div>
-            <div className="text-base font-medium text-[var(--foreground)]">
-              {heroDetails.specialSkill?.name ?? t.noValue}
-            </div>
-            <div
-              className={`mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)] ${
-                hasLongSpecialSkill && !specialSkillExpanded ? 'line-clamp-8 overflow-hidden' : ''
-              }`}
+            <button
+              type="button"
+              onClick={() => setSpecialSkillAccordionOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between gap-4 text-left"
+              aria-expanded={specialSkillAccordionOpen}
             >
-              {heroDetails.specialSkill?.description ?? t.noValue}
-            </div>
-            {hasLongSpecialSkill ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setExpandedSpecialSkillHeroId((prev) =>
-                    heroDetails?.id == null ? null : prev === heroDetails.id ? null : heroDetails.id,
-                  )
-                }
-                className="mt-3 text-sm font-semibold text-[var(--accent-strong)] transition hover:text-[var(--accent)]"
-              >
-                {specialSkillExpanded ? t.showLess : t.showMore}
-              </button>
+              <div>
+                <div className="text-sm font-semibold text-[var(--foreground)]">{t.specialSkill}</div>
+                <div className="mt-1 text-sm text-[var(--foreground-soft)]">
+                  {specialSkillAccordionOpen ? t.hide : t.show}
+                </div>
+              </div>
+              <AccordionChevronIcon open={specialSkillAccordionOpen} />
+            </button>
+
+            {specialSkillAccordionOpen ? (
+              <div className="mt-4">
+                <div className="text-base font-medium text-[var(--foreground)]">
+                  {specialSkillName || t.noValue}
+                </div>
+                <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
+                  {specialSkillDescription || t.noValue}
+                </div>
+              </div>
             ) : null}
           </div>
 
