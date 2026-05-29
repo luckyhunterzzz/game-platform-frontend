@@ -111,6 +111,7 @@ export type PublicHeroVariantsItem = {
 type PublicHeroDetailsModalProps = {
   open: boolean;
   locale: 'RU' | 'EN';
+  includeDrafts?: boolean;
   heroCard: PublicHeroCardItem | null;
   heroDetails: PublicHeroDetailsItem | null;
   heroVariants?: PublicHeroVariantsItem | null;
@@ -2625,6 +2626,7 @@ function LimitBreakRequirementRowCard({
 export default function PublicHeroDetailsModal({
   open,
   locale,
+  includeDrafts = false,
   heroCard,
   heroDetails,
   heroVariants = null,
@@ -3924,7 +3926,7 @@ export default function PublicHeroDetailsModal({
                   locale={locale}
                   heroId={heroDetails.id}
                   heroSlug={heroDetails.slug}
-                  calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}`}
+                  calculateEndpoint={`/api/v1/public/heroes/${heroDetails.slug}/stats/calculate?language=${locale}${includeDrafts ? '&includeDrafts=true' : ''}`}
                   rarityStars={resolvedRarityStars}
                   isCostume={heroDetails.baseHeroId != null}
                   currentCostumeIndex={

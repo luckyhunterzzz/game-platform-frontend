@@ -154,7 +154,6 @@ function TroopOptionThumb({
 export default function HeroStatCalculatorPanel({
   locale,
   heroId,
-  heroSlug,
   calculateEndpoint,
   rarityStars = null,
   isCostume,
@@ -255,7 +254,7 @@ export default function HeroStatCalculatorPanel({
   }, [costumeOptions, selectedCostumeHeroId]);
 
   useEffect(() => {
-    if (isCostume || costumes.length > 0 || !heroSlug) {
+    if (isCostume || costumes.length > 0 || !heroId) {
       return;
     }
 
@@ -264,7 +263,7 @@ export default function HeroStatCalculatorPanel({
     const loadCostumes = async () => {
       setLoadingCostumes(true);
       try {
-        const response = await apiJson<HeroVariantsResponse>(`/api/v1/public/heroes/${heroSlug}/variants?language=${locale}`);
+        const response = await apiJson<HeroVariantsResponse>(`/api/v1/admin/heroes/${heroId}/variants?language=${locale}`);
         if (!cancelled) {
           setCostumeOptions(sortCostumes(response.costumes));
         }
@@ -284,7 +283,7 @@ export default function HeroStatCalculatorPanel({
     return () => {
       cancelled = true;
     };
-  }, [apiJson, costumes.length, heroSlug, isCostume, locale]);
+  }, [apiJson, costumes.length, heroId, isCostume, locale]);
 
   useEffect(() => {
     if (!emblemPathType) {
