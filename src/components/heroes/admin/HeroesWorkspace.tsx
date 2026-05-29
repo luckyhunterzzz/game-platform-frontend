@@ -72,6 +72,8 @@ const ADMIN_API = '/api/v1/admin/heroes';
 const ADMIN_CATALOG_API = '/api/v1/admin/heroes/catalog';
 const ADMIN_SLUG_AVAILABILITY_API = '/api/v1/admin/heroes/slug-availability';
 const ADMIN_NEXT_COSTUME_INDEX_API = '/api/v1/admin/heroes/next-costume-index';
+const ADMIN_IMPORT_API = '/api/v1/admin/heroes/import/catalog';
+const ADMIN_PUBLIC_VISIBILITY_API = '/api/v1/admin/heroes/public-visibility';
 const PUBLIC_FILTERS_API = '/api/v1/public/heroes/filters';
 const PUBLIC_NAMES_API = '/api/v1/public/heroes/names';
 const buildAdminExpertOpinionsApi = (heroId: number) => `/api/v1/admin/heroes/${heroId}/expert-opinions`;
@@ -88,8 +90,32 @@ const HERO_IMAGE_UPLOAD_API = '/api/v1/admin/media/images/heroes';
 const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
+const DEFAULT_HERO_IMPORT_SOURCE_URL =
+  'https://raw.githubusercontent.com/vabe44/31f5d518-epzl-cdn/main/assets/data_en.json';
+const DEFAULT_HERO_IMPORT_LOCALIZED_SOURCE_URL =
+  'https://redsky--redsky-40f16.europe-west4.hosted.app/api/heroes';
 
 type HeroStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
+type AdminHeroFiltersState = {
+  rarityIds: number[];
+  statuses: HeroStatus[];
+};
+
+type PublicVisibilityFilter = 'READY_ONLY' | 'READY_AND_DRAFT';
+
+type HeroPublicVisibilityResponseDto = {
+  mode: PublicVisibilityFilter;
+  includeDrafts: boolean;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  updatedByEmail?: string | null;
+};
+
+type HeroPublicVisibilityUpdateRequestDto = {
+  mode: PublicVisibilityFilter;
+  updatedBy: string;
+  updatedByEmail?: string | null;
+};
 
 type HeroPageResponse = {
   items: PublicHeroCardItem[];
@@ -170,6 +196,62 @@ type HeroSlugAvailabilityResponse = {
 
 type HeroNextCostumeIndexResponse = {
   nextCostumeIndex: number;
+};
+
+type HeroImportParentMode = 'ROOT_ONLY' | 'COSTUMES_ONLY';
+
+type HeroCatalogImportRequestDto = {
+  sourceUrl: string;
+  localizedSourceUrl?: string | null;
+  star: number;
+  parentMode: HeroImportParentMode;
+  releaseDateFrom?: string | null;
+  releaseDateTo?: string | null;
+  dryRun: boolean;
+  updatedBy: string;
+  updatedByEmail?: string | null;
+};
+
+type HeroCatalogImportSkippedItemDto = {
+  heroId?: string | null;
+  name?: string | null;
+  slug?: string | null;
+  reason: string;
+};
+
+type HeroCatalogImportPlannedHeroDto = {
+  heroId?: string | null;
+  name?: string | null;
+  slug: string;
+  costume: boolean;
+  baseHeroSlug?: string | null;
+  releaseDate?: string | null;
+  status: string;
+  fullImageEnSourceUrl?: string | null;
+  fullImageRuSourceUrl?: string | null;
+  previewImageSourceUrl?: string | null;
+};
+
+type HeroCatalogImportResponseDto = {
+  dryRun: boolean;
+  totalSourceHeroes: number;
+  matchedHeroes: number;
+  createdHeroes: number;
+  skippedExistingHeroes: number;
+  skippedUnresolvedHeroes: number;
+  createdSlugs: string[];
+  plannedHeroes: HeroCatalogImportPlannedHeroDto[];
+  skippedHeroes: HeroCatalogImportSkippedItemDto[];
+};
+
+type HeroImportFormState = {
+  sourceUrl: string;
+  localizedSourceUrl: string;
+  star: '3' | '4' | '5';
+  parentMode: HeroImportParentMode;
+  releaseDateFrom: string;
+  releaseDateTo: string;
+  dryRun: boolean;
 };
 
 type AdminHeroResponseDto = {
@@ -347,6 +429,21 @@ const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
   alphaTalentIds: '',
 };
 
+const EMPTY_ADMIN_FILTERS: AdminHeroFiltersState = {
+  rarityIds: [],
+  statuses: [],
+};
+
+const DEFAULT_HERO_IMPORT_FORM: HeroImportFormState = {
+  sourceUrl: DEFAULT_HERO_IMPORT_SOURCE_URL,
+  localizedSourceUrl: DEFAULT_HERO_IMPORT_LOCALIZED_SOURCE_URL,
+  star: '3',
+  parentMode: 'ROOT_ONLY',
+  releaseDateFrom: '',
+  releaseDateTo: '',
+  dryRun: true,
+};
+
 function getDefaultCreateRarityId(items: RarityItem[]): string {
   const fiveStarRarity = items.find((item) => item.stars === 5);
   return fiveStarRarity ? String(fiveStarRarity.id) : '';
@@ -467,6 +564,10 @@ function optionalNonNegativeInteger(value: string): number | null {
 
   const parsed = Number(normalized);
   return Number.isNaN(parsed) || parsed < 0 ? null : parsed;
+}
+
+function toggleArrayValue<T>(values: T[], value: T): T[] {
+  return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value];
 }
 
 function slugifyHeroName(value: string): string {
@@ -608,7 +709,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const searchParams = useSearchParams();
   const { apiJson, apiPostJson, apiPutJson, apiDeleteVoid, apiPostFormData } = useApi();
   const { locale: appLocale } = useI18n();
-  const { userId, userEmail, displayName } = useAuth();
+  const { userId, userEmail, displayName, roles } = useAuth();
   const locale: HeroLocale = appLocale === 'ru' ? 'RU' : 'EN';
   const createRuImageInputRef = useRef<HTMLInputElement | null>(null);
   const createEnImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -636,6 +737,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [items, setItems] = useState<HeroItem[]>([]);
   const [baseHeroOptions, setBaseHeroOptions] = useState<HeroLookupItem[]>([]);
   const [adminSearch, setAdminSearch] = useState('');
+  const [adminFilters, setAdminFilters] = useState<AdminHeroFiltersState>(EMPTY_ADMIN_FILTERS);
   const [adminCatalogPage, setAdminCatalogPage] = useState<AdminHeroPageResponse | null>(null);
   const [loadingMoreAdmin, setLoadingMoreAdmin] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -718,7 +820,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   });
   const [createPreviewFileName, setCreatePreviewFileName] = useState<string | null>(null);
   const [editPreviewFileName, setEditPreviewFileName] = useState<string | null>(null);
+  const [heroImportForm, setHeroImportForm] = useState<HeroImportFormState>(DEFAULT_HERO_IMPORT_FORM);
+  const [heroImportSubmitting, setHeroImportSubmitting] = useState(false);
+  const [heroImportError, setHeroImportError] = useState<string | null>(null);
+  const [heroImportResult, setHeroImportResult] = useState<HeroCatalogImportResponseDto | null>(null);
+  const [publicVisibilityFilter, setPublicVisibilityFilter] = useState<PublicVisibilityFilter>('READY_ONLY');
+  const [publicVisibilitySaving, setPublicVisibilitySaving] = useState(false);
+  const [publicVisibilityError, setPublicVisibilityError] = useState<string | null>(null);
   const defaultCreateRarityId = useMemo(() => getDefaultCreateRarityId(rarities), [rarities]);
+  const isSuperAdmin = roles.includes('ROLE_superadmin');
 
   const t = useMemo(
     () =>
@@ -798,10 +908,48 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             searchHeroes: '\u041f\u043e\u0438\u0441\u043a \u0433\u0435\u0440\u043e\u0435\u0432',
             searchHeroesPlaceholder: '\u0418\u043c\u044f \u0433\u0435\u0440\u043e\u044f',
             filters: '\u0424\u0438\u043b\u044c\u0442\u0440\u044b',
+            adminFiltersTitle: '\u0424\u0438\u043b\u044c\u0442\u0440\u044b \u0430\u0434\u043c\u0438\u043d\u043a\u0438',
+            adminStatusDraft: '\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a',
+            adminStatusReady: '\u0413\u043e\u0442\u043e\u0432',
+            adminStatusHidden: '\u0421\u043a\u0440\u044b\u0442',
+            adminStatusArchived: '\u0410\u0440\u0445\u0438\u0432',
             resetFilters: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b',
             loadMore: '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0435\u0449\u0435',
             noResults: '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e',
             adminSearchPlaceholder: '\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u0433\u0435\u0440\u043e\u044f\u043c',
+            importTitle: '\u0418\u043c\u043f\u043e\u0440\u0442 \u0433\u0435\u0440\u043e\u0435\u0432',
+            importSubtitle: '\u0421\u0443\u043f\u0435\u0440\u0430\u0434\u043c\u0438\u043d-\u043f\u0430\u043d\u0435\u043b\u044c \u0434\u043b\u044f dry-run \u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438 \u0438\u0437 JSON',
+            importSourceUrl: '\u0421\u0441\u044b\u043b\u043a\u0430 \u043d\u0430 JSON',
+            importLocalizedSourceUrl: '\u0421\u0441\u044b\u043b\u043a\u0430 \u043d\u0430 RU JSON',
+            importStar: '\u0417\u0432\u0451\u0437\u0434\u043d\u043e\u0441\u0442\u044c',
+            importParentMode: '\u0420\u0435\u0436\u0438\u043c \u043f\u0440\u043e\u0445\u043e\u0434\u0430',
+            importParentRoot: '\u0422\u043e\u043b\u044c\u043a\u043e \u0431\u0430\u0437\u043e\u0432\u044b\u0435',
+            importParentCostumes: '\u0422\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u0441\u0442\u044e\u043c\u044b',
+            importReleaseDateFrom: '\u0414\u0430\u0442\u0430 \u0441',
+            importReleaseDateTo: '\u0414\u0430\u0442\u0430 \u043f\u043e',
+            importDryRun: '\u0427\u0435\u0440\u043d\u043e\u0432\u043e\u0439 \u043f\u0440\u043e\u0433\u043e\u043d',
+            importDryRunHint: '\u041f\u0440\u0438 dry-run \u0437\u0430\u043f\u0438\u0441\u0438 \u0432 \u0411\u0414 \u0438 MinIO \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u044e\u0442\u0441\u044f.',
+            importSubmit: '\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0438\u043c\u043f\u043e\u0440\u0442',
+            importSubmitting: '\u0418\u043c\u043f\u043e\u0440\u0442 \u0438\u0434\u0451\u0442...',
+            importResultTitle: '\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u043f\u0440\u043e\u0433\u043e\u043d\u0430',
+            importMatched: '\u041f\u043e\u0434\u043e\u0448\u043b\u043e \u043f\u043e\u0434 \u0444\u0438\u043b\u044c\u0442\u0440',
+            importCreated: '\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043b\u0435\u043d\u043e',
+            importSkippedExisting: '\u041f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e \u043a\u0430\u043a \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435',
+            importSkippedUnresolved: '\u041f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e \u0441 \u043e\u0448\u0438\u0431\u043a\u0430\u043c\u0438',
+            importPlannedHeroes: '\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u043f\u0438\u0441\u0438',
+            importSkippedHeroes: '\u041f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u044b\u0435 \u0437\u0430\u043f\u0438\u0441\u0438',
+            importImageFullEn: 'Full image EN',
+            importImageFullRu: 'Full image RU',
+            importImagePreview: 'Preview image',
+            importBaseSlug: '\u0411\u0430\u0437\u043e\u0432\u044b\u0439 slug',
+            importNoRunsYet: '\u041f\u043e\u043a\u0430 \u043d\u0435 \u0431\u044b\u043b\u043e \u043d\u0438 \u043e\u0434\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0433\u043e\u043d\u0430.',
+            publicVisibility: '\u0412\u0438\u0434\u0438\u043c\u043e\u0441\u0442\u044c \u043d\u0430 \u043f\u0443\u0431\u043b\u0438\u043a\u0435',
+            publicVisibilityHint:
+              '\u0413\u043b\u043e\u0431\u0430\u043b\u044c\u043d\u044b\u0439 \u0442\u0443\u043c\u0431\u043b\u0435\u0440. \u041f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f \u0432\u044b\u0434\u0430\u0447\u0430 \u0432 \u043f\u0443\u0431\u043b\u0438\u043a\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f \u0434\u043b\u044f \u0432\u0441\u0435\u0445.',
+            publicVisibilityReadyOnly: '\u0422\u043e\u043b\u044c\u043a\u043e READY',
+            publicVisibilityReadyAndDraft: 'READY + DRAFT',
+            publicVisibilitySaving: '\u0421\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u043c \u0433\u043b\u043e\u0431\u0430\u043b\u044c\u043d\u0443\u044e \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0443...',
+            heroesCountSummary: '\u041f\u043e\u043a\u0430\u0437\u0430\u043d\u043e {shown} \u0438\u0437 {total}',
             deleteConfirm: (name: string) => `\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0433\u0435\u0440\u043e\u044f "${name}"?`,
           }
         : {
@@ -877,12 +1025,50 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             searchHeroes: 'Search heroes',
             searchHeroesPlaceholder: 'Hero name',
             filters: 'Filters',
+            adminFiltersTitle: 'Admin filters',
+            adminStatusDraft: 'Draft',
+            adminStatusReady: 'Ready',
+            adminStatusHidden: 'Hidden',
+            adminStatusArchived: 'Archived',
             showFilters: 'Show filters',
             hideFilters: 'Hide filters',
             resetFilters: 'Reset filters',
             loadMore: 'Load more',
             noResults: 'Nothing found',
             adminSearchPlaceholder: 'Search heroes',
+            importTitle: 'Hero import',
+            importSubtitle: 'Superadmin panel for dry runs and JSON-driven imports',
+            importSourceUrl: 'JSON source URL',
+            importLocalizedSourceUrl: 'RU JSON source URL',
+            importStar: 'Star level',
+            importParentMode: 'Pass mode',
+            importParentRoot: 'Base heroes only',
+            importParentCostumes: 'Costumes only',
+            importReleaseDateFrom: 'Release date from',
+            importReleaseDateTo: 'Release date to',
+            importDryRun: 'Dry run',
+            importDryRunHint: 'Dry run does not create records in the database or MinIO.',
+            importSubmit: 'Run import',
+            importSubmitting: 'Running import...',
+            importResultTitle: 'Run result',
+            importMatched: 'Matched by filters',
+            importCreated: 'Prepared',
+            importSkippedExisting: 'Skipped as existing',
+            importSkippedUnresolved: 'Skipped with errors',
+            importPlannedHeroes: 'Prepared records',
+            importSkippedHeroes: 'Skipped records',
+            importImageFullEn: 'Full image EN',
+            importImageFullRu: 'Full image RU',
+            importImagePreview: 'Preview image',
+            importBaseSlug: 'Base slug',
+            importNoRunsYet: 'No import runs yet.',
+            publicVisibility: 'Public visibility',
+            publicVisibilityHint:
+              'Global switch. After switching, public hero visibility changes for all users.',
+            publicVisibilityReadyOnly: 'READY only',
+            publicVisibilityReadyAndDraft: 'READY + DRAFT',
+            publicVisibilitySaving: 'Saving global setting...',
+            heroesCountSummary: 'Showing {shown} of {total}',
             clearSearch: 'Clear search',
             deleteConfirm: (name: string) => `Delete hero "${name}"?`,
           },
@@ -927,6 +1113,16 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setBaseHeroOptions(response);
   }, [adminMode, apiJson, locale]);
 
+  const loadPublicVisibility = useCallback(async () => {
+    if (!adminMode || !isSuperAdmin) {
+      return;
+    }
+
+    const response = await apiJson<HeroPublicVisibilityResponseDto>(ADMIN_PUBLIC_VISIBILITY_API);
+    setPublicVisibilityFilter(response.mode);
+    setPublicVisibilityError(null);
+  }, [adminMode, apiJson, isSuperAdmin]);
+
   const loadPublicFilterOptions = useCallback(async () => {
     if (adminMode) {
       return;
@@ -943,6 +1139,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         size: '12',
         language: locale,
       });
+
+      if (isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT') {
+        params.set('includeDrafts', 'true');
+      }
 
       if (publicSearch.trim()) {
         params.set('search', publicSearch.trim());
@@ -961,7 +1161,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       return `${PUBLIC_API}?${params.toString()}`;
     },
-    [locale, publicFilters, publicSearch],
+    [isSuperAdmin, locale, publicFilters, publicSearch, publicVisibilityFilter],
   );
 
   const fetchPublicCatalogPage = useCallback(
@@ -984,6 +1184,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         params.set('search', adminSearch.trim());
       }
 
+      adminFilters.rarityIds.forEach((id) => params.append('rarityIds', String(id)));
+      adminFilters.statuses.forEach((status) => params.append('statuses', status));
+
       const response = await apiJson<AdminHeroPageResponse>(`${ADMIN_CATALOG_API}?${params.toString()}`);
       const mapped = response.items.map(mapHero);
 
@@ -1001,7 +1204,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         return mapped[0]?.id ?? null;
       });
     },
-    [adminSearch, apiJson],
+    [adminFilters, adminSearch, apiJson],
   );
 
   const loadList = useCallback(async () => {
@@ -1019,6 +1222,89 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setLoadingList(false);
     }
   }, [adminMode, fetchAdminCatalogPage, fetchPublicCatalogPage]);
+
+  const handlePublicVisibilityChange = useCallback(
+    async (mode: PublicVisibilityFilter) => {
+      if (!isSuperAdmin || publicVisibilitySaving || publicVisibilityFilter === mode) {
+        return;
+      }
+
+      const auditUser = userId ?? displayName;
+      if (!auditUser) {
+        setPublicVisibilityError(locale === 'RU' ? 'Не удалось определить пользователя аудита.' : 'Missing audit user.');
+        return;
+      }
+
+      const previousMode = publicVisibilityFilter;
+      setPublicVisibilityFilter(mode);
+      setPublicVisibilitySaving(true);
+      setPublicVisibilityError(null);
+
+      try {
+        const response = await apiPutJson<HeroPublicVisibilityUpdateRequestDto, HeroPublicVisibilityResponseDto>(
+          ADMIN_PUBLIC_VISIBILITY_API,
+          {
+            mode,
+            updatedBy: auditUser,
+            updatedByEmail: userEmail ?? null,
+          },
+        );
+        setPublicVisibilityFilter(response.mode);
+      } catch (error) {
+        setPublicVisibilityFilter(previousMode);
+        setPublicVisibilityError(error instanceof Error ? error.message : 'Failed to save public visibility');
+      } finally {
+        setPublicVisibilitySaving(false);
+      }
+    },
+    [
+      apiPutJson,
+      displayName,
+      isSuperAdmin,
+      locale,
+      publicVisibilityFilter,
+      publicVisibilitySaving,
+      userEmail,
+      userId,
+    ],
+  );
+
+  const handleHeroImportSubmit = async () => {
+    const auditUser = userId ?? displayName;
+    if (!auditUser) {
+      setHeroImportError(locale === 'RU' ? 'Не удалось определить пользователя аудита.' : 'Missing audit user.');
+      return;
+    }
+
+    setHeroImportSubmitting(true);
+    setHeroImportError(null);
+    try {
+      const response = await apiPostJson<HeroCatalogImportRequestDto, HeroCatalogImportResponseDto>(
+        ADMIN_IMPORT_API,
+        {
+          sourceUrl: heroImportForm.sourceUrl.trim(),
+          localizedSourceUrl: heroImportForm.localizedSourceUrl.trim() || null,
+          star: Number(heroImportForm.star),
+          parentMode: heroImportForm.parentMode,
+          releaseDateFrom: heroImportForm.releaseDateFrom.trim() || null,
+          releaseDateTo: heroImportForm.releaseDateTo.trim() || null,
+          dryRun: heroImportForm.dryRun,
+          updatedBy: auditUser,
+          updatedByEmail: userEmail ?? null,
+        },
+      );
+
+      setHeroImportResult(response);
+
+      if (!response.dryRun && adminMode) {
+        await loadList();
+      }
+    } catch (error) {
+      setHeroImportError(error instanceof Error ? error.message : 'Failed to run import');
+    } finally {
+      setHeroImportSubmitting(false);
+    }
+  };
 
   const loadListRef = useRef(loadList);
 
@@ -1122,7 +1408,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setPublicHeroExpertOpinionsError(null);
     try {
       const [response, opinionsResponse] = await Promise.all([
-        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}`),
+        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}${isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT' ? '&includeDrafts=true' : ''}`),
         apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale)).catch((error) => {
           setPublicHeroExpertOpinionsError(
             error instanceof Error ? error.message : 'Failed to load expert opinions',
@@ -1146,7 +1432,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setLoadingPublicDetails(false);
       setLoadingPublicHeroExpertOpinions(false);
     }
-  }, [apiJson, findBaseHeroCardBySlug, locale, toSyntheticPublicHeroCard]);
+  }, [apiJson, findBaseHeroCardBySlug, isSuperAdmin, locale, publicVisibilityFilter, toSyntheticPublicHeroCard]);
 
   const syncPublicHeroQuery = useCallback((slug: string | null, mode: 'push' | 'replace' = 'push') => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -1208,7 +1494,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   useEffect(() => {
     void loadListRef.current();
-  }, [adminMode, adminSearch, publicSearch, publicFilters, locale]);
+  }, [adminMode, adminFilters, adminSearch, publicSearch, publicFilters, locale]);
 
   useEffect(() => {
     if (adminMode) {
@@ -1219,11 +1505,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   useEffect(() => {
     if (adminMode) {
       void loadBaseHeroOptions().catch(() => undefined);
+      void loadPublicVisibility().catch(() =>
+        setPublicVisibilityError(locale === 'RU' ? 'Не удалось загрузить глобальную видимость.' : 'Failed to load global visibility'),
+      );
       return;
     }
 
     void loadPublicFilterOptions().catch(() => setListError('Failed to load filters'));
-  }, [adminMode, loadBaseHeroOptions, loadPublicFilterOptions]);
+  }, [adminMode, loadBaseHeroOptions, loadPublicFilterOptions, loadPublicVisibility, locale]);
 
   useEffect(() => {
     if (adminMode) {
@@ -2800,6 +3089,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{hasActivePublicFilters ? t.noResults : t.empty}</div>
           ) : (
             <div className="space-y-4">
+              <div className="text-sm text-[var(--foreground-soft)]">
+                {t.heroesCountSummary
+                  .replace('{shown}', String(publicItems.length))
+                  .replace('{total}', String(publicPage?.totalElements ?? publicItems.length))}
+              </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {publicItems.map((hero) => (
                   <button
@@ -2855,6 +3149,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         <PublicHeroDetailsModal
           open={isPublicDetailsOpen}
           locale={locale}
+          includeDrafts={isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT'}
           heroCard={selectedPublicHero}
           heroDetails={selectedPublicHeroDetails}
           heroVariants={selectedPublicHeroVariants}
@@ -2872,6 +3167,255 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
   return (
     <>
+      {adminMode && isSuperAdmin ? (
+        <section className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6">
+          <div className="mb-5">
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.importTitle}</h3>
+            <p className="text-sm text-[var(--foreground-soft)]">{t.importSubtitle}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <label className="block xl:col-span-3">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importSourceUrl}</span>
+              <input
+                type="url"
+                value={heroImportForm.sourceUrl}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    sourceUrl: event.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+                placeholder={DEFAULT_HERO_IMPORT_SOURCE_URL}
+              />
+            </label>
+            <label className="block xl:col-span-3">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importLocalizedSourceUrl}</span>
+              <input
+                type="url"
+                value={heroImportForm.localizedSourceUrl}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    localizedSourceUrl: event.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+                placeholder={DEFAULT_HERO_IMPORT_LOCALIZED_SOURCE_URL}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importStar}</span>
+              <select
+                value={heroImportForm.star}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    star: event.target.value as HeroImportFormState['star'],
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+              >
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importParentMode}</span>
+              <select
+                value={heroImportForm.parentMode}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    parentMode: event.target.value as HeroImportParentMode,
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+              >
+                <option value="ROOT_ONLY">{t.importParentRoot}</option>
+                <option value="COSTUMES_ONLY">{t.importParentCostumes}</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importReleaseDateFrom}</span>
+              <input
+                type="date"
+                value={heroImportForm.releaseDateFrom}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    releaseDateFrom: event.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importReleaseDateTo}</span>
+              <input
+                type="date"
+                value={heroImportForm.releaseDateTo}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    releaseDateTo: event.target.value,
+                  }))
+                }
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/50"
+              />
+            </label>
+            <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]">
+              <input
+                type="checkbox"
+                checked={heroImportForm.dryRun}
+                onChange={(event) =>
+                  setHeroImportForm((prev) => ({
+                    ...prev,
+                    dryRun: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-[var(--border)]"
+              />
+              <span>
+                <span className="block font-medium">{t.importDryRun}</span>
+                <span className="block text-xs text-[var(--foreground-soft)]">{t.importDryRunHint}</span>
+              </span>
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleHeroImportSubmit()}
+              disabled={heroImportSubmitting || !heroImportForm.sourceUrl.trim()}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {heroImportSubmitting ? t.importSubmitting : t.importSubmit}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setHeroImportForm(DEFAULT_HERO_IMPORT_FORM);
+                setHeroImportError(null);
+                setHeroImportResult(null);
+              }}
+              disabled={heroImportSubmitting}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t.resetFilters}
+            </button>
+          </div>
+          {heroImportError ? (
+            <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {heroImportError}
+            </div>
+          ) : null}
+          {heroImportResult ? (
+            <div className="mt-6 space-y-4">
+              <div>
+                <div className="text-sm font-semibold text-[var(--foreground)]">{t.importResultTitle}</div>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.importMatched}: {heroImportResult.matchedHeroes}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.importCreated}: {heroImportResult.createdHeroes}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.importSkippedExisting}: {heroImportResult.skippedExistingHeroes}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.importSkippedUnresolved}: {heroImportResult.skippedUnresolvedHeroes}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {heroImportResult.dryRun ? 'DRY_RUN' : 'APPLIED'}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.importPlannedHeroes}</div>
+                {heroImportResult.plannedHeroes.length === 0 ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">{t.importNoRunsYet}</div>
+                ) : (
+                  <div className="space-y-3">
+                    {heroImportResult.plannedHeroes.map((hero) => (
+                      <div key={`${hero.slug}-${hero.heroId ?? 'no-id'}`} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--foreground)]">{hero.name || hero.slug}</div>
+                            <div className="mt-1 text-xs text-[var(--foreground-soft)]">slug: {hero.slug}</div>
+                            <div className="mt-1 text-xs text-[var(--foreground-soft)]">heroId: {hero.heroId || t.noValue}</div>
+                            {hero.baseHeroSlug ? (
+                              <div className="mt-1 text-xs text-[var(--foreground-soft)]">{t.importBaseSlug}: {hero.baseHeroSlug}</div>
+                            ) : null}
+                          </div>
+                          <div className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200">
+                            {hero.status}
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+                          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)]">
+                            <div className="mb-1 font-medium">{t.importImageFullEn}</div>
+                            {hero.fullImageEnSourceUrl ? (
+                              <a
+                                href={hero.fullImageEnSourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="break-all text-cyan-300 underline underline-offset-2"
+                              >
+                                {hero.fullImageEnSourceUrl}
+                              </a>
+                            ) : (
+                              <span className="text-[var(--foreground-soft)]">{t.noValue}</span>
+                            )}
+                          </div>
+                          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)]">
+                            <div className="mb-1 font-medium">{t.importImageFullRu}</div>
+                            {hero.fullImageRuSourceUrl ? (
+                              <a
+                                href={hero.fullImageRuSourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="break-all text-cyan-300 underline underline-offset-2"
+                              >
+                                {hero.fullImageRuSourceUrl}
+                              </a>
+                            ) : (
+                              <span className="text-[var(--foreground-soft)]">{t.noValue}</span>
+                            )}
+                          </div>
+                          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)]">
+                            <div className="mb-1 font-medium">{t.importImagePreview}</div>
+                            {hero.previewImageSourceUrl ? (
+                              <a
+                                href={hero.previewImageSourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="break-all text-cyan-300 underline underline-offset-2"
+                              >
+                                {hero.previewImageSourceUrl}
+                              </a>
+                            ) : (
+                              <span className="text-[var(--foreground-soft)]">{t.noValue}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.importSkippedHeroes}</div>
+                {heroImportResult.skippedHeroes.length === 0 ? (
+                  <div className="text-sm text-[var(--foreground-soft)]">{t.noResults}</div>
+                ) : (
+                  <div className="space-y-2">
+                    {heroImportResult.skippedHeroes.map((hero, index) => (
+                      <div key={`${hero.slug ?? hero.heroId ?? 'skipped'}-${index}`} className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                        <div className="font-medium">{hero.name || hero.slug || hero.heroId || 'Unknown hero'}</div>
+                        <div className="mt-1 text-xs text-red-200/80">{hero.reason}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 text-sm text-[var(--foreground-soft)]">{t.importNoRunsYet}</div>
+          )}
+        </section>
+      ) : null}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -2886,6 +3430,107 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             ariaLabel={t.search}
             clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
           />
+          <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.adminFiltersTitle}</div>
+            <div className="mb-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t.rarity}</div>
+              <div className="flex flex-wrap gap-2">
+                {rarities.map((rarity) => {
+                  const isActive = adminFilters.rarityIds.includes(rarity.id);
+                  return (
+                    <button
+                      key={rarity.id}
+                      type="button"
+                      onClick={() =>
+                        setAdminFilters((prev) => ({
+                          ...prev,
+                          rarityIds: toggleArrayValue(prev.rarityIds, rarity.id),
+                        }))
+                      }
+                      className={`rounded-xl border px-3 py-2 text-sm transition ${
+                        isActive
+                          ? 'border-cyan-400/40 bg-cyan-400/12 text-cyan-200'
+                          : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      {rarity.stars}★
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t.status}</div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['DRAFT', t.adminStatusDraft],
+                  ['READY', t.adminStatusReady],
+                  ['HIDDEN', t.adminStatusHidden],
+                  ['ARCHIVED', t.adminStatusArchived],
+                ] as Array<[HeroStatus, string]>).map(([status, label]) => {
+                  const isActive = adminFilters.statuses.includes(status);
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() =>
+                        setAdminFilters((prev) => ({
+                          ...prev,
+                          statuses: toggleArrayValue(prev.statuses, status),
+                        }))
+                      }
+                      className={`rounded-xl border px-3 py-2 text-sm transition ${
+                        isActive
+                          ? 'border-cyan-400/40 bg-cyan-400/12 text-cyan-200'
+                          : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {isSuperAdmin ? (
+              <div className="mb-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t.publicVisibility}</div>
+                <div className="mb-2 text-xs text-[var(--foreground-soft)]">{t.publicVisibilityHint}</div>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['READY_ONLY', t.publicVisibilityReadyOnly],
+                    ['READY_AND_DRAFT', t.publicVisibilityReadyAndDraft],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => void handlePublicVisibilityChange(value)}
+                      disabled={publicVisibilitySaving}
+                      className={`rounded-xl border px-3 py-2 text-sm transition ${
+                        publicVisibilityFilter === value
+                          ? 'border-cyan-400/40 bg-cyan-400/12 text-cyan-200'
+                          : 'border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {publicVisibilitySaving ? (
+                  <div className="mt-2 text-xs text-[var(--foreground-soft)]">{t.publicVisibilitySaving}</div>
+                ) : null}
+                {publicVisibilityError ? (
+                  <div className="mt-2 text-xs text-red-300">{publicVisibilityError}</div>
+                ) : null}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setAdminFilters(EMPTY_ADMIN_FILTERS)}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
+            >
+              {t.resetFilters}
+            </button>
+          </div>
           {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{listError}</div>}
           {loadingList ? (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{t.loading}</div>
@@ -2893,6 +3538,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{adminSearch.trim() ? t.noResults : t.empty}</div>
           ) : (
             <div className="space-y-3">
+              <div className="text-sm text-[var(--foreground-soft)]">
+                {t.heroesCountSummary
+                  .replace('{shown}', String(items.length))
+                  .replace('{total}', String(adminCatalogPage?.totalElements ?? items.length))}
+              </div>
               {items.map((hero) => <button key={hero.id} type="button" onClick={() => setSelectedId(hero.id)} className={`w-full rounded-2xl border p-4 text-left transition ${hero.id === selectedId ? 'border-cyan-400/40 bg-cyan-400/10' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'}`}><div className="text-sm font-semibold text-[var(--foreground)]">{getLocalizedText(hero.name, locale)}</div><div className="mt-2 text-xs text-[var(--foreground-soft)]">{t.slug}: {hero.slug}</div><div className="mt-1 text-[11px] uppercase tracking-wide text-[var(--foreground-muted)]">{hero.status}</div></button>)}
               {adminCatalogPage?.hasNext ? (
                 <button
