@@ -9,6 +9,7 @@ type DictionaryModalProps = {
   children: ReactNode;
   closeLabel?: string;
   closeOnBackdropClick?: boolean;
+  headerActions?: ReactNode;
 };
 
 export default function DictionaryModal({
@@ -18,6 +19,7 @@ export default function DictionaryModal({
   children,
   closeLabel = 'Close',
   closeOnBackdropClick = true,
+  headerActions,
 }: DictionaryModalProps) {
   useEffect(() => {
     if (!open) {
@@ -62,13 +64,16 @@ export default function DictionaryModal({
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
-            >
-              {closeLabel}
-            </button>
+            <div className="flex items-center gap-2">
+              {headerActions}
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
+              >
+                {closeLabel}
+              </button>
+            </div>
           </div>
 
           <div className="overflow-y-auto overscroll-contain p-6">{children}</div>
