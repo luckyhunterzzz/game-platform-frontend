@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, CircleHelp, Eraser, FilePlus2, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleHelp, Eraser, FilePlus2, GripVertical, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -44,7 +44,7 @@ type ProfileTab = 'info' | 'heroes' | 'war' | 'warStats';
 type HeroLocale = 'RU' | 'EN';
 type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade' | 'releaseDate';
 type HeroRosterSortOrder = 'asc' | 'desc';
-type WarStatSortField = 'successRate' | 'failedRate' | 'oneShotRate' | 'cleanupRate';
+type WarStatSortField = 'teamOrder' | 'successRate' | 'failedRate' | 'oneShotRate' | 'cleanupRate';
 type WarStatSortOrder = 'asc' | 'desc';
 type HeroClassKey =
   | 'barbarian'
@@ -130,6 +130,10 @@ type PlayerProfileHeroPowerGradeUpdateRequest = {
 type PlayerProfileHeroCreateRequest = {
   heroId: number;
   powerGrade: HeroPowerGrade;
+};
+
+type PlayerWarStatAttackTeamsReorderRequest = {
+  teamIds: string[];
 };
 
 type PlayerProfileHeroTalentLevelUpdateRequest = {
@@ -2023,10 +2027,11 @@ export default function ProfilePageClient() {
   const [warStatDraftsByTeamId, setWarStatDraftsByTeamId] = useState<Record<string, WarStatRecordDraft>>({});
   const [warStatSearchQuery, setWarStatSearchQuery] = useState('');
   const [warStatControlsOpen, setWarStatControlsOpen] = useState(false);
-  const [warStatSortField, setWarStatSortField] = useState<WarStatSortField>('successRate');
-  const [warStatSortOrder, setWarStatSortOrder] = useState<WarStatSortOrder>('desc');
+  const [warStatSortField, setWarStatSortField] = useState<WarStatSortField>('teamOrder');
+  const [warStatSortOrder, setWarStatSortOrder] = useState<WarStatSortOrder>('asc');
   const [warStatModeFilterCode, setWarStatModeFilterCode] = useState('ALL');
   const [warStatExpandedTeamIds, setWarStatExpandedTeamIds] = useState<string[]>([]);
+  const [draggedWarStatTeamId, setDraggedWarStatTeamId] = useState<string | null>(null);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
   const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -2781,6 +2786,12 @@ export default function ProfilePageClient() {
       : warStatTeams.filter((team) => team.name.toLocaleLowerCase().includes(query));
 
     return [...filteredTeams].sort((left, right) => {
+      if (warStatSortField === 'teamOrder') {
+        return warStatSortOrder === 'asc'
+          ? left.teamOrder - right.teamOrder
+          : right.teamOrder - left.teamOrder;
+      }
+
       const leftSummary = buildWarStatSummary(left.records, warStatModeFilterCode);
       const rightSummary = buildWarStatSummary(right.records, warStatModeFilterCode);
 
@@ -2808,6 +2819,11 @@ export default function ProfilePageClient() {
       return warStatSortOrder === 'asc' ? leftValue - rightValue : rightValue - leftValue;
     });
   }, [warStatModeFilterCode, warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTeams]);
+  const warStatManualOrderEnabled =
+    warStatSortField === 'teamOrder' &&
+    warStatSortOrder === 'asc' &&
+    warStatModeFilterCode === 'ALL' &&
+    warStatSearchQuery.trim().length === 0;
   const availableWarStatRosterCards = useMemo(() => {
     if (!warStatSlotPicker) {
       return [];
@@ -3275,6 +3291,49 @@ export default function ProfilePageClient() {
         setWarStatSaveError(messages.profile.warStatsSaveError);
       }
     } finally {
+      setSavingWarStatTeams(false);
+    }
+  };
+
+  const handleReorderWarStatTeams = async (draggedTeamId: string, targetTeamId: string) => {
+    if (!warStatManualOrderEnabled || draggedTeamId === targetTeamId) {
+      return;
+    }
+
+    const draggedIndex = warStatTeams.findIndex((team) => team.id === draggedTeamId);
+    const targetIndex = warStatTeams.findIndex((team) => team.id === targetTeamId);
+    if (draggedIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    const previousTeams = warStatTeams;
+    const nextTeams = [...warStatTeams];
+    const [draggedTeam] = nextTeams.splice(draggedIndex, 1);
+    nextTeams.splice(targetIndex, 0, draggedTeam);
+
+    const normalizedTeams = nextTeams.map((team, index) => ({
+      ...team,
+      teamOrder: index + 1,
+    }));
+
+    setWarStatTeams(normalizedTeams);
+    setSavingWarStatTeams(true);
+
+    try {
+      const response = await apiPutJson<PlayerWarStatAttackTeamsReorderRequest, PlayerWarStatAttackTeamsResponse>(
+        '/api/v1/profile/me/war-stat-attack-teams/order',
+        { teamIds: normalizedTeams.map((team) => team.id) },
+      );
+      applyWarStatResponse(response);
+    } catch (error) {
+      setWarStatTeams(previousTeams);
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setDraggedWarStatTeamId(null);
       setSavingWarStatTeams(false);
     }
   };
@@ -4072,8 +4131,8 @@ export default function ProfilePageClient() {
                     onClick={(event) => {
                       event.stopPropagation();
                       setWarStatSearchQuery('');
-                      setWarStatSortField('successRate');
-                      setWarStatSortOrder('desc');
+                      setWarStatSortField('teamOrder');
+                      setWarStatSortOrder('asc');
                       setWarStatModeFilterCode('ALL');
                     }}
                     title={locale === 'ru' ? 'Сбросить поиск и сортировку' : 'Reset search and sorting'}
@@ -4120,6 +4179,7 @@ export default function ProfilePageClient() {
                       onChange={(event) => setWarStatSortField(event.target.value as WarStatSortField)}
                       className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                     >
+                      <option value="teamOrder">{locale === 'ru' ? 'Порядок команд' : 'Team order'}</option>
                       <option value="successRate">{locale === 'ru' ? 'Процент успешных атак' : 'Success rate'}</option>
                       <option value="failedRate">{locale === 'ru' ? 'Процент неуспешных атак' : 'Failed rate'}</option>
                       <option value="oneShotRate">{locale === 'ru' ? 'Процент шотов' : 'One-shot rate'}</option>
@@ -4134,8 +4194,8 @@ export default function ProfilePageClient() {
                       onChange={(event) => setWarStatSortOrder(event.target.value as WarStatSortOrder)}
                       className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                     >
-                      <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
                       <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                      <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
                     </select>
                   </label>
                 </div>
@@ -4172,22 +4232,57 @@ export default function ProfilePageClient() {
                 return (
                   <div
                     key={team.id}
+                    draggable={warStatManualOrderEnabled && !savingWarStatTeams}
+                    onDragStart={(event) => {
+                      if (!warStatManualOrderEnabled || savingWarStatTeams) {
+                        return;
+                      }
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', team.id);
+                      setDraggedWarStatTeamId(team.id);
+                    }}
+                    onDragOver={(event) => {
+                      if (!warStatManualOrderEnabled || savingWarStatTeams) {
+                        return;
+                      }
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      if (!warStatManualOrderEnabled || savingWarStatTeams || !draggedWarStatTeamId) {
+                        return;
+                      }
+                      event.preventDefault();
+                      void handleReorderWarStatTeams(draggedWarStatTeamId, team.id);
+                    }}
+                    onDragEnd={() => setDraggedWarStatTeamId(null)}
                     className="grid gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm lg:grid-cols-[minmax(0,1fr)_340px] sm:p-4"
                   >
                     <div>
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
-                            {`${messages.profile.warTeam} ${team.teamOrder}`}
+                          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] ${
+                                warStatManualOrderEnabled ? 'cursor-grab' : 'cursor-not-allowed opacity-50'
+                              }`}
+                              title={
+                                warStatManualOrderEnabled
+                                  ? (locale === 'ru' ? 'Перетащите, чтобы сменить порядок команды' : 'Drag to change team order')
+                                  : (locale === 'ru' ? 'Для перетаскивания выберите сортировку по порядку команд, порядок по возрастанию и снимите фильтры' : 'To drag, use team order sorting, ascending order, and clear filters')
+                              }
+                            >
+                              <GripVertical className="h-3.5 w-3.5" />
+                            </span>
+                            <span>{`${messages.profile.warTeam} ${team.teamOrder}`}</span>
                           </div>
                           <input
-                            value={draft.teamName || team.name}
+                            value={draft.teamName ?? team.name}
                             onChange={(event) => handleWarStatDraftChange(team.id, { teamName: event.target.value })}
                             onBlur={() => {
                               if (teamLocked) {
                                 return;
                               }
-                              const nextName = (draft.teamName || team.name).trim();
+                              const nextName = (draft.teamName ?? team.name).trim();
                               if (nextName && nextName !== team.name) {
                                 window.setTimeout(() => {
                                   void handleRenameWarStatTeam(team.id, nextName);
