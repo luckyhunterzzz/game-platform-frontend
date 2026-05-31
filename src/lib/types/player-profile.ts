@@ -99,12 +99,26 @@ export type PlayerWarStatAttackRecordResponse = {
   battleDate: string;
 };
 
+export type WarStatTeamTagScopeType = 'SYSTEM' | 'CUSTOM';
+export type WarStatTeamTagCategory = 'WAR_MODE' | 'ELEMENT' | 'CUSTOM';
+
+export type PlayerWarStatTeamTagResponse = {
+  id: string;
+  scopeType: WarStatTeamTagScopeType;
+  category: WarStatTeamTagCategory;
+  code: string | null;
+  name: string;
+  iconKey: string;
+  imageUrl: string | null;
+};
+
 export type PlayerWarStatAttackTeamResponse = {
   id: string;
   name: string;
   teamOrder: number;
   slots: PlayerWarStatAttackTeamSlotResponse[];
   records: PlayerWarStatAttackRecordResponse[];
+  tags: PlayerWarStatTeamTagResponse[];
 };
 
 export type PlayerWarStatAttackTeamsResponse = {
@@ -126,4 +140,20 @@ export type PlayerWarStatAttackRecordUpsertRequest = {
   warModeCode: string;
   resultType: WarStatAttackResultType;
   battleDate: string;
+};
+
+export type PlayerWarStatTeamTagsUpdateRequest = {
+  tagIds: string[];
+};
+
+export type PlayerWarStatTeamTagUpsertRequest = {
+  name: string;
+  iconKey: string;
+  imageUrl: string;
+};
+
+export type PlayerWarStatTeamTagCatalogResponse = {
+  teamTagLimit: number;
+  customTagLimit: number;
+  items: PlayerWarStatTeamTagResponse[];
 };
