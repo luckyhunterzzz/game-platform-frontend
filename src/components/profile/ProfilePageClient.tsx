@@ -75,6 +75,25 @@ type PublicHeroCatalogItem = {
   releaseDate?: string | null;
 };
 
+type HeroFilterOptionResponse = {
+  id: number;
+  name: string;
+  imageUrl?: string | null;
+};
+
+type HeroRarityFilterOptionResponse = HeroFilterOptionResponse & {
+  stars: number;
+};
+
+type HeroCatalogFiltersResponse = {
+  elements: HeroFilterOptionResponse[];
+  rarities: HeroRarityFilterOptionResponse[];
+  heroClasses: HeroFilterOptionResponse[];
+  families: HeroFilterOptionResponse[];
+  manaSpeeds: HeroFilterOptionResponse[];
+  alphaTalents: HeroFilterOptionResponse[];
+};
+
 type PublicHeroPageResponse = {
   items: PublicHeroCatalogItem[];
   page: number;
@@ -93,6 +112,7 @@ type RosterHeroCard = {
   slug: string;
   name: string;
   rarityStars: number;
+  rarityImageUrl: string | null;
   createdAt: string;
   previewUrl: string | null;
   elementName: string | null;
@@ -104,6 +124,11 @@ type RosterHeroCard = {
 };
 
 type PlayerProfileHeroPowerGradeUpdateRequest = {
+  powerGrade: HeroPowerGrade;
+};
+
+type PlayerProfileHeroCreateRequest = {
+  heroId: number;
   powerGrade: HeroPowerGrade;
 };
 
@@ -174,6 +199,14 @@ const POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
   FIRST_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_first_limit_broken.webp`,
   SECOND_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_second_limit_broken.webp`,
 };
+const RARE_POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
+  FIRST_TIER: `${POWER_GRADE_ASSET_BASE}/power_grade_first_tier_rare.webp`,
+  FIRST_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_first_ascension_rare.webp`,
+  SECOND_ASCENSION: `${POWER_GRADE_ASSET_BASE}/power_grade_second_ascension_rare.webp`,
+  FULLY_ASCENDED: `${POWER_GRADE_ASSET_BASE}/power_grade_second_ascension_rare.webp`,
+  FIRST_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_first_limit_broken_rare.webp`,
+  SECOND_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_second_limit_broken_rare.webp`,
+};
 const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   barbarian: `${HERO_CLASS_ASSET_BASE}/barbarian.png`,
   cleric: `${HERO_CLASS_ASSET_BASE}/cleric.png`,
@@ -202,15 +235,13 @@ const POWER_GRADE_ORDER: HeroPowerGrade[] = [
   'FIRST_LIMIT_BROKEN',
   'SECOND_LIMIT_BROKEN',
 ];
-const POWER_GRADE_SORT_RANK: Record<HeroPowerGrade, number> = {
-  FIRST_TIER: 0,
-  FIRST_ASCENSION: 1,
-  SECOND_ASCENSION: 2,
-  FULLY_ASCENDED: 3,
-  FIRST_LIMIT_BROKEN: 4,
-  SECOND_LIMIT_BROKEN: 5,
-};
-
+const RARE_POWER_GRADE_ORDER: HeroPowerGrade[] = [
+  'FIRST_TIER',
+  'FIRST_ASCENSION',
+  'FULLY_ASCENDED',
+  'FIRST_LIMIT_BROKEN',
+  'SECOND_LIMIT_BROKEN',
+];
 const TALENT_LEVEL_IMAGE_URL = '/heroes/talents/talents_level.png';
 const DEFAULT_WAR_STAT_RESULT_TYPE: WarStatAttackResultType = 'SUCCESS_ONE_SHOT';
 
@@ -250,7 +281,47 @@ function buildFloatingPopoverStyle(params: {
   return { top, left, width };
 }
 
-function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): string {
+function getPowerGradeLabelForRarity(
+  powerGrade: HeroPowerGrade,
+  locale: HeroLocale,
+  rarityStars: number,
+): string {
+  if (rarityStars === 3) {
+    if (locale === 'RU') {
+      switch (powerGrade) {
+        case 'FIRST_TIER':
+          return 'Тир 1';
+        case 'FIRST_ASCENSION':
+          return 'Тир 2';
+        case 'SECOND_ASCENSION':
+        case 'FULLY_ASCENDED':
+          return 'Тир 3';
+        case 'FIRST_LIMIT_BROKEN':
+          return 'Первый слом';
+        case 'SECOND_LIMIT_BROKEN':
+          return 'Второй слом';
+        default:
+          return 'Степень прокачки';
+      }
+    }
+
+    switch (powerGrade) {
+      case 'FIRST_TIER':
+        return 'Tier 1';
+      case 'FIRST_ASCENSION':
+        return 'Tier 2';
+      case 'SECOND_ASCENSION':
+      case 'FULLY_ASCENDED':
+        return 'Tier 3';
+      case 'FIRST_LIMIT_BROKEN':
+        return 'First limit break';
+      case 'SECOND_LIMIT_BROKEN':
+        return 'Second limit break';
+      default:
+        return 'Power grade';
+    }
+  }
+
   if (locale === 'RU') {
     switch (powerGrade) {
       case 'FIRST_TIER':
@@ -260,7 +331,7 @@ function getPowerGradeLabel(powerGrade: HeroPowerGrade, locale: HeroLocale): str
       case 'SECOND_ASCENSION':
         return 'Третья лычка';
       case 'FULLY_ASCENDED':
-        return 'Четыре лычки';
+        return 'Четвертая лычка';
       case 'FIRST_LIMIT_BROKEN':
         return 'Первый слом';
       case 'SECOND_LIMIT_BROKEN':
@@ -292,11 +363,31 @@ function canUseTalentEmblems(powerGrade: HeroPowerGrade): boolean {
   return powerGrade === 'FULLY_ASCENDED' || powerGrade === 'FIRST_LIMIT_BROKEN' || powerGrade === 'SECOND_LIMIT_BROKEN';
 }
 
-function buildPowerGradeOptions(locale: HeroLocale): PowerGradeOption[] {
-  return POWER_GRADE_ORDER.map((value) => ({
+function getInitialPowerGradeForRarity(rarityStars: number): HeroPowerGrade {
+  return rarityStars === 3 ? 'FULLY_ASCENDED' : 'FULLY_ASCENDED';
+}
+
+function getPowerGradeImage(powerGrade: HeroPowerGrade, rarityStars: number): string {
+  return rarityStars === 3
+    ? RARE_POWER_GRADE_IMAGE_BY_CODE[powerGrade]
+    : POWER_GRADE_IMAGE_BY_CODE[powerGrade];
+}
+
+function getPowerGradeOrder(rarityStars: number): HeroPowerGrade[] {
+  return rarityStars === 3 ? RARE_POWER_GRADE_ORDER : POWER_GRADE_ORDER;
+}
+
+function getPowerGradeSortRank(powerGrade: HeroPowerGrade, rarityStars: number): number {
+  const order = getPowerGradeOrder(rarityStars);
+  const rank = order.indexOf(powerGrade);
+  return rank >= 0 ? rank : order.length;
+}
+
+function buildPowerGradeOptions(locale: HeroLocale, rarityStars: number): PowerGradeOption[] {
+  return getPowerGradeOrder(rarityStars).map((value) => ({
     value,
-    label: getPowerGradeLabel(value, locale),
-    imageUrl: POWER_GRADE_IMAGE_BY_CODE[value],
+    label: getPowerGradeLabelForRarity(value, locale, rarityStars),
+    imageUrl: getPowerGradeImage(value, rarityStars),
   }));
 }
 
@@ -396,7 +487,9 @@ function sortRosterCardList(
         });
       }
     } else if (heroSortField === 'powerGrade') {
-      result = POWER_GRADE_SORT_RANK[left.powerGrade] - POWER_GRADE_SORT_RANK[right.powerGrade];
+      result =
+        getPowerGradeSortRank(left.powerGrade, left.rarityStars) -
+        getPowerGradeSortRank(right.powerGrade, right.rarityStars);
       if (result === 0) {
         result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
           sensitivity: 'base',
@@ -1316,20 +1409,6 @@ function WarModeSelect({
   );
 }
 
-function buildEmptyWarTeams(warModes: PlayerWarModeResponse[] = buildDefaultWarModes()): PlayerWarAttackTeamResponse[] {
-  return warModes.flatMap((warMode) =>
-    Array.from({ length: 6 }, (_, teamIndex) => ({
-      id: `local-team-${warMode.code}-${teamIndex + 1}`,
-      warModeCode: normalizeWarModeCode(warMode.code),
-      teamIndex: teamIndex + 1,
-      slots: Array.from({ length: 5 }, (_, slotIndex) => ({
-        slot: slotIndex + 1,
-        playerProfileHeroId: null,
-      })),
-    })),
-  );
-}
-
 function normalizeWarTeams(
   teams: PlayerWarAttackTeamResponse[],
   warModes: PlayerWarModeResponse[] = buildDefaultWarModes(),
@@ -1538,6 +1617,7 @@ function HeroPreviewTile({
   profileHeroId,
   name,
   previewUrl,
+  rarityStars,
   elementName,
   heroClassName,
   heroClassKey,
@@ -1557,6 +1637,7 @@ function HeroPreviewTile({
   profileHeroId: string;
   name: string;
   previewUrl: string | null;
+  rarityStars: number;
   elementName: string | null;
   heroClassName: string | null;
   heroClassKey: HeroClassKey | null;
@@ -1574,7 +1655,7 @@ function HeroPreviewTile({
   removeLabel?: string;
 }) {
   const accentClass = getHeroPreviewAccentClass(elementName);
-  const powerGradeLabel = getPowerGradeLabel(powerGrade, locale);
+  const powerGradeLabel = getPowerGradeLabelForRarity(powerGrade, locale, rarityStars);
   const heroClassLabel = heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
   const talentEditable = canUseTalentEmblems(powerGrade);
   const content = (
@@ -1614,7 +1695,7 @@ function HeroPreviewTile({
         <PowerGradeBadge
           powerGrade={powerGrade}
           label={powerGradeLabel}
-          imageUrl={POWER_GRADE_IMAGE_BY_CODE[powerGrade]}
+          imageUrl={getPowerGradeImage(powerGrade, rarityStars)}
           interactive
           disabled={powerGradeUpdating}
           options={powerGradeOptions}
@@ -1713,8 +1794,8 @@ function OverviewHeroTile({
         </div>
         <PowerGradeBadge
           powerGrade={hero.powerGrade}
-          label={getPowerGradeLabel(hero.powerGrade, locale)}
-          imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+          label={getPowerGradeLabelForRarity(hero.powerGrade, locale, hero.rarityStars)}
+          imageUrl={getPowerGradeImage(hero.powerGrade, hero.rarityStars)}
           locale={locale}
           sizeClassName="h-3.5 w-3.5 sm:h-5 sm:w-5"
         />
@@ -1843,8 +1924,8 @@ function WarHeroSlot({
           </div>
           <PowerGradeBadge
             powerGrade={hero.powerGrade}
-            label={getPowerGradeLabel(hero.powerGrade, locale)}
-            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+            label={getPowerGradeLabelForRarity(hero.powerGrade, locale, hero.rarityStars)}
+            imageUrl={getPowerGradeImage(hero.powerGrade, hero.rarityStars)}
             locale={locale}
             sizeClassName={compact ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5 sm:h-8 sm:w-8 lg:h-9 lg:w-9'}
           />
@@ -1897,9 +1978,11 @@ export default function ProfilePageClient() {
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
   const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('createdAt');
   const [heroSortOrder, setHeroSortOrder] = useState<HeroRosterSortOrder>('desc');
+  const [rarityFilters, setRarityFilters] = useState<string[]>([]);
   const [powerGradeFilters, setPowerGradeFilters] = useState<HeroPowerGrade[]>([]);
   const [elementFilters, setElementFilters] = useState<string[]>([]);
   const [heroClassFilters, setHeroClassFilters] = useState<string[]>([]);
+  const [heroFilterOptions, setHeroFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
   const [heroSearchQuery, setHeroSearchQuery] = useState('');
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewPage, setOverviewPage] = useState(0);
@@ -1921,7 +2004,7 @@ export default function ProfilePageClient() {
   const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
   const [warModes, setWarModes] = useState<PlayerWarModeResponse[]>(buildDefaultWarModes);
   const [activeWarModeCode, setActiveWarModeCode] = useState('UNIVERSAL');
-  const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>(() => buildEmptyWarTeams(buildDefaultWarModes()));
+  const [warTeams, setWarTeams] = useState<PlayerWarAttackTeamResponse[]>([]);
   const [loadingWarTeams, setLoadingWarTeams] = useState(false);
   const [savingWarTeams, setSavingWarTeams] = useState(false);
   const [warSaveError, setWarSaveError] = useState<string | null>(null);
@@ -2047,7 +2130,7 @@ export default function ProfilePageClient() {
       const defaultWarModes = buildDefaultWarModes();
       setWarModes(defaultWarModes);
       setActiveWarModeCode('UNIVERSAL');
-      setWarTeams(buildEmptyWarTeams(defaultWarModes));
+      setWarTeams([]);
       return;
     }
 
@@ -2073,7 +2156,7 @@ export default function ProfilePageClient() {
         const defaultWarModes = buildDefaultWarModes();
         setWarModes(defaultWarModes);
         setActiveWarModeCode('UNIVERSAL');
-        setWarTeams(buildEmptyWarTeams(defaultWarModes));
+        setWarTeams([]);
 
         if (error instanceof ApiError) {
           setWarSaveError(error.message || messages.profile.warSaveError);
@@ -2213,6 +2296,19 @@ export default function ProfilePageClient() {
 
     return () => {
       window.clearTimeout(focusTimer);
+    };
+  }, [heroModalOpen]);
+
+  useEffect(() => {
+    if (!heroModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
     };
   }, [heroModalOpen]);
 
@@ -2359,6 +2455,33 @@ export default function ProfilePageClient() {
   }, [heroLocale]);
 
   useEffect(() => {
+    if (!authenticated) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHeroFilterOptions = async () => {
+      try {
+        const response = await apiJson<HeroCatalogFiltersResponse>(`/api/v1/public/heroes/filters?language=${heroLocale}`);
+        if (!cancelled) {
+          setHeroFilterOptions(response);
+        }
+      } catch {
+        if (!cancelled) {
+          setHeroFilterOptions(null);
+        }
+      }
+    };
+
+    void loadHeroFilterOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, authenticated, heroLocale]);
+
+  useEffect(() => {
     if (!selectedHeroSlug) {
       setSelectedHeroCard(null);
       setSelectedHeroDetails(null);
@@ -2430,9 +2553,18 @@ export default function ProfilePageClient() {
     };
   }, [apiJson, heroLocale, messages.profile.loadError, rosterHeroMap, selectedHeroSlug]);
 
+  const rarityImageUrlByStars = useMemo(() => {
+    const next = new Map<number, string | null>();
+    for (const item of heroFilterOptions?.rarities ?? []) {
+      next.set(item.stars, item.imageUrl ?? null);
+    }
+    return next;
+  }, [heroFilterOptions]);
+
   const rosterCards = useMemo<RosterHeroCard[]>(() => {
     return profileHeroes.map((item) => {
       const hero = rosterHeroMap.get(item.heroId);
+      const rarityStars = hero?.rarityStars ?? 0;
 
       return {
         profileHeroId: item.id,
@@ -2442,7 +2574,8 @@ export default function ProfilePageClient() {
         talentLevel: item.talentLevel,
         slug: hero?.slug ?? String(item.heroId),
         name: hero?.name ?? `Hero #${item.heroId}`,
-        rarityStars: hero?.rarityStars ?? 0,
+        rarityStars,
+        rarityImageUrl: rarityImageUrlByStars.get(rarityStars) ?? null,
         createdAt: item.createdAt,
         previewUrl: hero?.previewUrl ?? hero?.imageUrl ?? null,
         elementName: hero?.elementName ?? null,
@@ -2455,7 +2588,7 @@ export default function ProfilePageClient() {
         costumeIndex: hero?.costumeIndex ?? null,
       };
     });
-  }, [profileHeroes, rosterHeroMap]);
+  }, [profileHeroes, rarityImageUrlByStars, rosterHeroMap]);
   const costumeCollectionLevelByGroup = useMemo(() => {
     const next = new Map<number, number>();
 
@@ -2473,6 +2606,10 @@ export default function ProfilePageClient() {
     const normalizedSearchQuery = heroSearchQuery.trim().toLocaleLowerCase();
 
     return rosterCards.filter((hero) => {
+      if (rarityFilters.length > 0 && !rarityFilters.includes(String(hero.rarityStars))) {
+        return false;
+      }
+
       if (powerGradeFilters.length > 0 && !powerGradeFilters.includes(hero.powerGrade)) {
         return false;
       }
@@ -2491,7 +2628,7 @@ export default function ProfilePageClient() {
 
       return true;
     });
-  }, [elementFilters, heroClassFilters, heroSearchQuery, powerGradeFilters, rosterCards]);
+  }, [elementFilters, heroClassFilters, heroSearchQuery, powerGradeFilters, rarityFilters, rosterCards]);
 
   const allSortedRosterCards = useMemo<RosterHeroCard[]>(
     () => sortRosterCardList(rosterCards, heroLocale, heroSortField, heroSortOrder),
@@ -2504,11 +2641,30 @@ export default function ProfilePageClient() {
   const rosterHeroCardMap = useMemo(() => {
     return new Map(rosterCards.map((hero) => [hero.profileHeroId, hero]));
   }, [rosterCards]);
-  const powerGradeOptions = useMemo(() => buildPowerGradeOptions(heroLocale), [heroLocale]);
+  const powerGradeOptions = useMemo(() => buildPowerGradeOptions(heroLocale, 5), [heroLocale]);
   const powerGradeFilterOptions = useMemo<IconFilterOption[]>(
     () => powerGradeOptions.map((option) => ({ value: option.value, label: option.label, imageUrl: option.imageUrl })),
     [powerGradeOptions],
   );
+  const rarityFilterOptions = useMemo<IconFilterOption[]>(() => {
+    if (heroFilterOptions?.rarities?.length) {
+      return [...heroFilterOptions.rarities]
+        .sort((left, right) => left.stars - right.stars)
+        .map((option) => ({
+          value: String(option.stars),
+          label: `${option.stars}*`,
+          imageUrl: option.imageUrl ?? null,
+        }));
+    }
+
+    return Array.from(new Set(rosterCards.map((hero) => hero.rarityStars).filter((value) => value > 0)))
+      .sort((left, right) => left - right)
+      .map((stars) => ({
+        value: String(stars),
+        label: `${stars}*`,
+        imageUrl: rarityImageUrlByStars.get(stars) ?? null,
+      }));
+  }, [heroFilterOptions, rarityImageUrlByStars, rosterCards]);
   const elementFilterOptions = useMemo<IconFilterOption[]>(
     () =>
       Array.from(
@@ -3220,12 +3376,15 @@ export default function ProfilePageClient() {
     setAddingHeroId(heroId);
 
     try {
-      const response = await apiPostJson<{ heroId: number }, PlayerProfileHeroResponse>(
+      const selectedHero = selectorResult?.items.find((item) => item.id === heroId) ?? null;
+      const response = await apiPostJson<PlayerProfileHeroCreateRequest, PlayerProfileHeroResponse>(
         '/api/v1/profile/me/heroes',
-        { heroId },
+        {
+          heroId,
+          powerGrade: getInitialPowerGradeForRarity(selectedHero?.rarityStars ?? 5),
+        },
       );
 
-      const selectedHero = selectorResult?.items.find((item) => item.id === heroId) ?? null;
       if (selectedHero) {
         setRosterHeroMap((current) => {
           const next = new Map(current);
@@ -3256,6 +3415,7 @@ export default function ProfilePageClient() {
   };
 
   const resetHeroFilters = () => {
+    setRarityFilters([]);
     setPowerGradeFilters([]);
     setElementFilters([]);
     setHeroClassFilters([]);
@@ -3748,7 +3908,16 @@ export default function ProfilePageClient() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <IconFilterSelect
+                    label={locale === 'ru' ? 'Редкость' : 'Rarity'}
+                    values={rarityFilters}
+                    allLabel={locale === 'ru' ? 'Все редкости' : 'All rarities'}
+                    options={rarityFilterOptions}
+                    onChange={setRarityFilters}
+                    locale={heroLocale}
+                  />
+
                   <IconFilterSelect
                     label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'}
                     values={powerGradeFilters}
@@ -3816,6 +3985,7 @@ export default function ProfilePageClient() {
                     profileHeroId={hero.profileHeroId}
                     name={hero.name}
                     previewUrl={hero.previewUrl}
+                    rarityStars={hero.rarityStars}
                     elementName={hero.elementName}
                     heroClassName={hero.heroClassName}
                     heroClassKey={hero.heroClassKey}
@@ -3823,7 +3993,7 @@ export default function ProfilePageClient() {
                     talentLevel={hero.talentLevel}
                     costumeCollectionLevel={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
                     locale={heroLocale}
-                    powerGradeOptions={powerGradeOptions}
+                    powerGradeOptions={buildPowerGradeOptions(heroLocale, hero.rarityStars)}
                     powerGradeUpdating={updatingPowerGradeHeroId === hero.profileHeroId}
                     talentLevelUpdating={updatingTalentLevelHeroId === hero.profileHeroId}
                     onClick={
@@ -4019,7 +4189,9 @@ export default function ProfilePageClient() {
                               }
                               const nextName = (draft.teamName || team.name).trim();
                               if (nextName && nextName !== team.name) {
-                                void handleRenameWarStatTeam(team.id, nextName);
+                                window.setTimeout(() => {
+                                  void handleRenameWarStatTeam(team.id, nextName);
+                                }, 0);
                               }
                             }}
                             onKeyDown={(event) => {
@@ -4263,70 +4435,76 @@ export default function ProfilePageClient() {
             </div>
           ) : warTeamsExpanded ? (
             <div className="space-y-4">
-              {activeWarTeams.map((team) => (
-                <div
-                  key={`${team.warModeCode}-${team.teamIndex}`}
-                  className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm sm:p-4"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
-                      {`${messages.profile.warTeam} ${team.teamIndex}`}
-                    </h3>
+              {activeWarTeams.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--foreground-soft)] shadow-sm backdrop-blur-sm">
+                  {locale === 'ru' ? 'Военные команды пока не загружены.' : 'War teams are not loaded yet.'}
+                </div>
+              ) : (
+                activeWarTeams.map((team) => (
+                  <div
+                    key={`${team.warModeCode}-${team.teamIndex}`}
+                    className="rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm backdrop-blur-sm sm:p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
+                        {`${messages.profile.warTeam} ${team.teamIndex}`}
+                      </h3>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleImportWarTeamToStats(team.warModeCode, team.teamIndex)}
-                        title={messages.profile.warStatsImportTeam}
-                        aria-label={messages.profile.warStatsImportTeam}
-                        disabled={savingWarStatTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleImportWarTeamToStats(team.warModeCode, team.teamIndex)}
+                          title={messages.profile.warStatsImportTeam}
+                          aria-label={messages.profile.warStatsImportTeam}
+                          disabled={savingWarStatTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleClearWarTeam(team.teamIndex)}
-                        title={messages.profile.warClearTeam}
-                        aria-label={messages.profile.warClearTeam}
-                        disabled={savingWarTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Eraser className="h-3.5 w-3.5" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleClearWarTeam(team.teamIndex)}
+                          title={messages.profile.warClearTeam}
+                          aria-label={messages.profile.warClearTeam}
+                          disabled={savingWarTeams || team.slots.every((slot) => slot.playerProfileHeroId === null)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Eraser className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
+                      {team.slots.map((slot) => {
+                        const hero = slot.playerProfileHeroId ? rosterHeroCardMap.get(slot.playerProfileHeroId) ?? null : null;
+
+                        return (
+                          <WarHeroSlot
+                            key={`${team.warModeCode}-${team.teamIndex}-${slot.slot}`}
+                            hero={hero}
+                            locale={heroLocale}
+                            compact={warCompactMode}
+                            costumeCollectionLevel={hero ? (costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) : 0}
+                            label={messages.profile.addHero}
+                            removeLabel={messages.profile.removeHero}
+                            onClick={
+                              hero && hero.slug !== String(hero.heroId)
+                                ? () => handleOpenRosterHero(hero.slug)
+                                : () => openWarSlotPicker(team.warModeCode, team.teamIndex, slot.slot)
+                            }
+                            onRemove={
+                              hero
+                                ? () => void handleClearWarSlot(team.teamIndex, slot.slot)
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
-                    {team.slots.map((slot) => {
-                      const hero = slot.playerProfileHeroId ? rosterHeroCardMap.get(slot.playerProfileHeroId) ?? null : null;
-
-                      return (
-                        <WarHeroSlot
-                          key={`${team.warModeCode}-${team.teamIndex}-${slot.slot}`}
-                          hero={hero}
-                          locale={heroLocale}
-                          compact={warCompactMode}
-                          costumeCollectionLevel={hero ? (costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) : 0}
-                          label={messages.profile.addHero}
-                          removeLabel={messages.profile.removeHero}
-                          onClick={
-                            hero && hero.slug !== String(hero.heroId)
-                              ? () => handleOpenRosterHero(hero.slug)
-                              : () => openWarSlotPicker(team.warModeCode, team.teamIndex, slot.slot)
-                          }
-                          onRemove={
-                            hero
-                              ? () => void handleClearWarSlot(team.teamIndex, slot.slot)
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           ) : null}
         </div>
@@ -4548,8 +4726,8 @@ export default function ProfilePageClient() {
                           </div>
                           <PowerGradeBadge
                             powerGrade={hero.powerGrade}
-                            label={getPowerGradeLabel(hero.powerGrade, heroLocale)}
-                            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+                            label={getPowerGradeLabelForRarity(hero.powerGrade, heroLocale, hero.rarityStars)}
+                            imageUrl={getPowerGradeImage(hero.powerGrade, hero.rarityStars)}
                             locale={heroLocale}
                             sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
                           />
@@ -4665,8 +4843,8 @@ export default function ProfilePageClient() {
                           </div>
                           <PowerGradeBadge
                             powerGrade={hero.powerGrade}
-                            label={getPowerGradeLabel(hero.powerGrade, heroLocale)}
-                            imageUrl={POWER_GRADE_IMAGE_BY_CODE[hero.powerGrade]}
+                            label={getPowerGradeLabelForRarity(hero.powerGrade, heroLocale, hero.rarityStars)}
+                            imageUrl={getPowerGradeImage(hero.powerGrade, hero.rarityStars)}
                             locale={heroLocale}
                             sizeClassName="h-4 w-4 sm:h-5 sm:w-5"
                           />

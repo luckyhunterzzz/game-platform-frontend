@@ -2,7 +2,7 @@
 
 import { format as formatDateValue, isValid as isValidDateValue, parse as parseDateValue, type Locale } from 'date-fns';
 import { enGB, enUS, ru } from 'date-fns/locale';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -719,10 +719,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const editPreviewImageInputRef = useRef<HTMLInputElement | null>(null);
   const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
   const publicHeroSlugRef = useRef<string | null>(null);
+  const publicCatalogAbortRef = useRef<AbortController | null>(null);
+  const publicCatalogRequestSequenceRef = useRef(0);
+  const publicHeroAbortRef = useRef<AbortController | null>(null);
+  const publicHeroRequestSequenceRef = useRef(0);
 
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
   const [publicItems, setPublicItems] = useState<PublicHeroCardItem[]>([]);
   const [publicSearch, setPublicSearch] = useState('');
+  const [debouncedPublicSearch, setDebouncedPublicSearch] = useState('');
   const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
   const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
   const [publicFilterSearch, setPublicFilterSearch] =
@@ -824,9 +829,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [heroImportSubmitting, setHeroImportSubmitting] = useState(false);
   const [heroImportError, setHeroImportError] = useState<string | null>(null);
   const [heroImportResult, setHeroImportResult] = useState<HeroCatalogImportResponseDto | null>(null);
+  const [heroImportExpanded, setHeroImportExpanded] = useState(false);
   const [publicVisibilityFilter, setPublicVisibilityFilter] = useState<PublicVisibilityFilter>('READY_ONLY');
   const [publicVisibilitySaving, setPublicVisibilitySaving] = useState(false);
   const [publicVisibilityError, setPublicVisibilityError] = useState<string | null>(null);
+  const [adminFiltersExpanded, setAdminFiltersExpanded] = useState(true);
   const defaultCreateRarityId = useMemo(() => getDefaultCreateRarityId(rarities), [rarities]);
   const isSuperAdmin = roles.includes('ROLE_superadmin');
 
@@ -1144,8 +1151,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         params.set('includeDrafts', 'true');
       }
 
-      if (publicSearch.trim()) {
-        params.set('search', publicSearch.trim());
+      if (debouncedPublicSearch.trim()) {
+        params.set('search', debouncedPublicSearch.trim());
       }
 
       const appendIds = (key: keyof PublicCatalogFiltersState) => {
@@ -1161,14 +1168,44 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       return `${PUBLIC_API}?${params.toString()}`;
     },
-    [isSuperAdmin, locale, publicFilters, publicSearch, publicVisibilityFilter],
+    [debouncedPublicSearch, isSuperAdmin, locale, publicFilters, publicVisibilityFilter],
   );
 
   const fetchPublicCatalogPage = useCallback(
     async (page: number, append: boolean) => {
-      const response = await apiJson<HeroPageResponse>(buildPublicCatalogQuery(page));
-      setPublicPage(response);
-      setPublicItems((prev) => (append ? [...prev, ...response.items] : response.items));
+      if (!append) {
+        publicCatalogAbortRef.current?.abort();
+      }
+
+      const controller = new AbortController();
+      const requestSequence = ++publicCatalogRequestSequenceRef.current;
+
+      if (!append) {
+        publicCatalogAbortRef.current = controller;
+      }
+
+      try {
+        const response = await apiJson<HeroPageResponse>(buildPublicCatalogQuery(page), {
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted || requestSequence !== publicCatalogRequestSequenceRef.current) {
+          return;
+        }
+
+        setPublicPage(response);
+        setPublicItems((prev) => (append ? [...prev, ...response.items] : response.items));
+      } catch (error) {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          return;
+        }
+
+        throw error;
+      } finally {
+        if (!append && publicCatalogAbortRef.current === controller) {
+          publicCatalogAbortRef.current = null;
+        }
+      }
     },
     [apiJson, buildPublicCatalogQuery],
   );
@@ -1402,20 +1439,37 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   );
 
   const loadPublicVariants = useCallback(async (slug: string) => {
+    publicHeroAbortRef.current?.abort();
+    const controller = new AbortController();
+    const requestSequence = ++publicHeroRequestSequenceRef.current;
+    publicHeroAbortRef.current = controller;
+
     setLoadingPublicDetails(true);
     setPublicDetailsError(null);
     setLoadingPublicHeroExpertOpinions(true);
     setPublicHeroExpertOpinionsError(null);
     try {
       const [response, opinionsResponse] = await Promise.all([
-        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}${isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT' ? '&includeDrafts=true' : ''}`),
-        apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale)).catch((error) => {
+        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}${isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT' ? '&includeDrafts=true' : ''}`, {
+          signal: controller.signal,
+        }),
+        apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale), {
+          signal: controller.signal,
+        }).catch((error) => {
+          if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+            return [];
+          }
           setPublicHeroExpertOpinionsError(
             error instanceof Error ? error.message : 'Failed to load expert opinions',
           );
           return [];
         }),
       ]);
+
+      if (controller.signal.aborted || requestSequence !== publicHeroRequestSequenceRef.current) {
+        return;
+      }
+
       setSelectedPublicHeroDetails(response.currentHero);
       setSelectedPublicHeroVariants(response);
       setSelectedPublicHeroExpertOpinions(sortHeroExpertOpinions(opinionsResponse));
@@ -1423,6 +1477,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         findBaseHeroCardBySlug(response.currentHero.slug) ?? toSyntheticPublicHeroCard(response.currentHero, response),
       );
     } catch (error) {
+      if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        return;
+      }
+
       publicHeroSlugRef.current = null;
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
@@ -1431,6 +1489,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     } finally {
       setLoadingPublicDetails(false);
       setLoadingPublicHeroExpertOpinions(false);
+      if (publicHeroAbortRef.current === controller) {
+        publicHeroAbortRef.current = null;
+      }
     }
   }, [apiJson, findBaseHeroCardBySlug, isSuperAdmin, locale, publicVisibilityFilter, toSyntheticPublicHeroCard]);
 
@@ -1455,6 +1516,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [pathname, router, searchParams]);
 
   const closePublicHeroState = useCallback(() => {
+    publicHeroAbortRef.current?.abort();
     publicHeroSlugRef.current = null;
     setPublicDetailsOpen(false);
     setSelectedPublicHero(null);
@@ -1493,8 +1555,22 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, selectedPublicHeroDetails?.slug]);
 
   useEffect(() => {
+    if (adminMode) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedPublicSearch(publicSearch);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [adminMode, publicSearch]);
+
+  useEffect(() => {
     void loadListRef.current();
-  }, [adminMode, adminFilters, adminSearch, publicSearch, publicFilters, locale]);
+  }, [adminMode, adminFilters, adminSearch, debouncedPublicSearch, publicFilters, publicVisibilityFilter, locale]);
 
   useEffect(() => {
     if (adminMode) {
@@ -2885,17 +2961,19 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const handleOpenPublicHero = async (hero: PublicHeroCardItem) => {
+    const openPromise = openPublicHeroBySlug(hero.slug, hero);
     syncPublicHeroQuery(hero.slug);
-    await openPublicHeroBySlug(hero.slug, hero);
+    await openPromise;
   };
 
   const handleOpenPublicHeroBySlug = async (slug: string) => {
+    const openPromise = openPublicHeroBySlug(slug, findBaseHeroCardBySlug(slug) ?? null);
     syncPublicHeroQuery(slug);
-    await openPublicHeroBySlug(slug, findBaseHeroCardBySlug(slug) ?? null);
+    await openPromise;
   };
 
   const handleClosePublicHero = () => {
-    syncPublicHeroQuery(null, 'replace');
+    syncPublicHeroQuery(null);
     closePublicHeroState();
   };
 
@@ -3169,10 +3247,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     <>
       {adminMode && isSuperAdmin ? (
         <section className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-6">
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.importTitle}</h3>
-            <p className="text-sm text-[var(--foreground-soft)]">{t.importSubtitle}</p>
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.importTitle}</h3>
+              <p className="text-sm text-[var(--foreground-soft)]">{t.importSubtitle}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setHeroImportExpanded((current) => !current)}
+              className="rounded-md p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              aria-label={heroImportExpanded ? t.hideFilters : t.showFilters}
+              aria-expanded={heroImportExpanded}
+            >
+              <ChevronDown className={`h-5 w-5 transition ${heroImportExpanded ? 'rotate-180' : ''}`} />
+            </button>
           </div>
+          {heroImportExpanded ? (
+          <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <label className="block xl:col-span-3">
               <span className="mb-2 block text-sm font-medium text-[var(--foreground)]">{t.importSourceUrl}</span>
@@ -3414,6 +3505,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
           ) : (
             <div className="mt-4 text-sm text-[var(--foreground-soft)]">{t.importNoRunsYet}</div>
           )}
+          </>
+          ) : null}
         </section>
       ) : null}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -3431,7 +3524,20 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
           />
           <div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.adminFiltersTitle}</div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-[var(--foreground)]">{t.adminFiltersTitle}</div>
+              <button
+                type="button"
+                onClick={() => setAdminFiltersExpanded((current) => !current)}
+                className="rounded-md p-1 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                aria-label={adminFiltersExpanded ? t.hideFilters : t.showFilters}
+                aria-expanded={adminFiltersExpanded}
+              >
+                <ChevronDown className={`h-5 w-5 transition ${adminFiltersExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+            {adminFiltersExpanded ? (
+              <>
             <div className="mb-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t.rarity}</div>
               <div className="flex flex-wrap gap-2">
@@ -3530,6 +3636,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             >
               {t.resetFilters}
             </button>
+              </>
+            ) : null}
           </div>
           {listError && <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">{listError}</div>}
           {loadingList ? (
@@ -3794,8 +3902,84 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         </section>
       </div>
 
-      <DictionaryModal open={isCreateOpen} title={t.createTitle} closeLabel={t.close} closeOnBackdropClick={false} onClose={closeCreateModal}><div className="space-y-6">{renderForm(createForm, setCreateForm, false)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview} onClick={closeCreateModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview} onClick={handleCreate} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15">{submitting ? t.creating : t.create}</button></div></div></DictionaryModal>
-      <DictionaryModal open={isEditOpen} title={t.editTitle} closeLabel={t.close} closeOnBackdropClick={false} onClose={closeEditModal}><div className="space-y-6">{renderForm(editForm, setEditForm, true)}<div className="flex justify-end gap-3"><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview} onClick={closeEditModal} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]">{t.cancel}</button><button type="button" disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview} onClick={handleUpdate} className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 dark:text-sky-300">{submitting ? t.saving : t.save}</button></div></div></DictionaryModal>
+      <DictionaryModal
+        open={isCreateOpen}
+        title={t.createTitle}
+        closeLabel={t.close}
+        closeOnBackdropClick={false}
+        onClose={closeCreateModal}
+        headerActions={
+          <button
+            type="button"
+            disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview}
+            onClick={handleCreate}
+            className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? t.creating : t.create}
+          </button>
+        }
+      >
+        <div className="space-y-6">
+          {renderForm(createForm, setCreateForm, false)}
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview}
+              onClick={closeCreateModal}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
+            >
+              {t.cancel}
+            </button>
+            <button
+              type="button"
+              disabled={submitting || createUploadingImage.RU || createUploadingImage.EN || createUploadingPreview}
+              onClick={handleCreate}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15"
+            >
+              {submitting ? t.creating : t.create}
+            </button>
+          </div>
+        </div>
+      </DictionaryModal>
+      <DictionaryModal
+        open={isEditOpen}
+        title={t.editTitle}
+        closeLabel={t.close}
+        closeOnBackdropClick={false}
+        onClose={closeEditModal}
+        headerActions={
+          <button
+            type="button"
+            disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview}
+            onClick={handleUpdate}
+            className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 dark:text-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? t.saving : t.save}
+          </button>
+        }
+      >
+        <div className="space-y-6">
+          {renderForm(editForm, setEditForm, true)}
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview}
+              onClick={closeEditModal}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)]"
+            >
+              {t.cancel}
+            </button>
+            <button
+              type="button"
+              disabled={submitting || editUploadingImage.RU || editUploadingImage.EN || editUploadingPreview}
+              onClick={handleUpdate}
+              className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-500/15 dark:text-sky-300"
+            >
+              {submitting ? t.saving : t.save}
+            </button>
+          </div>
+        </div>
+      </DictionaryModal>
     </>
   );
 }

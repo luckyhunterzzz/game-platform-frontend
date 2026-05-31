@@ -3540,7 +3540,7 @@ export default function PublicHeroDetailsModal({
                           className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/85"
                           style={specialSkillTextShadow}
                         >
-                          {t.specialSkill}
+                          {`${t.specialSkill}${heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName ? ` (${heroDetails.manaSpeed?.name ?? heroCard.manaSpeedName})` : ''}`}
                         </div>
                         <div className="mt-1 text-lg font-bold text-white" style={specialSkillTextShadow}>
                           {specialSkillName || t.noValue}
