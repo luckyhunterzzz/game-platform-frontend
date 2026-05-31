@@ -1,11 +1,12 @@
 'use client';
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import type { Locale, Messages } from './types';
@@ -13,6 +14,7 @@ import { enMessages } from './messages/en';
 import { ruMessages } from './messages/ru';
 
 const LOCALE_STORAGE_KEY = 'game-platform-locale';
+const LOCALE_CHANGE_EVENT = 'game-platform-locale-change';
 
 const messagesMap: Record<Locale, Messages> = {
   en: enMessages,
@@ -31,30 +33,51 @@ function isLocale(value: string | null): value is Locale {
   return value === 'en' || value === 'ru';
 }
 
-function getInitialLocale(): Locale {
+function getStoredLocale(): Locale {
   if (typeof window === 'undefined') {
     return 'ru';
   }
 
   const savedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  if (isLocale(savedLocale)) {
-    return savedLocale;
+  return isLocale(savedLocale) ? savedLocale : 'ru';
+}
+
+function subscribeToLocaleChange(onStoreChange: () => void) {
+  if (typeof window === 'undefined') {
+    return () => undefined;
   }
 
-  return 'ru';
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === LOCALE_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+  const handleLocaleChange = () => onStoreChange();
+
+  window.addEventListener('storage', handleStorage);
+  window.addEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
+
+  return () => {
+    window.removeEventListener('storage', handleStorage);
+    window.removeEventListener(LOCALE_CHANGE_EVENT, handleLocaleChange);
+  };
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => getInitialLocale());
+  const locale = useSyncExternalStore<Locale>(
+    subscribeToLocaleChange,
+    getStoredLocale,
+    () => 'ru',
+  );
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = (nextLocale: Locale) => {
-    setLocaleState(nextLocale);
+  const setLocale = useCallback((nextLocale: Locale) => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
-  };
+    window.dispatchEvent(new Event(LOCALE_CHANGE_EVENT));
+  }, []);
 
   const value = useMemo<I18nContextValue>(() => {
     return {
@@ -62,7 +85,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLocale,
       messages: messagesMap[locale],
     };
-  }, [locale]);
+  }, [locale, setLocale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
