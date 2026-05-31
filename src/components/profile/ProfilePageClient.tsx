@@ -25,8 +25,12 @@ import type {
   PlayerWarStatAttackRecordResponse,
   PlayerWarStatAttackRecordUpsertRequest,
   PlayerWarStatAttackTeamResponse,
+  PlayerWarStatTeamTagCatalogResponse,
+  PlayerWarStatTeamTagResponse,
+  PlayerWarStatTeamTagUpsertRequest,
   PlayerWarStatAttackTeamUpdateRequest,
   PlayerWarStatAttackTeamsResponse,
+  PlayerWarStatTeamTagsUpdateRequest,
   WarStatAttackResultType,
 } from '@/lib/types/player-profile';
 
@@ -172,6 +176,25 @@ type WarStatRecordDraft = {
   battleDate: string;
 };
 
+type WarStatTeamTagPickerState = {
+  teamId: string;
+  selectedTagIds: string[];
+} | null;
+
+type WarStatTagEditorState = {
+  tagId: string | null;
+  name: string;
+  iconKey: string;
+  imageUrl: string;
+} | null;
+
+type WarImportNotice = {
+  warModeCode: string;
+  teamIndex: number;
+  type: 'success' | 'error';
+  message: string;
+} | null;
+
 type WarStatSummary = {
   success: number;
   failed: number;
@@ -257,6 +280,42 @@ function clamp(value: number, min: number, max: number) {
 
 function getTodayDateInputValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getElementTagLabel(code: string | null, locale: HeroLocale): string {
+  switch ((code ?? '').toUpperCase()) {
+    case 'FIRE':
+      return locale === 'RU' ? 'Огонь' : 'Fire';
+    case 'ICE':
+      return locale === 'RU' ? 'Лёд' : 'Ice';
+    case 'NATURE':
+      return locale === 'RU' ? 'Природа' : 'Nature';
+    case 'HOLY':
+      return locale === 'RU' ? 'Святыня' : 'Holy';
+    case 'DARK':
+      return locale === 'RU' ? 'Тьма' : 'Dark';
+    default:
+      return code ?? (locale === 'RU' ? 'Стихия' : 'Element');
+  }
+}
+
+function getWarStatTagLabel(
+  tag: PlayerWarStatTeamTagResponse,
+  locale: HeroLocale,
+  warModeByCode: Map<string, PlayerWarModeResponse>,
+): string {
+  if (tag.scopeType === 'SYSTEM' && tag.category === 'WAR_MODE') {
+    const warMode = tag.code ? warModeByCode.get(tag.code.toUpperCase()) : null;
+    if (warMode) {
+      return locale === 'RU' ? warMode.nameRu : warMode.nameEn;
+    }
+  }
+
+  if (tag.scopeType === 'SYSTEM' && tag.category === 'ELEMENT') {
+    return getElementTagLabel(tag.code, locale);
+  }
+
+  return tag.name;
 }
 
 function buildFloatingPopoverStyle(params: {
@@ -1070,7 +1129,10 @@ function IconFilterSelect({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="space-y-1">
+              <div
+                className="max-h-[min(20rem,calc(100dvh-8rem))] space-y-1 overflow-y-auto overscroll-contain pr-1"
+                onWheel={(event) => event.stopPropagation()}
+              >
                 <button
                   type="button"
                   onClick={() => onChange([])}
@@ -1467,6 +1529,7 @@ function normalizeWarStatTeams(
           slot: slotIndex + 1,
           playerProfileHeroId: slotMap.get(slotIndex + 1)?.playerProfileHeroId ?? null,
         })),
+        tags: team.tags ?? [],
       };
     })
     .sort((left, right) => left.teamOrder - right.teamOrder);
@@ -2020,18 +2083,26 @@ export default function ProfilePageClient() {
   const [loadingWarStatTeams, setLoadingWarStatTeams] = useState(false);
   const [savingWarStatTeams, setSavingWarStatTeams] = useState(false);
   const [warStatSaveError, setWarStatSaveError] = useState<string | null>(null);
+  const [warStatSaveMessage, setWarStatSaveMessage] = useState<string | null>(null);
+  const [warImportNotice, setWarImportNotice] = useState<WarImportNotice>(null);
   const [warStatSlotPicker, setWarStatSlotPicker] = useState<WarStatSlotPickerState>(null);
   const [warStatSlotPickerSearch, setWarStatSlotPickerSearch] = useState('');
   const [warStatHistoryModal, setWarStatHistoryModal] = useState<WarStatHistoryModalState>(null);
   const [warStatAddRecordModal, setWarStatAddRecordModal] = useState<WarStatAddRecordModalState>(null);
   const [warStatDraftsByTeamId, setWarStatDraftsByTeamId] = useState<Record<string, WarStatRecordDraft>>({});
   const [warStatSearchQuery, setWarStatSearchQuery] = useState('');
+  const [warStatTagFilters, setWarStatTagFilters] = useState<string[]>([]);
   const [warStatControlsOpen, setWarStatControlsOpen] = useState(false);
   const [warStatSortField, setWarStatSortField] = useState<WarStatSortField>('teamOrder');
   const [warStatSortOrder, setWarStatSortOrder] = useState<WarStatSortOrder>('asc');
   const [warStatModeFilterCode, setWarStatModeFilterCode] = useState('ALL');
   const [warStatExpandedTeamIds, setWarStatExpandedTeamIds] = useState<string[]>([]);
   const [draggedWarStatTeamId, setDraggedWarStatTeamId] = useState<string | null>(null);
+  const [warStatTagCatalog, setWarStatTagCatalog] = useState<PlayerWarStatTeamTagCatalogResponse | null>(null);
+  const [warStatTeamTagPicker, setWarStatTeamTagPicker] = useState<WarStatTeamTagPickerState>(null);
+  const [warStatTagEditor, setWarStatTagEditor] = useState<WarStatTagEditorState>(null);
+  const [warStatTagManagerOpen, setWarStatTagManagerOpen] = useState(false);
+  const [savingWarStatTags, setSavingWarStatTags] = useState(false);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
   const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -2241,6 +2312,34 @@ export default function ProfilePageClient() {
   }, [apiJson, authenticated, messages.profile.warStatsSaveError]);
 
   useEffect(() => {
+    if (!authenticated) {
+      setWarStatTagCatalog(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadWarStatTagCatalog = async () => {
+      try {
+        const response = await apiJson<PlayerWarStatTeamTagCatalogResponse>('/api/v1/profile/me/war-stat-tags');
+        if (!cancelled) {
+          setWarStatTagCatalog(response);
+        }
+      } catch {
+        if (!cancelled) {
+          setWarStatTagCatalog(null);
+        }
+      }
+    };
+
+    void loadWarStatTagCatalog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, authenticated]);
+
+  useEffect(() => {
     if (warModes.some((warMode) => normalizeWarModeCode(warMode.code) === activeWarModeCode)) {
       return;
     }
@@ -2316,6 +2415,19 @@ export default function ProfilePageClient() {
       document.body.style.overflow = previousOverflow;
     };
   }, [heroModalOpen]);
+
+  useEffect(() => {
+    if (!warStatTeamTagPicker && !warStatTagManagerOpen && !warStatTagEditor) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [warStatTeamTagPicker, warStatTagManagerOpen, warStatTagEditor]);
 
   useEffect(() => {
     const syncWarCompactMode = () => {
@@ -2430,7 +2542,7 @@ export default function ProfilePageClient() {
         }
 
         const response = await apiPostJson<{ heroIds: number[] }, PublicHeroCatalogItem[]>(
-          `/api/v1/public/heroes/batch?language=${heroLocale}`,
+          `/api/v1/public/heroes/batch?language=${heroLocale}&includeDrafts=true`,
           { heroIds: missingIds },
         );
 
@@ -2779,13 +2891,50 @@ export default function ProfilePageClient() {
     () => new Map(warStatTeams.map((team) => [team.id, team])),
     [warStatTeams],
   );
+  const warModeByCode = useMemo(
+    () => new Map(warModes.map((mode) => [normalizeWarModeCode(mode.code), mode])),
+    [warModes],
+  );
+  const availableWarStatTags = useMemo(
+    () => warStatTagCatalog?.items ?? [],
+    [warStatTagCatalog],
+  );
+  const customWarStatTags = useMemo(
+    () => availableWarStatTags.filter((tag) => tag.scopeType === 'CUSTOM'),
+    [availableWarStatTags],
+  );
+  const availableWarStatTagOptions = useMemo<IconFilterOption[]>(
+    () =>
+      availableWarStatTags.map((tag) => ({
+        value: tag.id,
+        label: getWarStatTagLabel(tag, heroLocale, warModeByCode),
+        imageUrl: tag.imageUrl,
+      })),
+    [availableWarStatTags, heroLocale, warModeByCode],
+  );
+  const familyTagIconOptions = useMemo<IconFilterOption[]>(
+    () =>
+      (heroFilterOptions?.families ?? [])
+        .filter((family) => family.imageUrl)
+        .map((family) => ({
+          value: `family:${family.id}`,
+          label: family.name,
+          imageUrl: family.imageUrl,
+        })),
+    [heroFilterOptions],
+  );
   const visibleWarStatTeams = useMemo(() => {
     const query = warStatSearchQuery.trim().toLocaleLowerCase();
     const filteredTeams = !query
       ? warStatTeams
       : warStatTeams.filter((team) => team.name.toLocaleLowerCase().includes(query));
 
-    return [...filteredTeams].sort((left, right) => {
+    const filteredByTags =
+      warStatTagFilters.length === 0
+        ? filteredTeams
+        : filteredTeams.filter((team) => warStatTagFilters.every((tagId) => team.tags.some((tag) => tag.id === tagId)));
+
+    return [...filteredByTags].sort((left, right) => {
       if (warStatSortField === 'teamOrder') {
         return warStatSortOrder === 'asc'
           ? left.teamOrder - right.teamOrder
@@ -2818,12 +2967,13 @@ export default function ProfilePageClient() {
 
       return warStatSortOrder === 'asc' ? leftValue - rightValue : rightValue - leftValue;
     });
-  }, [warStatModeFilterCode, warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTeams]);
+  }, [warStatModeFilterCode, warStatSearchQuery, warStatSortField, warStatSortOrder, warStatTagFilters, warStatTeams]);
   const warStatManualOrderEnabled =
     warStatSortField === 'teamOrder' &&
     warStatSortOrder === 'asc' &&
     warStatModeFilterCode === 'ALL' &&
-    warStatSearchQuery.trim().length === 0;
+    warStatSearchQuery.trim().length === 0 &&
+    warStatTagFilters.length === 0;
   const availableWarStatRosterCards = useMemo(() => {
     if (!warStatSlotPicker) {
       return [];
@@ -3318,6 +3468,8 @@ export default function ProfilePageClient() {
 
     setWarStatTeams(normalizedTeams);
     setSavingWarStatTeams(true);
+    setWarStatSaveError(null);
+    setWarStatSaveMessage(null);
 
     try {
       const response = await apiPutJson<PlayerWarStatAttackTeamsReorderRequest, PlayerWarStatAttackTeamsResponse>(
@@ -3346,6 +3498,101 @@ export default function ProfilePageClient() {
         ...patch,
       },
     }));
+  };
+
+  const openWarStatTeamTagPicker = (teamId: string) => {
+    const team = warStatTeamMap.get(teamId);
+    if (!team) {
+      return;
+    }
+    setWarStatTeamTagPicker({
+      teamId,
+      selectedTagIds: team.tags.map((tag) => tag.id),
+    });
+    setWarStatSaveError(null);
+  };
+
+  const handleSaveWarStatTeamTags = async () => {
+    if (!warStatTeamTagPicker) {
+      return;
+    }
+
+    setSavingWarStatTags(true);
+    try {
+      const response = await apiPutJson<PlayerWarStatTeamTagsUpdateRequest, PlayerWarStatAttackTeamsResponse>(
+        `/api/v1/profile/me/war-stat-attack-teams/${warStatTeamTagPicker.teamId}/tags`,
+        { tagIds: warStatTeamTagPicker.selectedTagIds },
+      );
+      applyWarStatResponse(response);
+      setWarStatTeamTagPicker(null);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTags(false);
+    }
+  };
+
+  const handleCreateOrUpdateWarStatTag = async () => {
+    if (!warStatTagEditor) {
+      return;
+    }
+
+    const payload: PlayerWarStatTeamTagUpsertRequest = {
+      name: warStatTagEditor.name,
+      iconKey: warStatTagEditor.iconKey,
+      imageUrl: warStatTagEditor.imageUrl,
+    };
+
+    setSavingWarStatTags(true);
+    try {
+      const response = warStatTagEditor.tagId
+        ? await apiPutJson<PlayerWarStatTeamTagUpsertRequest, PlayerWarStatTeamTagCatalogResponse>(
+            `/api/v1/profile/me/war-stat-tags/${warStatTagEditor.tagId}`,
+            payload,
+          )
+        : await apiPostJson<PlayerWarStatTeamTagUpsertRequest, PlayerWarStatTeamTagCatalogResponse>(
+            '/api/v1/profile/me/war-stat-tags',
+            payload,
+          );
+
+      setWarStatTagCatalog(response);
+      setWarStatTagEditor(null);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTags(false);
+    }
+  };
+
+  const handleDeleteWarStatTag = async (tagId: string) => {
+    setSavingWarStatTags(true);
+    try {
+      const response = await apiDelete<PlayerWarStatTeamTagCatalogResponse>(`/api/v1/profile/me/war-stat-tags/${tagId}`);
+      setWarStatTagCatalog(response);
+      setWarStatTagFilters((current) => current.filter((value) => value !== tagId));
+      setWarStatTeams((current) =>
+        current.map((team) => ({
+          ...team,
+          tags: team.tags.filter((tag) => tag.id !== tagId),
+        })),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
+      } else {
+        setWarStatSaveError(messages.profile.warStatsSaveError);
+      }
+    } finally {
+      setSavingWarStatTags(false);
+    }
   };
 
   const toggleWarStatDetails = (teamId: string) => {
@@ -3410,6 +3657,7 @@ export default function ProfilePageClient() {
 
   const handleImportWarTeamToStats = async (warModeCode: string, teamIndex: number) => {
     setSavingWarStatTeams(true);
+    setWarImportNotice(null);
 
     try {
       const response = await apiPostJson<
@@ -3420,12 +3668,40 @@ export default function ProfilePageClient() {
         teamIndex,
       });
       applyWarStatResponse(response);
+      setWarImportNotice({
+        warModeCode,
+        teamIndex,
+        type: 'success',
+        message: locale === 'ru'
+          ? 'Команда добавлена во вкладку "Военная статистика".'
+          : 'Team was added to War statistics.',
+      });
+      setWarStatSaveError(null);
+      setWarStatSaveMessage(null);
     } catch (error) {
+      let nextMessage = messages.profile.warStatsSaveError;
+
       if (error instanceof ApiError) {
-        setWarStatSaveError(error.message || messages.profile.warStatsSaveError);
-      } else {
-        setWarStatSaveError(messages.profile.warStatsSaveError);
+        nextMessage =
+          error.message === 'This war statistic team already exists' || error.message === 'Request failed with status 400'
+            ? (locale === 'ru'
+                ? 'Команда уже добавлена.'
+                : 'Team is already added.')
+            : error.message === 'Cannot import an empty war team'
+              ? (locale === 'ru'
+                  ? 'Нельзя добавить пустую команду из вкладки "Война".'
+                  : 'Cannot import an empty war team.')
+              : (error.message || messages.profile.warStatsSaveError);
       }
+
+      setWarImportNotice({
+        warModeCode,
+        teamIndex,
+        type: 'error',
+        message: nextMessage,
+      });
+      setWarStatSaveError(null);
+      setWarStatSaveMessage(null);
     } finally {
       setSavingWarStatTeams(false);
     }
@@ -4107,6 +4383,23 @@ export default function ProfilePageClient() {
                   ) : null}
                   <button
                     type="button"
+                    onClick={() => setWarStatTagEditor({ tagId: null, name: '', iconKey: familyTagIconOptions[0]?.value ?? '', imageUrl: familyTagIconOptions[0]?.imageUrl ?? '' })}
+                    disabled={savingWarStatTags || familyTagIconOptions.length === 0}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <FilePlus2 className="h-3.5 w-3.5" />
+                    <span>{locale === 'ru' ? 'Новая метка' : 'New tag'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWarStatTagManagerOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <span>{locale === 'ru' ? 'Мои метки' : 'My tags'}</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void handleCreateWarStatTeam()}
                     disabled={savingWarStatTeams}
                     title={messages.profile.warStatsAddTeam}
@@ -4131,6 +4424,7 @@ export default function ProfilePageClient() {
                     onClick={(event) => {
                       event.stopPropagation();
                       setWarStatSearchQuery('');
+                      setWarStatTagFilters([]);
                       setWarStatSortField('teamOrder');
                       setWarStatSortOrder('asc');
                       setWarStatModeFilterCode('ALL');
@@ -4146,7 +4440,7 @@ export default function ProfilePageClient() {
               </button>
 
               {warStatControlsOpen ? (
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-5">
                   <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
                     <span>{locale === 'ru' ? 'Название команды' : 'Team name'}</span>
                     <input
@@ -4198,10 +4492,25 @@ export default function ProfilePageClient() {
                       <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
                     </select>
                   </label>
+
+                  <IconFilterSelect
+                    label={locale === 'ru' ? 'Метки' : 'Tags'}
+                    values={warStatTagFilters}
+                    allLabel={locale === 'ru' ? 'Все метки' : 'All tags'}
+                    options={availableWarStatTagOptions}
+                    onChange={setWarStatTagFilters}
+                    locale={heroLocale}
+                  />
                 </div>
               ) : null}
             </div>
           </div>
+
+          {warStatSaveMessage ? (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+              {warStatSaveMessage}
+            </div>
+          ) : null}
 
           {warStatSaveError ? (
             <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -4279,9 +4588,6 @@ export default function ProfilePageClient() {
                             value={draft.teamName ?? team.name}
                             onChange={(event) => handleWarStatDraftChange(team.id, { teamName: event.target.value })}
                             onBlur={() => {
-                              if (teamLocked) {
-                                return;
-                              }
                               const nextName = (draft.teamName ?? team.name).trim();
                               if (nextName && nextName !== team.name) {
                                 window.setTimeout(() => {
@@ -4294,9 +4600,34 @@ export default function ProfilePageClient() {
                                 (event.currentTarget as HTMLInputElement).blur();
                               }
                             }}
-                            disabled={teamLocked || savingWarStatTeams}
+                            disabled={savingWarStatTeams}
                             className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
                           />
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {team.tags.map((tag) => (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                title={getWarStatTagLabel(tag, heroLocale, warModeByCode)}
+                                className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-2 py-1 text-[11px] text-[var(--foreground-soft)]"
+                              >
+                                {tag.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={tag.imageUrl} alt={getWarStatTagLabel(tag, heroLocale, warModeByCode)} className="h-4 w-4 object-contain" />
+                                ) : null}
+                                <span className="max-w-[9rem] truncate">{getWarStatTagLabel(tag, heroLocale, warModeByCode)}</span>
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => openWarStatTeamTagPicker(team.id)}
+                              disabled={savingWarStatTags}
+                              className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              <span>{locale === 'ru' ? 'Метки' : 'Tags'}</span>
+                            </button>
+                          </div>
                         </div>
 
                         <button
@@ -4570,6 +4901,18 @@ export default function ProfilePageClient() {
                       </div>
                     </div>
 
+                    {warImportNotice?.warModeCode === team.warModeCode && warImportNotice.teamIndex === team.teamIndex ? (
+                      <div
+                        className={`mb-3 rounded-2xl px-3 py-2 text-xs ${
+                          warImportNotice.type === 'success'
+                            ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                            : 'border border-red-500/30 bg-red-500/10 text-red-300'
+                        }`}
+                      >
+                        {warImportNotice.message}
+                      </div>
+                    ) : null}
+
                     <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">
                       {team.slots.map((slot) => {
                         const hero = slot.playerProfileHeroId ? rosterHeroCardMap.get(slot.playerProfileHeroId) ?? null : null;
@@ -4776,7 +5119,7 @@ export default function ProfilePageClient() {
                 />
               </div>
 
-              <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
+              <div className="min-h-[18rem] flex-1 overflow-y-auto overscroll-contain pr-1" onWheel={(event) => event.stopPropagation()}>
                 {availableWarRosterCards.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6">
                     {availableWarRosterCards.map((hero) => (
@@ -4847,6 +5190,281 @@ export default function ProfilePageClient() {
                     {messages.profile.warNoAvailableHeroes}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatTeamTagPicker ? (
+        <div
+          className="fixed inset-0 z-[94] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatTeamTagPicker(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                    {locale === 'ru' ? 'Метки команды' : 'Team tags'}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                    {(locale === 'ru'
+                      ? `Выбрано ${warStatTeamTagPicker.selectedTagIds.length} из ${warStatTagCatalog?.teamTagLimit ?? 7}`
+                      : `Selected ${warStatTeamTagPicker.selectedTagIds.length} of ${warStatTagCatalog?.teamTagLimit ?? 7}`)}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWarStatTeamTagPicker(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="min-h-[18rem] flex-1 overflow-y-auto pr-1">
+                <div className="space-y-1">
+                  {availableWarStatTags.map((tag) => {
+                    const selected = warStatTeamTagPicker.selectedTagIds.includes(tag.id);
+                    const limitReached = !selected && warStatTeamTagPicker.selectedTagIds.length >= (warStatTagCatalog?.teamTagLimit ?? 7);
+                    const tagLabel = getWarStatTagLabel(tag, heroLocale, warModeByCode);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        disabled={limitReached}
+                        onClick={() =>
+                          setWarStatTeamTagPicker((current) =>
+                            current == null
+                              ? current
+                              : {
+                                  ...current,
+                                  selectedTagIds: selected
+                                    ? current.selectedTagIds.filter((value) => value !== tag.id)
+                                    : [...current.selectedTagIds, tag.id],
+                                },
+                          )
+                        }
+                        className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
+                          selected
+                            ? 'bg-cyan-400/12 text-cyan-200'
+                            : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        {tag.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={tag.imageUrl} alt={tagLabel} className="h-7 w-7 object-contain" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)]" />
+                        )}
+                        <span className="min-w-0 flex-1 leading-tight">{tagLabel}</span>
+                        {selected ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setWarStatTeamTagPicker(null)}
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  {locale === 'ru' ? 'Отмена' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveWarStatTeamTags()}
+                  disabled={savingWarStatTags}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {savingWarStatTags ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  <span>{locale === 'ru' ? 'Сохранить' : 'Save'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatTagManagerOpen ? (
+        <div
+          className="fixed inset-0 z-[96] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatTagManagerOpen(false)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                    {locale === 'ru' ? 'Мои метки' : 'My tags'}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                    {locale === 'ru'
+                      ? `Пользовательских меток: ${customWarStatTags.length} из ${warStatTagCatalog?.customTagLimit ?? 100}`
+                      : `Custom tags: ${customWarStatTags.length} of ${warStatTagCatalog?.customTagLimit ?? 100}`}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setWarStatTagManagerOpen(false)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mb-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setWarStatTagEditor({ tagId: null, name: '', iconKey: familyTagIconOptions[0]?.value ?? '', imageUrl: familyTagIconOptions[0]?.imageUrl ?? '' })}
+                  disabled={familyTagIconOptions.length === 0}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                  <span>{locale === 'ru' ? 'Создать метку' : 'Create tag'}</span>
+                </button>
+              </div>
+
+              <div className="min-h-[14rem] flex-1 overflow-y-auto overscroll-contain pr-1" onWheel={(event) => event.stopPropagation()}>
+                {customWarStatTags.length > 0 ? (
+                  <div className="space-y-2">
+                    {customWarStatTags.map((tag) => {
+                      const tagLabel = getWarStatTagLabel(tag, heroLocale, warModeByCode);
+                      return (
+                        <div
+                          key={tag.id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            {tag.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={tag.imageUrl} alt={tagLabel} className="h-8 w-8 object-contain" />
+                            ) : null}
+                            <span className="truncate text-sm font-medium text-[var(--foreground)]">{tagLabel}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setWarStatTagEditor({ tagId: tag.id, name: tag.name, iconKey: tag.iconKey, imageUrl: tag.imageUrl ?? '' })}
+                              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-xs text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                            >
+                              {locale === 'ru' ? 'Изменить' : 'Edit'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteWarStatTag(tag.id)}
+                              disabled={savingWarStatTags}
+                              className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-200 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {locale === 'ru' ? 'Удалить' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--foreground-soft)]">
+                    {locale === 'ru' ? 'Пользовательских меток пока нет.' : 'No custom tags yet.'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {warStatTagEditor ? (
+        <div
+          className="fixed inset-0 z-[97] overflow-hidden bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setWarStatTagEditor(null)}
+        >
+          <div className="flex h-full items-start justify-center py-4">
+            <div
+              className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl sm:p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <h3 className="text-xl font-semibold text-[var(--foreground)]">
+                  {warStatTagEditor.tagId
+                    ? (locale === 'ru' ? 'Изменить метку' : 'Edit tag')
+                    : (locale === 'ru' ? 'Новая метка' : 'New tag')}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setWarStatTagEditor(null)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1" onWheel={(event) => event.stopPropagation()}>
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-[var(--foreground)]">{locale === 'ru' ? 'Название' : 'Name'}</span>
+                  <input
+                    value={warStatTagEditor.name}
+                    onChange={(event) => setWarStatTagEditor((current) => current == null ? current : { ...current, name: event.target.value.slice(0, 50) })}
+                    maxLength={50}
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                  />
+                </label>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-[var(--foreground)]">{locale === 'ru' ? 'Символ' : 'Icon'}</div>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                    {familyTagIconOptions.map((option) => {
+                      const selected = option.value === warStatTagEditor.iconKey;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setWarStatTagEditor((current) => current == null ? current : { ...current, iconKey: option.value, imageUrl: option.imageUrl ?? '' })}
+                          className={`flex flex-col items-center gap-2 rounded-2xl border px-3 py-3 text-xs transition ${
+                            selected
+                              ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200'
+                              : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                          }`}
+                        >
+                          {option.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={option.imageUrl} alt="" className="h-8 w-8 object-contain" />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setWarStatTagEditor(null)}
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  {locale === 'ru' ? 'Отмена' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateOrUpdateWarStatTag()}
+                  disabled={savingWarStatTags || !warStatTagEditor.name.trim() || !warStatTagEditor.imageUrl}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {savingWarStatTags ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  <span>{locale === 'ru' ? 'Сохранить' : 'Save'}</span>
+                </button>
               </div>
             </div>
           </div>
