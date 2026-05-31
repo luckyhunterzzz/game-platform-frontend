@@ -719,10 +719,15 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const editPreviewImageInputRef = useRef<HTMLInputElement | null>(null);
   const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
   const publicHeroSlugRef = useRef<string | null>(null);
+  const publicCatalogAbortRef = useRef<AbortController | null>(null);
+  const publicCatalogRequestSequenceRef = useRef(0);
+  const publicHeroAbortRef = useRef<AbortController | null>(null);
+  const publicHeroRequestSequenceRef = useRef(0);
 
   const [publicPage, setPublicPage] = useState<HeroPageResponse | null>(null);
   const [publicItems, setPublicItems] = useState<PublicHeroCardItem[]>([]);
   const [publicSearch, setPublicSearch] = useState('');
+  const [debouncedPublicSearch, setDebouncedPublicSearch] = useState('');
   const [publicFilters, setPublicFilters] = useState<PublicCatalogFiltersState>(EMPTY_PUBLIC_FILTERS);
   const [publicFilterOptions, setPublicFilterOptions] = useState<HeroCatalogFiltersResponse | null>(null);
   const [publicFilterSearch, setPublicFilterSearch] =
@@ -1146,8 +1151,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         params.set('includeDrafts', 'true');
       }
 
-      if (publicSearch.trim()) {
-        params.set('search', publicSearch.trim());
+      if (debouncedPublicSearch.trim()) {
+        params.set('search', debouncedPublicSearch.trim());
       }
 
       const appendIds = (key: keyof PublicCatalogFiltersState) => {
@@ -1163,14 +1168,44 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       return `${PUBLIC_API}?${params.toString()}`;
     },
-    [isSuperAdmin, locale, publicFilters, publicSearch, publicVisibilityFilter],
+    [debouncedPublicSearch, isSuperAdmin, locale, publicFilters, publicVisibilityFilter],
   );
 
   const fetchPublicCatalogPage = useCallback(
     async (page: number, append: boolean) => {
-      const response = await apiJson<HeroPageResponse>(buildPublicCatalogQuery(page));
-      setPublicPage(response);
-      setPublicItems((prev) => (append ? [...prev, ...response.items] : response.items));
+      if (!append) {
+        publicCatalogAbortRef.current?.abort();
+      }
+
+      const controller = new AbortController();
+      const requestSequence = ++publicCatalogRequestSequenceRef.current;
+
+      if (!append) {
+        publicCatalogAbortRef.current = controller;
+      }
+
+      try {
+        const response = await apiJson<HeroPageResponse>(buildPublicCatalogQuery(page), {
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted || requestSequence !== publicCatalogRequestSequenceRef.current) {
+          return;
+        }
+
+        setPublicPage(response);
+        setPublicItems((prev) => (append ? [...prev, ...response.items] : response.items));
+      } catch (error) {
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+          return;
+        }
+
+        throw error;
+      } finally {
+        if (!append && publicCatalogAbortRef.current === controller) {
+          publicCatalogAbortRef.current = null;
+        }
+      }
     },
     [apiJson, buildPublicCatalogQuery],
   );
@@ -1404,20 +1439,37 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   );
 
   const loadPublicVariants = useCallback(async (slug: string) => {
+    publicHeroAbortRef.current?.abort();
+    const controller = new AbortController();
+    const requestSequence = ++publicHeroRequestSequenceRef.current;
+    publicHeroAbortRef.current = controller;
+
     setLoadingPublicDetails(true);
     setPublicDetailsError(null);
     setLoadingPublicHeroExpertOpinions(true);
     setPublicHeroExpertOpinionsError(null);
     try {
       const [response, opinionsResponse] = await Promise.all([
-        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}${isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT' ? '&includeDrafts=true' : ''}`),
-        apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale)).catch((error) => {
+        apiJson<PublicHeroVariantsResponse>(`${PUBLIC_API}/${slug}/variants?language=${locale}${isSuperAdmin && publicVisibilityFilter === 'READY_AND_DRAFT' ? '&includeDrafts=true' : ''}`, {
+          signal: controller.signal,
+        }),
+        apiJson<HeroExpertOpinionPublicResponseDto[]>(buildPublicExpertOpinionsApi(slug, locale), {
+          signal: controller.signal,
+        }).catch((error) => {
+          if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+            return [];
+          }
           setPublicHeroExpertOpinionsError(
             error instanceof Error ? error.message : 'Failed to load expert opinions',
           );
           return [];
         }),
       ]);
+
+      if (controller.signal.aborted || requestSequence !== publicHeroRequestSequenceRef.current) {
+        return;
+      }
+
       setSelectedPublicHeroDetails(response.currentHero);
       setSelectedPublicHeroVariants(response);
       setSelectedPublicHeroExpertOpinions(sortHeroExpertOpinions(opinionsResponse));
@@ -1425,6 +1477,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         findBaseHeroCardBySlug(response.currentHero.slug) ?? toSyntheticPublicHeroCard(response.currentHero, response),
       );
     } catch (error) {
+      if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        return;
+      }
+
       publicHeroSlugRef.current = null;
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
@@ -1433,6 +1489,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     } finally {
       setLoadingPublicDetails(false);
       setLoadingPublicHeroExpertOpinions(false);
+      if (publicHeroAbortRef.current === controller) {
+        publicHeroAbortRef.current = null;
+      }
     }
   }, [apiJson, findBaseHeroCardBySlug, isSuperAdmin, locale, publicVisibilityFilter, toSyntheticPublicHeroCard]);
 
@@ -1457,6 +1516,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [pathname, router, searchParams]);
 
   const closePublicHeroState = useCallback(() => {
+    publicHeroAbortRef.current?.abort();
     publicHeroSlugRef.current = null;
     setPublicDetailsOpen(false);
     setSelectedPublicHero(null);
@@ -1495,8 +1555,22 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, selectedPublicHeroDetails?.slug]);
 
   useEffect(() => {
+    if (adminMode) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedPublicSearch(publicSearch);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [adminMode, publicSearch]);
+
+  useEffect(() => {
     void loadListRef.current();
-  }, [adminMode, adminFilters, adminSearch, publicSearch, publicFilters, locale]);
+  }, [adminMode, adminFilters, adminSearch, debouncedPublicSearch, publicFilters, publicVisibilityFilter, locale]);
 
   useEffect(() => {
     if (adminMode) {
@@ -2887,17 +2961,19 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   };
 
   const handleOpenPublicHero = async (hero: PublicHeroCardItem) => {
+    const openPromise = openPublicHeroBySlug(hero.slug, hero);
     syncPublicHeroQuery(hero.slug);
-    await openPublicHeroBySlug(hero.slug, hero);
+    await openPromise;
   };
 
   const handleOpenPublicHeroBySlug = async (slug: string) => {
+    const openPromise = openPublicHeroBySlug(slug, findBaseHeroCardBySlug(slug) ?? null);
     syncPublicHeroQuery(slug);
-    await openPublicHeroBySlug(slug, findBaseHeroCardBySlug(slug) ?? null);
+    await openPromise;
   };
 
   const handleClosePublicHero = () => {
-    syncPublicHeroQuery(null, 'replace');
+    syncPublicHeroQuery(null);
     closePublicHeroState();
   };
 
