@@ -235,12 +235,12 @@ export const Navbar = ({
           <button
             type="button"
             onClick={() => setIsLanguageMenuOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-xs font-medium text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] sm:w-auto sm:justify-start sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
             title={messages.navbar.language}
             aria-haspopup="menu"
             aria-expanded={isLanguageMenuOpen}
           >
-            <Globe size={15} className="sm:h-[18px] sm:w-[18px]" />
+            <Globe size={18} className="h-[18px] w-[18px]" />
             <span className="hidden sm:inline">{currentLocaleLabel}</span>
           </button>
 

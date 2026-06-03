@@ -60,6 +60,35 @@ type RewardRankTab = {
   categories: RewardCategory[];
 };
 
+type AccentTone = 'cyan' | 'emerald';
+
+const accentToneClasses: Record<
+  AccentTone,
+  {
+    copyIdle: string;
+    copyActive: string;
+    quickJump: string;
+    section: string;
+  }
+> = {
+  cyan: {
+    copyIdle: 'border-cyan-400/18 bg-cyan-400/10 text-[var(--info-text)] hover:border-cyan-400/28',
+    copyActive: 'border-emerald-400/35 bg-emerald-400/10 text-[var(--success-text)]',
+    quickJump:
+      'border-cyan-400/16 bg-cyan-400/8 text-cyan-300 hover:border-cyan-400/28 hover:bg-cyan-400/12',
+    section:
+      'border-cyan-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))]',
+  },
+  emerald: {
+    copyIdle: 'border-emerald-400/18 bg-emerald-400/10 text-emerald-300 hover:border-emerald-400/28',
+    copyActive: 'border-emerald-400/35 bg-emerald-400/14 text-emerald-200',
+    quickJump:
+      'border-emerald-400/16 bg-emerald-400/8 text-emerald-300 hover:border-emerald-400/28 hover:bg-emerald-400/12',
+    section:
+      'border-emerald-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))]',
+  },
+};
+
 function SectionText({
   children,
   className = '',
@@ -776,12 +805,15 @@ function CopyLinkButton({
   href,
   copyLabel,
   copiedLabel,
+  accentTone = 'cyan',
 }: {
   href: string;
   copyLabel: string;
   copiedLabel: string;
+  accentTone?: AccentTone;
 }) {
   const [copied, setCopied] = useState(false);
+  const toneClasses = accentToneClasses[accentTone];
 
   const handleCopy = async () => {
     if (typeof window === 'undefined') {
@@ -813,8 +845,8 @@ function CopyLinkButton({
         aria-label={copied ? copiedLabel : copyLabel}
         className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold transition ${
           copied
-            ? 'border-emerald-400/35 bg-emerald-400/10 text-[var(--success-text)]'
-            : 'border-cyan-400/18 bg-cyan-400/10 text-[var(--info-text)] hover:border-cyan-400/28'
+            ? toneClasses.copyActive
+            : toneClasses.copyIdle
         }`}
       >
         {copied ? (
@@ -1116,6 +1148,68 @@ function ZoomableOverviewImage({
         </div>
       ) : null}
     </>
+  );
+}
+
+function EventOverviewSwitcher({
+  locale,
+  russianSrc,
+  englishSrc,
+  russianAlt,
+  englishAlt,
+}: {
+  locale: 'ru' | 'en';
+  russianSrc: string;
+  englishSrc: string;
+  russianAlt: string;
+  englishAlt: string;
+}) {
+  const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en'>(locale === 'ru' ? 'ru' : 'en');
+
+  useEffect(() => {
+    setSelectedLanguage(locale === 'ru' ? 'ru' : 'en');
+  }, [locale]);
+
+  const isRussianOverview = locale === 'ru' && selectedLanguage === 'ru';
+  const currentSrc = isRussianOverview ? russianSrc : englishSrc;
+  const currentAlt = isRussianOverview ? russianAlt : englishAlt;
+
+  return (
+    <div className="space-y-4">
+      {locale === 'ru' ? (
+        <div className="rounded-[1.5rem] border border-emerald-400/16 bg-emerald-400/8 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedLanguage('ru')}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                selectedLanguage === 'ru'
+                  ? 'border-emerald-300/40 bg-emerald-400/18 text-emerald-100'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-400/24 hover:text-[var(--foreground)]'
+              }`}
+            >
+              RU image
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedLanguage('en')}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                selectedLanguage === 'en'
+                  ? 'border-emerald-300/40 bg-emerald-400/18 text-emerald-100'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-400/24 hover:text-[var(--foreground)]'
+              }`}
+            >
+              EN original
+            </button>
+          </div>
+          <SectionText className="mt-3">
+            Русскую схему можно быстро переключить на оригинальную английскую версию без смены локали всего сайта.
+          </SectionText>
+        </div>
+      ) : null}
+
+      <ZoomableOverviewImage src={currentSrc} alt={currentAlt} />
+    </div>
   );
 }
 
@@ -1719,21 +1813,537 @@ function buildBraveSections(locale: 'ru' | 'en'): EventSection[] {
   ];
 }
 
+function buildWindfallSections(locale: 'ru' | 'en'): EventSection[] {
+  if (locale === 'ru') {
+    return [
+      {
+        anchorId: 'overview',
+        title: 'Общая схема события',
+        content: (
+          <div className="space-y-4">
+            <SectionText>
+              Основа гайда подготовлена с учётом практической информации от{' '}
+              <a
+                href="https://t.me/VestiVesta"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-emerald-300 transition hover:text-emerald-200"
+              >
+                @Vesta22
+              </a>
+              . Спасибо за помощь в подготовке материала ❤️
+            </SectionText>
+            <EventOverviewSwitcher
+              locale={locale}
+              russianSrc="/events/windfall-temple/overview-ru.png"
+              englishSrc="/events/windfall-temple/overview-en.webp"
+              russianAlt="Храм Неожиданной Удачи — обзор события"
+              englishAlt="Windfall Temple event overview"
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'rules',
+        title: 'Правила',
+        content: (
+          <div className="space-y-4">
+            <SectionText>
+              Храм Неожиданной Удачи — это особое событие, в котором необходимо пройти как можно больше залов и набрать максимальное количество очков.
+            </SectionText>
+            <SectionList
+              items={[
+                <>Всего в событии <strong>15 залов</strong>.</>,
+                <>В каждом зале находится <strong>3 комнаты</strong>.</>,
+                <>Всего предстоит пройти <strong>45 этапов</strong>.</>,
+                <>Комнаты внутри зала можно проходить в любом порядке.</>,
+                <>Для перехода в следующий зал необходимо победить во всех трёх комнатах текущего зала.</>,
+                <>Если не удалось завершить все комнаты зала, зал сбрасывается и его придётся проходить заново.</>,
+                <>Боевые предметы использовать нельзя.</>,
+                <>Продолжить после поражения можно за самоцветы.</>,
+                <>Перепроходить можно только последний открытый зал.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'battle-mechanics',
+        title: 'Особенности боёв',
+        content: (
+          <div className="space-y-4">
+            <SectionList
+              items={[
+                <>Бои проходят по образу <strong>Заветного квеста</strong>.</>,
+                <>В качестве противников выступают <strong>герои-боссы</strong>.</>,
+                <>Боссы используют семьи, пассивные навыки и особые навыки.</>,
+                <>Лечение у боссов работает в полном объёме.</>,
+                <>У боссов отсутствуют отряды и классы.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'temple-aura',
+        title: 'Аура Храма',
+        content: (
+          <div className="space-y-4">
+            <SectionText>Во время события все герои получают особые эффекты.</SectionText>
+            <SectionSubtitle>Первые 3 победных боя героя</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Атака <strong>+30%</strong></>,
+                <>Защита <strong>+30%</strong></>,
+                <>Здоровье <strong>+30%</strong></>,
+              ]}
+            />
+            <SectionSubtitle>После 3 побед</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Герой получает штраф <strong>20%</strong> к атаке, защите и здоровью.</>,
+                <>Если сбежать или проиграть бой, он не засчитывается для механики усталости.</>,
+                <>Штраф не становится сильнее и сохраняется до конца события.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'defenders-boon',
+        title: 'Благословение защитников',
+        content: (
+          <div className="space-y-4">
+            <SectionText>
+              После каждой победы оставшиеся враги в текущем зале становятся сильнее.
+            </SectionText>
+            <SectionSubtitle>После первой победы в зале</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Атака врагов <strong>+10%</strong></>,
+                <>Защита врагов <strong>+10%</strong></>,
+                <>Здоровье врагов <strong>+10%</strong></>,
+              ]}
+            />
+            <SectionSubtitle>После второй победы в зале</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Атака врагов <strong>+30%</strong></>,
+                <>Защита врагов <strong>+30%</strong></>,
+                <>Здоровье врагов <strong>+30%</strong></>,
+              ]}
+            />
+            <SectionText>
+              После перехода в следующий зал или сброса текущего зала эффект обнуляется.
+            </SectionText>
+          </div>
+        ),
+      },
+      {
+        anchorId: 'energy',
+        title: 'Энергия',
+        content: (
+          <div className="space-y-4">
+            <SectionList
+              items={[
+                <>Для участия используется <strong>энергия Храма</strong>.</>,
+                <>Каждый бой расходует <strong>1 энергию</strong>.</>,
+                <>Суточный лимит энергии составляет <strong>15 единиц</strong>.</>,
+                <>В начале события игрок получает <strong>15 энергии</strong>.</>,
+                <>Далее каждые сутки начисляется ещё <strong>15 энергии</strong>.</>,
+                <>За всё событие можно получить до <strong>75 энергии</strong>.</>,
+                <>При необходимости можно приобрести фляги энергии Храма за самоцветы.</>,
+                <>Одна фляга восстанавливает <strong>15 энергии</strong>.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'rewards',
+        title: 'Награды за комнаты',
+        content: (
+          <div className="space-y-4">
+            <SectionText>После каждой успешной победы игрок получает:</SectionText>
+            <SectionList
+              items={[
+                <>Опыт</>,
+                <>Еду</>,
+                <>Железо</>,
+                <>Рекрутов</>,
+              ]}
+            />
+            <SectionText>
+              Это постоянные награды, которые выдаются и при перепрохождении.
+            </SectionText>
+            <SectionText>
+              Также существуют разовые награды за первое прохождение комнат.
+            </SectionText>
+            <SectionSubtitle>Среди возможных наград</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Монеты Храма</>,
+                <>Инструкторы</>,
+                <>Тренеры отрядов</>,
+                <>Эмблемы классов</>,
+                <>Материалы улучшения</>,
+                <>Другие полезные ресурсы</>,
+              ]}
+            />
+            <SectionSubtitle>Особенно ценные награды</SectionSubtitle>
+            <SectionList
+              items={[
+                <>5 зал: <strong>50 монет Храма</strong> и <strong>случайный предмет перерождения 4★</strong>.</>,
+                <>10 зал: <strong>50 монет Храма</strong> и <strong>случайная эфирка 5★</strong>.</>,
+                <>15 зал: <strong>50 монет Храма</strong> и <strong>Альфа-эфирка</strong>.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'scoring',
+        title: 'Система очков',
+        content: (
+          <div className="space-y-4">
+            <SectionText>Итоговый результат складывается из нескольких показателей:</SectionText>
+            <SectionList
+              items={[
+                <>Побеждённые враги</>,
+                <>Бонус за завершение боя</>,
+                <>Бонус за комбинации камней</>,
+                <>Оставшееся здоровье героев</>,
+                <>Бонус зала</>,
+              ]}
+            />
+            <SectionText>
+              При продолжении боя за самоцветы начисляется штраф: <strong>33 000 очков</strong>.
+            </SectionText>
+          </div>
+        ),
+      },
+      {
+        anchorId: 'leaderboard',
+        title: 'Рейтинг',
+        content: (
+          <div className="space-y-4">
+            <SectionText>Место игрока определяется следующим образом:</SectionText>
+            <SectionList
+              items={[
+                <>Максимальный достигнутый зал.</>,
+                <>Если игроки достигли одинакового зала, учитывается сумма очков внутри этого зала.</>,
+              ]}
+            />
+            <SectionText>Чем выше итоговое место, тем лучше награды.</SectionText>
+            <SectionSubtitle>За высокие места можно получить</SectionSubtitle>
+            <SectionList
+              items={[
+                <>Эмблемы</>,
+                <>Инструкторов</>,
+                <>Материалы улучшения</>,
+                <>Монеты Храма</>,
+                <>Аватарки</>,
+                <>И другие ценные ресурсы</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+      {
+        anchorId: 'tips',
+        title: 'Полезные советы',
+        content: (
+          <div className="space-y-4">
+            <SectionList
+              items={[
+                <>Не используйте всех сильнейших героев в начале события.</>,
+                <>Планируйте составы заранее, чтобы сохранить лучших героев для последних залов.</>,
+                <>Перед каждым боем изучайте состав противника и его построение.</>,
+                <>Помните, что после каждой победы оставшиеся враги становятся сильнее.</>,
+                <>Иногда выгоднее сохранить сильных героев для поздних залов, чем набирать максимум очков в ранних комнатах.</>,
+                <>Если уверены в своих силах, старайтесь не использовать продолжение за самоцветы, чтобы избежать штрафа к рейтингу.</>,
+              ]}
+            />
+          </div>
+        ),
+      },
+    ];
+  }
+
+  return [
+    {
+      anchorId: 'overview',
+      title: 'Event overview',
+      content: (
+        <div className="space-y-4">
+          <SectionText>
+            This guide is based on practical information provided by{' '}
+            <a
+              href="https://t.me/VestiVesta"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-emerald-300 transition hover:text-emerald-200"
+            >
+              @Vesta22
+            </a>
+            . Thank you for helping prepare this guide ❤️
+          </SectionText>
+          <EventOverviewSwitcher
+            locale={locale}
+            russianSrc="/events/windfall-temple/overview-ru.png"
+            englishSrc="/events/windfall-temple/overview-en.webp"
+            russianAlt="Windfall Temple overview in Russian"
+            englishAlt="Windfall Temple event overview"
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'rules',
+      title: 'Rules',
+      content: (
+        <div className="space-y-4">
+          <SectionText>
+            Windfall Temple is a special event where the goal is to advance through as many chambers as possible while earning the highest score possible.
+          </SectionText>
+          <SectionList
+            items={[
+              <>The event contains <strong>15 Chambers</strong>.</>,
+              <>Each Chamber contains <strong>3 Stages</strong>.</>,
+              <>There are <strong>45 Stages</strong> in total.</>,
+              <>The 3 Stages within a Chamber can be completed in any order.</>,
+              <>To advance to the next Chamber, all 3 Stages in the current Chamber must be completed.</>,
+              <>If you fail to complete all 3 Stages, the Chamber resets and must be completed again.</>,
+              <>Battle Items cannot be used.</>,
+              <>You can continue after defeat by spending Gems.</>,
+              <>Only the highest unlocked Chamber can be replayed.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'battle-mechanics',
+      title: 'Battle Mechanics',
+      content: (
+        <div className="space-y-4">
+          <SectionList
+            items={[
+              <>Battles work similarly to <strong>Covenant Quest</strong>.</>,
+              <>Enemy teams consist of <strong>Boss Heroes</strong>.</>,
+              <>Bosses use Families, Passive Skills, and Special Skills.</>,
+              <>Boss healing works at full strength.</>,
+              <>Bosses do not have Troops or Classes.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'temple-aura',
+      title: 'Temple Aura',
+      content: (
+        <div className="space-y-4">
+          <SectionText>During the event, all Heroes receive special effects.</SectionText>
+          <SectionSubtitle>For a Hero&apos;s first 3 victorious battles</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Attack <strong>+30%</strong></>,
+              <>Defense <strong>+30%</strong></>,
+              <>Health <strong>+30%</strong></>,
+            ]}
+          />
+          <SectionSubtitle>After 3 victories</SectionSubtitle>
+          <SectionList
+            items={[
+              <>The Hero receives a <strong>20%</strong> penalty to Attack, Defense, and Health.</>,
+              <>Fleeing or losing a battle does not count toward the fatigue mechanic.</>,
+              <>The penalty does not increase and remains active for the rest of the event.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'defenders-boon',
+      title: "Defender's Boon",
+      content: (
+        <div className="space-y-4">
+          <SectionText>
+            After each victory, the remaining enemies in the current Chamber become stronger.
+          </SectionText>
+          <SectionSubtitle>After the first victory in a Chamber</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Enemy Attack <strong>+10%</strong></>,
+              <>Enemy Defense <strong>+10%</strong></>,
+              <>Enemy Health <strong>+10%</strong></>,
+            ]}
+          />
+          <SectionSubtitle>After the second victory in a Chamber</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Enemy Attack <strong>+30%</strong></>,
+              <>Enemy Defense <strong>+30%</strong></>,
+              <>Enemy Health <strong>+30%</strong></>,
+            ]}
+          />
+          <SectionText>
+            The effect resets when the Chamber is completed or reset.
+          </SectionText>
+        </div>
+      ),
+    },
+    {
+      anchorId: 'energy',
+      title: 'Energy',
+      content: (
+        <div className="space-y-4">
+          <SectionList
+            items={[
+              <>Temple Energy is required to participate.</>,
+              <>Each battle costs <strong>1 Energy</strong>.</>,
+              <>The daily Energy limit is <strong>15</strong>.</>,
+              <>Players receive <strong>15 Energy</strong> when the event starts.</>,
+              <>An additional <strong>15 Energy</strong> is granted every day.</>,
+              <>Up to <strong>75 Energy</strong> can be obtained during the event.</>,
+              <>Temple Energy Flasks can be purchased with Gems if needed.</>,
+              <>Each Flask restores <strong>15 Energy</strong>.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'rewards',
+      title: 'Stage Rewards',
+      content: (
+        <div className="space-y-4">
+          <SectionText>After every successful victory, players receive:</SectionText>
+          <SectionList
+            items={[
+              <>Experience</>,
+              <>Food</>,
+              <>Iron</>,
+              <>Recruits</>,
+            ]}
+          />
+          <SectionText>
+            These rewards are repeatable and can be earned again when replaying Stages.
+          </SectionText>
+          <SectionText>
+            There are also one-time rewards for completing a Stage for the first time.
+          </SectionText>
+          <SectionSubtitle>Possible rewards include</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Temple Coins</>,
+              <>Trainer Heroes</>,
+              <>Trainer Troops</>,
+              <>Class Emblems</>,
+              <>Upgrade Materials</>,
+              <>Other valuable resources</>,
+            ]}
+          />
+          <SectionSubtitle>Notable milestone rewards</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Chamber 5: <strong>50 Temple Coins</strong> and a <strong>Random 4★ Ascension Material</strong>.</>,
+              <>Chamber 10: <strong>50 Temple Coins</strong> and a <strong>Random 5★ Aether</strong>.</>,
+              <>Chamber 15: <strong>50 Temple Coins</strong> and an <strong>Alpha Aether</strong>.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'scoring',
+      title: 'Scoring System',
+      content: (
+        <div className="space-y-4">
+          <SectionText>Your final score is based on several factors:</SectionText>
+          <SectionList
+            items={[
+              <>Enemies Defeated</>,
+              <>Stage Completion Bonus</>,
+              <>Match and Combo Bonus</>,
+              <>Remaining Hero Health</>,
+              <>Chamber Bonus</>,
+            ]}
+          />
+          <SectionText>
+            Continuing a battle with Gems applies a penalty of <strong>33,000 points</strong>.
+          </SectionText>
+        </div>
+      ),
+    },
+    {
+      anchorId: 'leaderboard',
+      title: 'Leaderboard',
+      content: (
+        <div className="space-y-4">
+          <SectionText>Player ranking is determined by:</SectionText>
+          <SectionList
+            items={[
+              <>Highest Chamber reached.</>,
+              <>If multiple players reach the same Chamber, their total score within that Chamber is compared.</>,
+            ]}
+          />
+          <SectionText>The higher your final rank, the better your rewards.</SectionText>
+          <SectionSubtitle>High-ranking rewards may include</SectionSubtitle>
+          <SectionList
+            items={[
+              <>Class Emblems</>,
+              <>Trainer Heroes</>,
+              <>Upgrade Materials</>,
+              <>Temple Coins</>,
+              <>Avatars</>,
+              <>Other valuable resources</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      anchorId: 'tips',
+      title: 'Tips',
+      content: (
+        <div className="space-y-4">
+          <SectionList
+            items={[
+              <>Do not use all of your strongest Heroes at the start of the event.</>,
+              <>Plan your teams carefully to preserve your best Heroes for the final Chambers.</>,
+              <>Check enemy lineups and formations before every battle.</>,
+              <>Remember that remaining enemies become stronger after each victory.</>,
+              <>It is often better to save powerful Heroes for later Chambers than to maximize points in early ones.</>,
+              <>If possible, avoid using Gem continues to prevent ranking score penalties.</>,
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+}
+
 function EventSectionCard({
   section,
   eventPath,
   copyLabel,
   copiedLabel,
+  accentTone = 'cyan',
 }: {
   section: EventSection;
   eventPath: string;
   copyLabel: string;
   copiedLabel: string;
+  accentTone?: AccentTone;
 }) {
+  const toneClasses = accentToneClasses[accentTone];
+
   return (
     <section
       id={section.anchorId}
-      className="scroll-mt-24 rounded-[2rem] border border-cyan-400/16 bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-7"
+      className={`scroll-mt-24 rounded-[2rem] border p-5 shadow-[0_18px_50px_rgba(0,0,0,0.16)] md:p-7 ${toneClasses.section}`}
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <h2 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
@@ -1743,6 +2353,7 @@ function EventSectionCard({
           href={`${eventPath}#${section.anchorId}`}
           copyLabel={copyLabel}
           copiedLabel={copiedLabel}
+          accentTone={accentTone}
         />
       </div>
       {section.content}
@@ -1800,7 +2411,10 @@ export default function EventDetailsPage() {
   const jumpLabel = locale === 'ru' ? 'Быстрый переход по разделам' : 'Jump to section';
   const jumpHint = locale === 'ru' ? 'Открыть список' : 'Open list';
   const isBravePage = eventItem.slug === 'the-brave-and-the-beautiful';
+  const isWindfallPage = eventItem.slug === 'windfall-temple';
+  const accentTone: AccentTone = isWindfallPage ? 'emerald' : 'cyan';
   const braveSections = isBravePage ? buildBraveSections(locale) : [];
+  const windfallSections = isWindfallPage ? buildWindfallSections(locale) : [];
   const allianceWarningSection: EventSection = locale === 'ru'
     ? {
         anchorId: 'alliance-warning',
@@ -1915,7 +2529,9 @@ export default function EventDetailsPage() {
         allianceWarningSection,
         ...visibleBraveSections.slice(difficultyUnlockIndex + 1),
       ]
-    : [];
+    : isWindfallPage
+      ? windfallSections
+      : [];
   const scoreSectionTitle = locale === 'ru' ? 'Таблица очков' : 'Score table';
   const playerRewardsTitle =
     locale === 'ru' ? 'Награды за Альянсовый Ивент (Топ игроков)' : 'Alliance Event Rewards (Top Players)';
@@ -1928,7 +2544,9 @@ export default function EventDetailsPage() {
         { anchorId: 'alliance-top-rewards', title: allianceRewardsTitle },
         { anchorId: 'score-reference', title: scoreSectionTitle },
       ]
-    : [];
+    : isWindfallPage
+      ? articleSections
+      : [];
 
   const placeholderText =
     locale === 'ru'
@@ -2073,7 +2691,12 @@ export default function EventDetailsPage() {
                   <h1 className="min-w-0 text-left text-[clamp(1.15rem,4.8vw,3rem)] font-black tracking-tight text-[var(--foreground)]">
                     {title}
                   </h1>
-                  <CopyLinkButton href={eventPath} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+                  <CopyLinkButton
+                    href={eventPath}
+                    copyLabel={copyLabel}
+                    copiedLabel={copiedLabel}
+                    accentTone={accentTone}
+                  />
                 </div>
               </div>
 
@@ -2086,7 +2709,11 @@ export default function EventDetailsPage() {
                     ? locale === 'ru'
                       ? 'Полный разбор Alliance Quest'
                       : 'Full Alliance Quest breakdown with quick anchors, copy links, and the main overview table at the top of the page.'
-                    : placeholderText}
+                    : isWindfallPage
+                      ? locale === 'ru'
+                        ? 'Полный разбор события'
+                        : 'Full event guide'
+                      : placeholderText}
                 </p>
               </div>
             </div>
@@ -2253,6 +2880,46 @@ export default function EventDetailsPage() {
                 Telegram
               </a>
             </footer>
+          </>
+        ) : isWindfallPage ? (
+          <>
+            <details className="mt-8 overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]">
+              <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]">
+                <div className="flex items-center justify-between gap-4">
+                  <span>{jumpLabel}</span>
+                  <span className="text-xs uppercase tracking-[0.2em] text-[var(--foreground-soft)]">
+                    {jumpHint}
+                  </span>
+                </div>
+              </summary>
+              <div className="border-t border-[var(--border)] px-5 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {quickJumpSections.map((section) => (
+                    <a
+                      key={section.anchorId}
+                      href={`#${section.anchorId}`}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${accentToneClasses.emerald.quickJump}`}
+                    >
+                      {section.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </details>
+
+            <div className="mt-8 space-y-6">
+              {articleSections.map((section) => (
+                <EventSectionCard
+                  key={section.anchorId}
+                  section={section}
+                  eventPath={eventPath}
+                  copyLabel={copyLabel}
+                  copiedLabel={copiedLabel}
+                  accentTone="emerald"
+                />
+              ))}
+            </div>
+
           </>
         ) : (
           <section className="mt-8 rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.16)]">

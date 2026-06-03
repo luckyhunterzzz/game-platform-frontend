@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
+import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import DictionaryModal from '@/components/heroes/admin/DictionaryModal';
 import HeroInfoPopover from '@/components/heroes/admin/HeroInfoPopover';
 import { useAuth } from '@/lib/auth-context';
@@ -816,29 +817,7 @@ export default function TroopsPageClient() {
       )}
 
       <main className="flex flex-1 flex-col items-center px-4 py-12">
-        <div className="mb-12 flex flex-wrap justify-center gap-4">
-          {orderedQuickLinks.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="group flex w-20 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)] sm:w-32 sm:p-4"
-            >
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition-transform group-hover:scale-105 sm:mb-3 sm:h-16 sm:w-16">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.imageSrc} alt={item.label} className="h-9 w-9 object-contain sm:h-12 sm:w-12" />
-              </div>
-
-              <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
-                {item.label}
-              </span>
-              {item.authHint ? (
-                <span className="mt-1 text-center text-[10px] font-medium text-[var(--foreground-soft)] sm:text-[11px]">
-                  {item.authHint}
-                </span>
-              ) : null}
-            </Link>
-          ))}
-        </div>
+        <PageQuickLinksToolbar currentPath="/troops" />
 
         <section className="w-full max-w-7xl">
           <div className="mb-8 rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:p-8">
