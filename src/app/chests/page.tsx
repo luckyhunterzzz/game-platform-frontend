@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
+import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -482,6 +483,8 @@ export default function ChestsPage() {
       )}
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-10 md:px-6">
+        <PageQuickLinksToolbar currentPath="/chests" className="flex flex-wrap justify-center gap-4" />
+
         <section className="overflow-hidden rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),_transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:p-8">
           <div className="max-w-3xl">
             <div className="mb-3 inline-flex items-center rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">

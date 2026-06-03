@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, LoaderCircle, Search, X } from
 import DatePicker from 'react-datepicker';
 import { enUS, ru } from 'date-fns/locale';
 
+import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import HeroInfoPopover from '@/components/heroes/admin/HeroInfoPopover';
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -819,6 +820,8 @@ export default function OutfitterPageClient() {
     <>
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         <section ref={contentRef} className="w-full max-w-7xl space-y-6">
+          <PageQuickLinksToolbar currentPath="/outfitter" className="flex flex-wrap justify-center gap-4" />
+
           <div className="flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm backdrop-blur-sm md:flex-row md:items-start md:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-[var(--foreground)]">{text.pageTitle}</h1>
