@@ -2,54 +2,98 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
+import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { eventGuideItems } from '@/lib/static/events';
 
-type QuickLinkItem = {
-  label: string;
-  href: string;
-  imageSrc: string;
-  imageClassName?: string;
-  authHint?: string;
+type RotatingPreviewState = {
+  currentIndex: number;
+  visibleIndex: number;
+  incomingIndex: number | null;
+  isIncomingVisible: boolean;
 };
+
+function useRotatingPreview(slug: string) {
+  const [state, setState] = useState<RotatingPreviewState>({
+    currentIndex: 0,
+    visibleIndex: 0,
+    incomingIndex: null,
+    isIncomingVisible: false,
+  });
+
+  useEffect(() => {
+    const eventItem = eventGuideItems.find((item) => item.slug === slug);
+    const imageVariants = eventItem?.listPreviewImageRotationSrcs ?? [];
+    if (imageVariants.length < 2) {
+      return;
+    }
+
+    let animationFrameId: number | null = null;
+    let timeoutId: number | null = null;
+
+    const intervalId = window.setInterval(() => {
+      setState((current) => {
+        let next = current.currentIndex;
+        while (next === current.currentIndex) {
+          next = Math.floor(Math.random() * imageVariants.length);
+        }
+
+        if (animationFrameId !== null) {
+          window.cancelAnimationFrame(animationFrameId);
+        }
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+
+        animationFrameId = window.requestAnimationFrame(() => {
+          setState((previewState) => ({
+            ...previewState,
+            isIncomingVisible: true,
+          }));
+        });
+
+        timeoutId = window.setTimeout(() => {
+          setState((previewState) => ({
+            ...previewState,
+            visibleIndex: next,
+            incomingIndex: null,
+            isIncomingVisible: false,
+          }));
+        }, 850);
+
+        return {
+          currentIndex: next,
+          visibleIndex: current.visibleIndex,
+          incomingIndex: next,
+          isIncomingVisible: false,
+        };
+      });
+    }, 7000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [slug]);
+
+  return state;
+}
 
 export default function EventsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const ninjaTowerPreview = useRotatingPreview('ninja-tower');
+  const windfallTemplePreview = useRotatingPreview('windfall-temple');
   const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
-
-  const quickLinks = useMemo<QuickLinkItem[]>(
-    () => [
-      { label: messages.home.navHeroes, href: '/heroes', imageSrc: '/home-quick-links/heroes.png' },
-      { label: locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
-      { label: locale === 'ru' ? '\u0421\u0443\u043D\u0434\u0443\u043A\u0438' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
-      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
-      { label: messages.home.navHeroCoach, href: '/hero-coach', imageSrc: '/heroes/activity-icons/hero-coach.png' },
-      { label: messages.home.navOutfitter, href: '/outfitter', imageSrc: '/heroes/activity-icons/visiting-outfitter.png' },
-      { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
-      {
-        label: messages.home.navJointPurchases,
-        href: '/joint-purchases',
-        imageSrc: '/home-quick-links/joint-purchases.webp',
-        authHint: authenticated ? undefined : messages.home.navJointPurchasesAuthHint,
-      },
-    ],
-    [
-      authenticated,
-      locale,
-      messages.home.navAlliances,
-      messages.home.navEvents,
-      messages.home.navHeroes,
-      messages.home.navHeroCoach,
-      messages.home.navOutfitter,
-      messages.home.navJointPurchases,
-      messages.home.navJointPurchasesAuthHint,
-    ],
-  );
 
   const pageTitle = locale === 'ru' ? 'События' : 'Events';
   const pageSubtitle =
@@ -137,34 +181,7 @@ export default function EventsPage() {
       )}
 
       <main className="flex flex-1 flex-col items-center px-4 py-12">
-        <div className="mb-12 flex flex-wrap justify-center gap-4">
-          {quickLinks.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="group flex w-20 flex-col items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2.5 shadow-lg transition-all hover:border-blue-500/40 hover:bg-[var(--surface-hover)] sm:w-32 sm:p-4"
-            >
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition-transform group-hover:scale-105 sm:mb-3 sm:h-16 sm:w-16">
-                <Image
-                  src={item.imageSrc}
-                  alt={item.label}
-                  width={64}
-                  height={64}
-                  className={item.imageClassName ?? 'h-9 w-9 object-contain sm:h-12 sm:w-12'}
-                />
-              </div>
-
-              <span className="text-center text-[11px] font-semibold text-[var(--foreground-muted)] transition group-hover:text-blue-300 sm:text-xs">
-                {item.label}
-              </span>
-              {item.authHint ? (
-                <span className="mt-1 text-center text-[10px] font-medium text-[var(--foreground-soft)] sm:text-[11px]">
-                  {item.authHint}
-                </span>
-              ) : null}
-            </Link>
-          ))}
-        </div>
+        <PageQuickLinksToolbar currentPath="/events" />
 
         <section className="w-full max-w-7xl">
           <div className="mb-8 rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:p-8">
@@ -179,24 +196,67 @@ export default function EventsPage() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {eventGuideItems.map((item) => {
               const title = locale === 'ru' ? item.titleRu : item.titleEn;
-              const isActive = item.slug === 'the-brave-and-the-beautiful';
+              const isActive = item.isActive === true;
+              const shouldKeepFullColorWhenInactive = item.keepFullColorWhenInactive === true;
+              const currentPreviewSrc =
+                item.slug === 'ninja-tower' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
+                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
+                  : item.slug === 'windfall-temple' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
+                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
+                  : item.listPreviewImageSrc ?? item.previewImageSrc;
+              const incomingPreviewSrc =
+                item.slug === 'ninja-tower' &&
+                ninjaTowerPreview.incomingIndex !== null &&
+                item.listPreviewImageRotationSrcs &&
+                item.listPreviewImageRotationSrcs.length > 0
+                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
+                  : item.slug === 'windfall-temple' &&
+                    windfallTemplePreview.incomingIndex !== null &&
+                    item.listPreviewImageRotationSrcs &&
+                    item.listPreviewImageRotationSrcs.length > 0
+                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
+                  : null;
+              const isIncomingPreviewVisible =
+                item.slug === 'ninja-tower'
+                  ? ninjaTowerPreview.isIncomingVisible
+                  : item.slug === 'windfall-temple'
+                    ? windfallTemplePreview.isIncomingVisible
+                    : false;
               const usesWidePreview = Boolean(item.listPreviewImageSrc);
               const cardContent = (
-                <article className="flex h-full flex-col rounded-[calc(1rem-2px)] bg-[var(--surface)] p-4">
+                <article
+                  className={`flex h-full flex-col rounded-[calc(1rem-2px)] bg-[var(--surface)] p-4 transition ${
+                    isActive || shouldKeepFullColorWhenInactive ? '' : 'opacity-70 saturate-0'
+                  }`}
+                >
                   <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_56%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
                     <div className="relative aspect-[3/4] w-full overflow-hidden">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
                       <Image
-                        src={item.listPreviewImageSrc ?? item.previewImageSrc}
+                        src={currentPreviewSrc}
                         alt={title}
                         fill
                         sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                        className={`relative z-10 transition duration-200 ${
+                        className={`relative z-10 transition-[opacity,transform] duration-700 ease-in-out ${
                           usesWidePreview ? 'object-cover object-center' : 'object-contain object-top p-4'
                         } ${
                           isActive ? 'scale-[0.96] group-hover:scale-100 group-active:scale-[0.93]' : 'scale-[0.94]'
                         }`}
                       />
+                      {incomingPreviewSrc ? (
+                        <Image
+                          src={incomingPreviewSrc}
+                          alt={title}
+                          fill
+                          sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                          className={`absolute inset-0 z-20 transition-opacity duration-700 ease-in-out ${
+                            usesWidePreview ? 'object-cover object-center' : 'object-contain object-top p-4'
+                          } ${
+                            isActive ? 'scale-[0.96] group-hover:scale-100 group-active:scale-[0.93]' : 'scale-[0.94]'
+                          }`}
+                          style={{ opacity: isIncomingPreviewVisible ? 1 : 0 }}
+                        />
+                      ) : null}
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
                     </div>
                   </div>
@@ -227,7 +287,9 @@ export default function EventsPage() {
               return (
                 <div
                   key={item.slug}
-                  className={`overflow-hidden rounded-2xl border p-[2px] ${item.accentClassName}`}
+                  className={`overflow-hidden rounded-2xl border p-[2px] ${item.accentClassName} ${
+                    shouldKeepFullColorWhenInactive ? '' : 'grayscale-[0.85]'
+                  }`}
                 >
                   {cardContent}
                 </div>
