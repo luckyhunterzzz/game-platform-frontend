@@ -10,110 +10,90 @@ import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { eventGuideItems } from '@/lib/static/events';
 
+type RotatingPreviewState = {
+  currentIndex: number;
+  visibleIndex: number;
+  incomingIndex: number | null;
+  isIncomingVisible: boolean;
+};
+
+function useRotatingPreview(slug: string) {
+  const [state, setState] = useState<RotatingPreviewState>({
+    currentIndex: 0,
+    visibleIndex: 0,
+    incomingIndex: null,
+    isIncomingVisible: false,
+  });
+
+  useEffect(() => {
+    const eventItem = eventGuideItems.find((item) => item.slug === slug);
+    const imageVariants = eventItem?.listPreviewImageRotationSrcs ?? [];
+    if (imageVariants.length < 2) {
+      return;
+    }
+
+    let animationFrameId: number | null = null;
+    let timeoutId: number | null = null;
+
+    const intervalId = window.setInterval(() => {
+      setState((current) => {
+        let next = current.currentIndex;
+        while (next === current.currentIndex) {
+          next = Math.floor(Math.random() * imageVariants.length);
+        }
+
+        if (animationFrameId !== null) {
+          window.cancelAnimationFrame(animationFrameId);
+        }
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+
+        animationFrameId = window.requestAnimationFrame(() => {
+          setState((previewState) => ({
+            ...previewState,
+            isIncomingVisible: true,
+          }));
+        });
+
+        timeoutId = window.setTimeout(() => {
+          setState((previewState) => ({
+            ...previewState,
+            visibleIndex: next,
+            incomingIndex: null,
+            isIncomingVisible: false,
+          }));
+        }, 850);
+
+        return {
+          currentIndex: next,
+          visibleIndex: current.visibleIndex,
+          incomingIndex: next,
+          isIncomingVisible: false,
+        };
+      });
+    }, 7000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [slug]);
+
+  return state;
+}
+
 export default function EventsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [ninjaTowerImageIndex, setNinjaTowerImageIndex] = useState(0);
-  const [ninjaTowerVisibleImageIndex, setNinjaTowerVisibleImageIndex] = useState(0);
-  const [ninjaTowerIncomingImageIndex, setNinjaTowerIncomingImageIndex] = useState<number | null>(null);
-  const [isNinjaTowerIncomingImageVisible, setIsNinjaTowerIncomingImageVisible] = useState(false);
-  const [windfallTempleImageIndex, setWindfallTempleImageIndex] = useState(0);
-  const [windfallTempleVisibleImageIndex, setWindfallTempleVisibleImageIndex] = useState(0);
-  const [windfallTempleIncomingImageIndex, setWindfallTempleIncomingImageIndex] = useState<number | null>(null);
-  const [isWindfallTempleIncomingImageVisible, setIsWindfallTempleIncomingImageVisible] = useState(false);
+  const ninjaTowerPreview = useRotatingPreview('ninja-tower');
+  const windfallTemplePreview = useRotatingPreview('windfall-temple');
   const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
-
-  useEffect(() => {
-    const ninjaTowerItem = eventGuideItems.find((item) => item.slug === 'ninja-tower');
-    const imageVariants = ninjaTowerItem?.listPreviewImageRotationSrcs ?? [];
-    if (imageVariants.length < 2) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setNinjaTowerImageIndex((current) => {
-        let next = current;
-        while (next === current) {
-          next = Math.floor(Math.random() * imageVariants.length);
-        }
-        return next;
-      });
-    }, 7000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (ninjaTowerImageIndex === ninjaTowerVisibleImageIndex) {
-      return;
-    }
-
-    setNinjaTowerIncomingImageIndex(ninjaTowerImageIndex);
-    setIsNinjaTowerIncomingImageVisible(false);
-
-    const animationFrameId = window.requestAnimationFrame(() => {
-      setIsNinjaTowerIncomingImageVisible(true);
-    });
-
-    const timeoutId = window.setTimeout(() => {
-      setNinjaTowerVisibleImageIndex(ninjaTowerImageIndex);
-      setNinjaTowerIncomingImageIndex(null);
-      setIsNinjaTowerIncomingImageVisible(false);
-    }, 850);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(timeoutId);
-    };
-  }, [ninjaTowerImageIndex, ninjaTowerVisibleImageIndex]);
-
-  useEffect(() => {
-    const windfallTempleItem = eventGuideItems.find((item) => item.slug === 'windfall-temple');
-    const imageVariants = windfallTempleItem?.listPreviewImageRotationSrcs ?? [];
-    if (imageVariants.length < 2) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setWindfallTempleImageIndex((current) => {
-        let next = current;
-        while (next === current) {
-          next = Math.floor(Math.random() * imageVariants.length);
-        }
-        return next;
-      });
-    }, 7000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (windfallTempleImageIndex === windfallTempleVisibleImageIndex) {
-      return;
-    }
-
-    setWindfallTempleIncomingImageIndex(windfallTempleImageIndex);
-    setIsWindfallTempleIncomingImageVisible(false);
-
-    const animationFrameId = window.requestAnimationFrame(() => {
-      setIsWindfallTempleIncomingImageVisible(true);
-    });
-
-    const timeoutId = window.setTimeout(() => {
-      setWindfallTempleVisibleImageIndex(windfallTempleImageIndex);
-      setWindfallTempleIncomingImageIndex(null);
-      setIsWindfallTempleIncomingImageVisible(false);
-    }, 850);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(timeoutId);
-    };
-  }, [windfallTempleImageIndex, windfallTempleVisibleImageIndex]);
 
   const pageTitle = locale === 'ru' ? 'События' : 'Events';
   const pageSubtitle =
@@ -220,27 +200,27 @@ export default function EventsPage() {
               const shouldKeepFullColorWhenInactive = item.keepFullColorWhenInactive === true;
               const currentPreviewSrc =
                 item.slug === 'ninja-tower' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
-                  ? item.listPreviewImageRotationSrcs[ninjaTowerVisibleImageIndex % item.listPreviewImageRotationSrcs.length]
+                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
                   : item.slug === 'windfall-temple' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
-                    ? item.listPreviewImageRotationSrcs[windfallTempleVisibleImageIndex % item.listPreviewImageRotationSrcs.length]
+                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
                   : item.listPreviewImageSrc ?? item.previewImageSrc;
               const incomingPreviewSrc =
                 item.slug === 'ninja-tower' &&
-                ninjaTowerIncomingImageIndex !== null &&
+                ninjaTowerPreview.incomingIndex !== null &&
                 item.listPreviewImageRotationSrcs &&
                 item.listPreviewImageRotationSrcs.length > 0
-                  ? item.listPreviewImageRotationSrcs[ninjaTowerIncomingImageIndex % item.listPreviewImageRotationSrcs.length]
+                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
                   : item.slug === 'windfall-temple' &&
-                    windfallTempleIncomingImageIndex !== null &&
+                    windfallTemplePreview.incomingIndex !== null &&
                     item.listPreviewImageRotationSrcs &&
                     item.listPreviewImageRotationSrcs.length > 0
-                    ? item.listPreviewImageRotationSrcs[windfallTempleIncomingImageIndex % item.listPreviewImageRotationSrcs.length]
+                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
                   : null;
               const isIncomingPreviewVisible =
                 item.slug === 'ninja-tower'
-                  ? isNinjaTowerIncomingImageVisible
+                  ? ninjaTowerPreview.isIncomingVisible
                   : item.slug === 'windfall-temple'
-                    ? isWindfallTempleIncomingImageVisible
+                    ? windfallTemplePreview.isIncomingVisible
                     : false;
               const usesWidePreview = Boolean(item.listPreviewImageSrc);
               const cardContent = (

@@ -1164,11 +1164,7 @@ function EventOverviewSwitcher({
   russianAlt: string;
   englishAlt: string;
 }) {
-  const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en'>(locale === 'ru' ? 'ru' : 'en');
-
-  useEffect(() => {
-    setSelectedLanguage(locale === 'ru' ? 'ru' : 'en');
-  }, [locale]);
+  const [selectedLanguage, setSelectedLanguage] = useState<'ru' | 'en'>('ru');
 
   const isRussianOverview = locale === 'ru' && selectedLanguage === 'ru';
   const currentSrc = isRussianOverview ? russianSrc : englishSrc;
