@@ -1184,7 +1184,7 @@ function EventOverviewSwitcher({
                   : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-400/24 hover:text-[var(--foreground)]'
               }`}
             >
-              RU image
+              RU
             </button>
             <button
               type="button"
@@ -1195,11 +1195,11 @@ function EventOverviewSwitcher({
                   : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:border-emerald-400/24 hover:text-[var(--foreground)]'
               }`}
             >
-              EN original
+              EN
             </button>
           </div>
           <SectionText className="mt-3">
-            Русскую схему можно быстро переключить на оригинальную английскую версию без смены локали всего сайта.
+            RU версия имеет автоматический перевод, сгенерированный ИИ, и может содержать ошибки и неточности.
           </SectionText>
         </div>
       ) : null}
@@ -2675,7 +2675,7 @@ export default function EventDetailsPage() {
                   <div className="relative h-14 w-14 overflow-hidden sm:h-16 sm:w-16">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
                     <Image
-                      src={eventItem.previewImageSrc}
+                      src={isWindfallPage ? '/events/windfall-temple/family-emblem.webp' : eventItem.previewImageSrc}
                       alt={title}
                       fill
                       sizes="64px"
@@ -2861,21 +2861,6 @@ export default function EventDetailsPage() {
               <ScoreReferenceBlock locale={locale} />
             </section>
 
-            <footer className="mt-8 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm leading-7 text-[var(--foreground-soft)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]">
-              <span>
-                {locale === 'ru'
-                  ? 'Благодарность за помощь в составлении данной статьи @Vesta22: '
-                  : 'Thanks to @Vesta22 for help with this article: '}
-              </span>
-              <a
-                href="https://t.me/VestiVesta"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-cyan-300 transition hover:text-cyan-200"
-              >
-                Telegram
-              </a>
-            </footer>
           </>
         ) : isWindfallPage ? (
           <>

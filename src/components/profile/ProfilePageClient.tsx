@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, CircleHelp, Eraser, FilePlus2, GripVertical, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Eraser, FilePlus2, GripVertical, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -3445,22 +3445,10 @@ export default function ProfilePageClient() {
     }
   };
 
-  const handleReorderWarStatTeams = async (draggedTeamId: string, targetTeamId: string) => {
-    if (!warStatManualOrderEnabled || draggedTeamId === targetTeamId) {
-      return;
-    }
-
-    const draggedIndex = warStatTeams.findIndex((team) => team.id === draggedTeamId);
-    const targetIndex = warStatTeams.findIndex((team) => team.id === targetTeamId);
-    if (draggedIndex < 0 || targetIndex < 0) {
-      return;
-    }
-
-    const previousTeams = warStatTeams;
-    const nextTeams = [...warStatTeams];
-    const [draggedTeam] = nextTeams.splice(draggedIndex, 1);
-    nextTeams.splice(targetIndex, 0, draggedTeam);
-
+  const persistWarStatTeamOrder = async (
+    nextTeams: PlayerWarStatAttackTeamResponse[],
+    previousTeams: PlayerWarStatAttackTeamResponse[],
+  ) => {
     const normalizedTeams = nextTeams.map((team, index) => ({
       ...team,
       teamOrder: index + 1,
@@ -3488,6 +3476,48 @@ export default function ProfilePageClient() {
       setDraggedWarStatTeamId(null);
       setSavingWarStatTeams(false);
     }
+  };
+
+  const handleReorderWarStatTeams = async (draggedTeamId: string, targetTeamId: string) => {
+    if (!warStatManualOrderEnabled || draggedTeamId === targetTeamId) {
+      return;
+    }
+
+    const draggedIndex = warStatTeams.findIndex((team) => team.id === draggedTeamId);
+    const targetIndex = warStatTeams.findIndex((team) => team.id === targetTeamId);
+    if (draggedIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    const previousTeams = warStatTeams;
+    const nextTeams = [...warStatTeams];
+    const [draggedTeam] = nextTeams.splice(draggedIndex, 1);
+    nextTeams.splice(targetIndex, 0, draggedTeam);
+
+    await persistWarStatTeamOrder(nextTeams, previousTeams);
+  };
+
+  const handleMoveWarStatTeam = async (teamId: string, direction: 'up' | 'down') => {
+    if (!warStatManualOrderEnabled) {
+      return;
+    }
+
+    const currentIndex = warStatTeams.findIndex((team) => team.id === teamId);
+    if (currentIndex < 0) {
+      return;
+    }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= warStatTeams.length) {
+      return;
+    }
+
+    const previousTeams = warStatTeams;
+    const nextTeams = [...warStatTeams];
+    const [movedTeam] = nextTeams.splice(currentIndex, 1);
+    nextTeams.splice(targetIndex, 0, movedTeam);
+
+    await persistWarStatTeamOrder(nextTeams, previousTeams);
   };
 
   const handleWarStatDraftChange = (teamId: string, patch: Partial<WarStatRecordDraft>) => {
@@ -4537,13 +4567,17 @@ export default function ProfilePageClient() {
                 const teamLocked = team.records.length > 0;
                 const teamExpanded = warStatExpandedTeamIds.includes(team.id);
                 const teamEmpty = team.slots.every((slot) => slot.playerProfileHeroId === null);
+                const teamIndex = warStatTeams.findIndex((item) => item.id === team.id);
+                const canMoveWarStatTeamUp = warStatManualOrderEnabled && teamIndex > 0 && !savingWarStatTeams;
+                const canMoveWarStatTeamDown =
+                  warStatManualOrderEnabled && teamIndex >= 0 && teamIndex < warStatTeams.length - 1 && !savingWarStatTeams;
 
                 return (
                   <div
                     key={team.id}
-                    draggable={warStatManualOrderEnabled && !savingWarStatTeams}
+                    draggable={!warCompactMode && warStatManualOrderEnabled && !savingWarStatTeams}
                     onDragStart={(event) => {
-                      if (!warStatManualOrderEnabled || savingWarStatTeams) {
+                      if (warCompactMode || !warStatManualOrderEnabled || savingWarStatTeams) {
                         return;
                       }
                       event.dataTransfer.effectAllowed = 'move';
@@ -4570,18 +4604,43 @@ export default function ProfilePageClient() {
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-soft)]">
-                            <span
-                              className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] ${
-                                warStatManualOrderEnabled ? 'cursor-grab' : 'cursor-not-allowed opacity-50'
-                              }`}
-                              title={
-                                warStatManualOrderEnabled
-                                  ? (locale === 'ru' ? 'Перетащите, чтобы сменить порядок команды' : 'Drag to change team order')
-                                  : (locale === 'ru' ? 'Для перетаскивания выберите сортировку по порядку команд, порядок по возрастанию и снимите фильтры' : 'To drag, use team order sorting, ascending order, and clear filters')
-                              }
-                            >
-                              <GripVertical className="h-3.5 w-3.5" />
-                            </span>
+                            {warCompactMode ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleMoveWarStatTeam(team.id, 'up')}
+                                  disabled={!canMoveWarStatTeamUp}
+                                  title={locale === 'ru' ? 'Поднять команду выше' : 'Move team up'}
+                                  aria-label={locale === 'ru' ? 'Поднять команду выше' : 'Move team up'}
+                                  className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleMoveWarStatTeam(team.id, 'down')}
+                                  disabled={!canMoveWarStatTeamDown}
+                                  title={locale === 'ru' ? 'Опустить команду ниже' : 'Move team down'}
+                                  aria-label={locale === 'ru' ? 'Опустить команду ниже' : 'Move team down'}
+                                  className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span
+                                className={`inline-flex h-6 w-6 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] ${
+                                  warStatManualOrderEnabled ? 'cursor-grab' : 'cursor-not-allowed opacity-50'
+                                }`}
+                                title={
+                                  warStatManualOrderEnabled
+                                    ? (locale === 'ru' ? 'Перетащите, чтобы сменить порядок команды' : 'Drag to change team order')
+                                    : (locale === 'ru' ? 'Для перетаскивания выберите сортировку по порядку команд, порядок по возрастанию и снимите фильтры' : 'To drag, use team order sorting, ascending order, and clear filters')
+                                }
+                              >
+                                <GripVertical className="h-3.5 w-3.5" />
+                              </span>
+                            )}
                             <span>{`${messages.profile.warTeam} ${team.teamOrder}`}</span>
                           </div>
                           <input
@@ -4635,7 +4694,7 @@ export default function ProfilePageClient() {
                           onClick={() => void handleDeleteWarStatTeam(team.id)}
                           title={messages.profile.warStatsDeleteTeam}
                           aria-label={messages.profile.warStatsDeleteTeam}
-                          disabled={savingWarStatTeams || teamLocked}
+                          disabled={savingWarStatTeams}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -4756,6 +4815,19 @@ export default function ProfilePageClient() {
                   </div>
                 );
               })}
+
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCreateWarStatTeam()}
+                  disabled={savingWarStatTeams}
+                  title={messages.profile.warStatsAddTeam}
+                  aria-label={messages.profile.warStatsAddTeam}
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           )}
         </div>
