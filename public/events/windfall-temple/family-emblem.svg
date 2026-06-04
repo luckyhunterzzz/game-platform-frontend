@@ -1,0 +1,20 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="petal" x1="64" y1="10" x2="64" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9FAFB"/>
+      <stop offset="0.45" stop-color="#D1D5DB"/>
+      <stop offset="1" stop-color="#9CA3AF"/>
+    </linearGradient>
+    <linearGradient id="gem" x1="64" y1="78" x2="64" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#166534"/>
+    </linearGradient>
+  </defs>
+  <path d="M64 78C57 62 40 57 27 58C31 44 43 34 55 32C55 21 60 13 64 8C68 13 73 21 73 32C85 34 97 44 101 58C88 57 71 62 64 78Z" fill="url(#petal)"/>
+  <path d="M64 74C55 58 34 50 18 51C22 38 34 24 49 20C52 12 58 7 64 3C70 7 76 12 79 20C94 24 106 38 110 51C94 50 73 58 64 74Z" fill="url(#petal)"/>
+  <path d="M38 80C31 68 20 62 8 62C13 50 24 42 36 42C42 52 42 67 38 80Z" fill="url(#petal)"/>
+  <path d="M90 80C86 67 86 52 92 42C104 42 115 50 120 62C108 62 97 68 90 80Z" fill="url(#petal)"/>
+  <path d="M64 125L42 101H86L64 125Z" fill="url(#gem)"/>
+  <path d="M64 77L40 100H88L64 77Z" fill="#15803D"/>
+  <path d="M64 77L50 100H78L64 77Z" fill="#22C55E"/>
+</svg>
