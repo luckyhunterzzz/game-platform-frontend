@@ -3,11 +3,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import Keycloak, { KeycloakInitOptions } from 'keycloak-js';
 import { KeycloakTokenParsed } from 'keycloak-js';
+import { useRuntimeConfig } from '@/lib/runtime-config/context';
+
+const AUTH_INIT_TIMEOUT_MS = 10_000;
 
 type AuthContextValue = {
   keycloak: Keycloak | null;
   loading: boolean;
   authenticated: boolean;
+  error: string | null;
   userId: string | null;
   userEmail: string | null;
   displayName: string | null;
@@ -23,13 +27,15 @@ function withRolePrefix(roles: string[]): string[] {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const runtimeConfig = useRuntimeConfig();
   const [keycloak, setKeycloak] = useState<Keycloak | null>(null);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const kc = new Keycloak({
-      url: process.env.NEXT_PUBLIC_KEYCLOAK_URL ?? 'http://localhost:8080',
+      url: runtimeConfig.authUrl,
       realm: process.env.NEXT_PUBLIC_KEYCLOAK_REALM ?? 'game-realm',
       clientId: process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? 'game-frontend',
     });
@@ -41,11 +47,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     let refreshTimer: number | null = null;
+    let isCancelled = false;
+    let initTimeout: number | null = null;
 
-    kc.init(initOptions)
+    const initPromise = kc.init(initOptions);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      initTimeout = window.setTimeout(() => {
+        reject(new Error('Keycloak initialization timed out'));
+      }, AUTH_INIT_TIMEOUT_MS);
+    });
+
+    Promise.race([initPromise, timeoutPromise])
       .then((auth) => {
+        if (isCancelled) {
+          return;
+        }
+
+        if (initTimeout) {
+          window.clearTimeout(initTimeout);
+        }
+
         setKeycloak(kc);
-        setAuthenticated(auth);
+        setAuthenticated(Boolean(auth));
         setLoading(false);
 
         refreshTimer = window.setInterval(async () => {
@@ -58,16 +81,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }, 60_000);
       })
-      .catch(() => {
+      .catch((initError: unknown) => {
+        if (isCancelled) {
+          return;
+        }
+
+        if (initTimeout) {
+          window.clearTimeout(initTimeout);
+        }
+
         setKeycloak(kc);
         setAuthenticated(false);
         setLoading(false);
+        setError(
+          initError instanceof Error
+            ? initError.message
+            : 'Authentication is temporarily unavailable',
+        );
       });
 
     return () => {
+      isCancelled = true;
+      if (initTimeout) window.clearTimeout(initTimeout);
       if (refreshTimer) window.clearInterval(refreshTimer);
     };
-  }, []);
+  }, [runtimeConfig.authUrl]);
 
   const value = useMemo<AuthContextValue>(() => {
     const tokenParsed = ((keycloak?.tokenParsed as KeycloakTokenParsed & {
@@ -88,14 +126,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       keycloak,
       loading,
       authenticated,
+      error,
       userId: tokenParsed?.sub ?? null,
       userEmail,
       displayName,
       roles: withRolePrefix(rawRoles),
-      login: () => keycloak?.login(),
-      logout: () => keycloak?.logout(),
+      login: () => {
+        if (!keycloak) {
+          return;
+        }
+
+        void keycloak.login();
+      },
+      logout: () => {
+        if (!keycloak) {
+          return;
+        }
+
+        void keycloak.logout();
+      },
     };
-  }, [keycloak, loading, authenticated]);
+  }, [authenticated, error, keycloak, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
