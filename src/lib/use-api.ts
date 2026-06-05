@@ -42,10 +42,28 @@ export function useApi() {
         headers.set('Authorization', `Bearer ${token}`);
       }
 
-      const res = await fetch(url, {
-        ...init,
-        headers,
-      });
+      let res: Response;
+
+      try {
+        res = await fetch(url, {
+          ...init,
+          headers,
+        });
+      } catch (error) {
+        const apiHost = (() => {
+          try {
+            return new URL(apiBaseUrl).host;
+          } catch {
+            return apiBaseUrl;
+          }
+        })();
+
+        throw new ApiError(
+          `Network error while reaching ${apiHost}. Check CORS or reverse proxy configuration.`,
+          0,
+          error,
+        );
+      }
 
       const body = await res.text();
 

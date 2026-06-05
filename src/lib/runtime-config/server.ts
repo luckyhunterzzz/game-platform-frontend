@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { RuntimeConfig } from '@/lib/runtime-config/types';
 
+const LOCAL_FRONTEND_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const RU_FRONTEND_HOST = 'ru.gameops-platform.dev';
 
 function normalizeForwardedHost(value: string | null): string {
@@ -19,6 +20,15 @@ function stripPort(host: string): string {
 
 export function resolveRuntimeConfigByHost(host: string): RuntimeConfig {
   const normalizedHost = stripPort(host);
+
+  if (LOCAL_FRONTEND_HOSTS.has(normalizedHost)) {
+    return {
+      frontendUrl: 'http://localhost:3000',
+      apiBaseUrl: 'http://localhost:8081',
+      authUrl: 'http://localhost:8080',
+      mediaUrl: 'http://localhost:9000',
+    };
+  }
 
   if (normalizedHost === RU_FRONTEND_HOST) {
     return {
