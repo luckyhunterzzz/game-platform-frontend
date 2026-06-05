@@ -2,9 +2,8 @@
 
 import { useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useRuntimeConfig } from '@/lib/runtime-config/context';
 import type { ErrorResponse } from '@/lib/types/publication';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8081';
 
 export type ApiFetchResult = {
   status: number;
@@ -25,10 +24,15 @@ export class ApiError extends Error {
 
 export function useApi() {
   const { keycloak } = useAuth();
+  const { apiBaseUrl } = useRuntimeConfig();
 
   const apiFetch = useCallback(
     async (path: string, init: RequestInit = {}): Promise<ApiFetchResult> => {
-      const url = path.startsWith('http') ? path : `${API_BASE}${path}`;
+      if (!apiBaseUrl) {
+        throw new ApiError('API configuration is unavailable', 503);
+      }
+
+      const url = path.startsWith('http') ? path : `${apiBaseUrl}${path}`;
 
       const headers = new Headers(init.headers);
       headers.set('X-Request-Id', crypto.randomUUID());
@@ -50,7 +54,7 @@ export function useApi() {
         body,
       };
     },
-    [keycloak?.token],
+    [apiBaseUrl, keycloak?.token],
   );
 
   const apiJson = useCallback(
