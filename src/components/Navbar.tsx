@@ -27,7 +27,7 @@ export const Navbar = ({
   onMenuClick: () => void;
   onHomeClick?: () => void;
 }) => {
-  const { authenticated, login, logout } = useAuth();
+  const { authenticated, error: authError, login, logout } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -90,8 +90,16 @@ export const Navbar = ({
   };
 
   const currentLocaleLabel = locale.toUpperCase();
+  const authErrorMessage =
+    locale === 'ru'
+      ? 'Авторизация временно недоступна. Сайт продолжает работать в гостевом режиме.'
+      : 'Authentication is temporarily unavailable. The site is running in guest mode.';
 
   const ThemeIcon = theme === 'light' ? Sun : Moon;
+  const authStatusMessage =
+    locale === 'ru'
+      ? '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430. \u0421\u0430\u0439\u0442 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0435\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0432 \u0433\u043e\u0441\u0442\u0435\u0432\u043e\u043c \u0440\u0435\u0436\u0438\u043c\u0435.'
+      : authErrorMessage;
 
   const aboutProjectContent =
     locale === 'ru'
@@ -298,8 +306,13 @@ export const Navbar = ({
         ) : (
           <button
             onClick={login}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700"
-            title={messages.navbar.login}
+            disabled={Boolean(authError)}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white transition-colors ${
+              authError
+                ? 'cursor-not-allowed bg-slate-500'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={authError ? authStatusMessage : messages.navbar.login}
             aria-label={messages.navbar.login}
           >
             <User size={18} />
@@ -308,6 +321,11 @@ export const Navbar = ({
       </div>
 
       </nav>
+      {authError ? (
+        <div className="border-b border-amber-400/25 bg-amber-400/10 px-3 py-2 text-center text-xs text-amber-100 sm:px-4">
+          {authStatusMessage}
+        </div>
+      ) : null}
 
       {isAboutModalOpen && (
         <div
