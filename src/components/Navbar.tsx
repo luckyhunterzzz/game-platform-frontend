@@ -27,7 +27,7 @@ export const Navbar = ({
   onMenuClick: () => void;
   onHomeClick?: () => void;
 }) => {
-  const { authenticated, error: authError, login, logout } = useAuth();
+  const { authenticated, canResumeLogin, error: authError, loading: authLoading, login, logout } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -96,6 +96,7 @@ export const Navbar = ({
       : 'Authentication is temporarily unavailable. The site is running in guest mode.';
 
   const ThemeIcon = theme === 'light' ? Sun : Moon;
+  const loginLabel = canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login;
   const authStatusMessage =
     locale === 'ru'
       ? '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430. \u0421\u0430\u0439\u0442 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0435\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0432 \u0433\u043e\u0441\u0442\u0435\u0432\u043e\u043c \u0440\u0435\u0436\u0438\u043c\u0435.'
@@ -306,14 +307,14 @@ export const Navbar = ({
         ) : (
           <button
             onClick={login}
-            disabled={Boolean(authError)}
+            disabled={authLoading}
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white transition-colors ${
-              authError
+              authLoading
                 ? 'cursor-not-allowed bg-slate-500'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
-            title={authError ? authStatusMessage : messages.navbar.login}
-            aria-label={messages.navbar.login}
+            title={authLoading ? authStatusMessage : loginLabel}
+            aria-label={loginLabel}
           >
             <User size={18} />
           </button>

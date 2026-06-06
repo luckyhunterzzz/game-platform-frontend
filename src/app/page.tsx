@@ -5,7 +5,6 @@ import Link from 'next/link';
 import React, { useState } from 'react';
 
 import { Navbar } from '@/components/Navbar';
-import { LoadingScreen } from '@/components/LoadingScreen';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import PublicationsSection from '@/components/publications/PublicationsSection';
 import { useAuth } from '@/lib/auth-context';
@@ -35,12 +34,8 @@ const titleImageMeta = {
 export default function HomePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-  const { authenticated, loading } = useAuth();
+  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
