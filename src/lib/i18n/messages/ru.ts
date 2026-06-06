@@ -6,6 +6,7 @@ export const ruMessages: Messages = {
     language: '\u042f\u0437\u044b\u043a',
     userId: 'User ID',
     login: '\u0412\u043e\u0439\u0442\u0438',
+    continueLogin: '\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c \u0432\u0445\u043e\u0434',
     logout: '\u0412\u044b\u0439\u0442\u0438',
     profile: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c',
     themeLight: '\u0421\u0432\u0435\u0442\u043b\u0430\u044f',

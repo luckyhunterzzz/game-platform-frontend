@@ -8,6 +8,7 @@ export type Messages = {
     language: string;
     userId: string;
     login: string;
+    continueLogin: string;
     logout: string;
     profile: string;
     themeLight: string;

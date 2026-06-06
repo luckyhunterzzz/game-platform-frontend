@@ -6,6 +6,7 @@ export const enMessages: Messages = {
     language: 'Language',
     userId: 'User ID',
     login: 'Login',
+    continueLogin: 'Continue login',
     logout: 'Logout',
     profile: 'Profile',
     themeLight: 'Light',
