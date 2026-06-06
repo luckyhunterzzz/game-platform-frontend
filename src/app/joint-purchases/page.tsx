@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
@@ -14,12 +15,14 @@ const SHOW_PURCHASE_HELP_BANNER = false;
 
 export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
   const { locale, messages } = useI18n();
-  const { authenticated, loading, login } = useAuth();
+  const { authenticated, canResumeLogin, loading, login } = useAuth();
+  const loginLabel = canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login;
 
   const navigateHome = () => {
     setSidebarOpen(false);
-    window.location.assign('/');
+    router.push('/');
   };
 
   if (loading) {
@@ -131,7 +134,7 @@ export default function JointPurchasesPage() {
                     onClick={login}
                     className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
                   >
-                    {messages.navbar.login}
+                    {loginLabel}
                   </button>
                   <button
                     type="button"

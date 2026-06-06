@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import HeroesPageClient from '@/components/heroes/HeroesPageClient';
@@ -9,12 +10,13 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 
 export default function HeroesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
   const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
 
   const navigateHome = () => {
     setSidebarOpen(false);
-    window.location.assign('/');
+    router.push('/');
   };
 
   return (

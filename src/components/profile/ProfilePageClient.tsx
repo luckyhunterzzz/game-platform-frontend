@@ -2025,7 +2025,7 @@ function WarHeroSlot({
 }
 
 export default function ProfilePageClient() {
-  const { authenticated, loading: authLoading, login } = useAuth();
+  const { authenticated, canResumeLogin, loading: authLoading, login } = useAuth();
   const { apiJson, apiPutJson, apiPostJson, apiDelete, apiDeleteVoid } = useApi();
   const { messages, locale } = useI18n();
 
@@ -3942,7 +3942,7 @@ export default function ProfilePageClient() {
           onClick={login}
           className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
         >
-          {messages.navbar.login}
+          {canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login}
         </button>
       </section>
     );
