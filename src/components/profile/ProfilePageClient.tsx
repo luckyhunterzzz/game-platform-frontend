@@ -2033,6 +2033,7 @@ export default function ProfilePageClient() {
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('info');
   const [profile, setProfile] = useState<PlayerProfileResponse | null>(null);
+  const [profileInitialized, setProfileInitialized] = useState(false);
   const [form, setForm] = useState<ProfileFormState>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -2122,6 +2123,7 @@ export default function ProfilePageClient() {
 
     if (!authenticated) {
       setLoading(false);
+      setProfileInitialized(false);
       setProfile(null);
       setForm(emptyForm);
       setProfileHeroes([]);
@@ -2130,12 +2132,15 @@ export default function ProfilePageClient() {
 
     let cancelled = false;
 
-    const loadProfile = async () => {
+    const initializeProfile = async () => {
       setLoading(true);
       setLoadError(null);
+      setProfileInitialized(false);
 
       try {
-        const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me');
+        const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me/init', {
+          method: 'POST',
+        });
 
         if (cancelled) {
           return;
@@ -2143,6 +2148,7 @@ export default function ProfilePageClient() {
 
         setProfile(response);
         setForm(toFormState(response));
+        setProfileInitialized(true);
       } catch (error) {
         if (cancelled) {
           return;
@@ -2160,7 +2166,7 @@ export default function ProfilePageClient() {
       }
     };
 
-    void loadProfile();
+    void initializeProfile();
 
     return () => {
       cancelled = true;
@@ -2168,7 +2174,7 @@ export default function ProfilePageClient() {
   }, [apiJson, authLoading, authenticated, messages.profile.loadError]);
 
   useEffect(() => {
-    if (!authenticated) {
+    if (!authenticated || !profileInitialized) {
       return;
     }
 
@@ -2199,7 +2205,7 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated]);
+  }, [apiJson, authenticated, profileInitialized]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -2207,6 +2213,10 @@ export default function ProfilePageClient() {
       setWarModes(defaultWarModes);
       setActiveWarModeCode('UNIVERSAL');
       setWarTeams([]);
+      return;
+    }
+
+    if (!profileInitialized) {
       return;
     }
 
@@ -2251,12 +2261,16 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated, messages.profile.warSaveError]);
+  }, [apiJson, authenticated, messages.profile.warSaveError, profileInitialized]);
 
   useEffect(() => {
     if (!authenticated) {
       setWarStatTeams([]);
       setWarStatDraftsByTeamId({});
+      return;
+    }
+
+    if (!profileInitialized) {
       return;
     }
 
@@ -2309,11 +2323,15 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated, messages.profile.warStatsSaveError]);
+  }, [apiJson, authenticated, messages.profile.warStatsSaveError, profileInitialized]);
 
   useEffect(() => {
     if (!authenticated) {
       setWarStatTagCatalog(null);
+      return;
+    }
+
+    if (!profileInitialized) {
       return;
     }
 
@@ -2337,7 +2355,7 @@ export default function ProfilePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [apiJson, authenticated]);
+  }, [apiJson, authenticated, profileInitialized]);
 
   useEffect(() => {
     if (warModes.some((warMode) => normalizeWarModeCode(warMode.code) === activeWarModeCode)) {
