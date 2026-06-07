@@ -832,7 +832,7 @@ function TalentBadge({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
-  const hasVisibleGem = talentLevel > 0 || highlight;
+  const hasVisibleGem = interactive || talentLevel > 0;
   const controlLabel = locale === 'RU' ? 'Изменить уровень таланта' : 'Change talent level';
   const titleLabel =
     locale === 'RU'
@@ -945,7 +945,7 @@ function TalentBadge({
                 alt={titleLabel}
                 className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
               />
-              {talentLevel > 0 ? (
+              {talentLevel > 0 || interactive ? (
                 <span className={`absolute inset-0 flex items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
                   {talentLevel}
                 </span>
