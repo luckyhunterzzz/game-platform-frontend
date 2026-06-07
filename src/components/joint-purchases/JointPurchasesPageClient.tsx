@@ -926,7 +926,9 @@ export default function JointPurchasesPageClient() {
       return;
     }
 
-    const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me');
+    const response = await apiJson<PlayerProfileResponse>('/api/v1/profile/me/init', {
+      method: 'POST',
+    });
     setOrganizerProfile(response);
   };
 
@@ -1212,7 +1214,9 @@ export default function JointPurchasesPageClient() {
     setApplyEligibilityLoading(true);
 
     try {
-      const profile = await apiJson<PlayerProfileResponse>('/api/v1/profile/me');
+      const profile = await apiJson<PlayerProfileResponse>('/api/v1/profile/me/init', {
+        method: 'POST',
+      });
       const isComplete = profile.status === 'COMPLETE';
 
       setApplyEligibilityAllowed(isComplete);
