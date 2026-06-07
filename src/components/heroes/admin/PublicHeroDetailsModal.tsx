@@ -1668,21 +1668,30 @@ function StackedReferenceRow({
   valueClassName?: string;
   hideValue?: boolean;
 }) {
+  const iconNode = showImage ? (
+    <DictionaryMiniIcon
+      imageUrl={imageUrl}
+      label={value}
+      size={imageSize}
+      chromeless={chromelessImage}
+      fallbackToLetter={false}
+      className="self-center"
+    />
+  ) : null;
+
   return (
     <div className="space-y-3">
       <div className={`text-base font-bold text-[var(--foreground)] ${labelClassName}`}>{label}:</div>
       <div className="flex min-w-0 items-center gap-3 text-[var(--foreground)]">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          {showImage ? (
-            <DictionaryMiniIcon
-              imageUrl={imageUrl}
-              label={value}
-              size={imageSize}
-              chromeless={chromelessImage}
-              fallbackToLetter={false}
-              className="self-center"
+          {iconNode && imageUrl && tooltipContent ? (
+            <HeroInfoPopover
+              label={label}
+              content={tooltipContent}
+              triggerClassName="inline-flex shrink-0 self-center rounded-xl transition hover:scale-[1.03]"
+              trigger={iconNode}
             />
-          ) : null}
+          ) : iconNode}
           {!hideValue ? (
             <span
               className={`min-w-0 whitespace-nowrap text-[clamp(0.82rem,1vw,1rem)] leading-tight ${valueClassName}`}
@@ -3453,7 +3462,7 @@ export default function PublicHeroDetailsModal({
           disabled={isCurrent}
           className={`rounded-2xl border px-3 py-2 text-sm transition ${
             isCurrent
-              ? 'cursor-default border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-200'
+              ? 'cursor-default border-sky-400/60 bg-sky-500/18 text-sky-700 shadow-[0_0_0_1px_rgba(56,189,248,0.28),0_0_18px_rgba(56,189,248,0.32)] dark:text-sky-100'
               : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15'
           }`}
         >
@@ -3669,12 +3678,19 @@ export default function PublicHeroDetailsModal({
             {heroDetails.costumeBonusJson ? (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)] md:col-span-2">
                 <div className="flex min-w-0 items-center gap-3">
-                  <DictionaryMiniIcon
+                  <HeroInfoPopover
+                    label={locale === 'RU' ? 'Р‘РѕРЅСѓСЃ РєРѕСЃС‚СЋРјР°' : 'Costume bonus'}
+                    content={formatCostumeBonusContent(locale, heroDetails.costumeBonusJson)}
+                    triggerClassName="inline-flex shrink-0 rounded-xl transition hover:scale-[1.03]"
+                    trigger={
+                      <DictionaryMiniIcon
                     imageUrl="/dictionary-icons/costume.png"
                     label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
                     size={34}
                     chromeless
                     fallbackToLetter={false}
+                      />
+                    }
                   />
                   <span className="min-w-0 flex-1 text-base font-bold text-[var(--foreground)]">
                     {locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}
@@ -3731,6 +3747,7 @@ export default function PublicHeroDetailsModal({
                         imageUrl={skill.imageUrl}
                         chromelessIcon
                         iconSize={34}
+                        tooltipContent={skill.description}
                         valueClassName="font-semibold text-[var(--foreground)]"
                       />
                       <HeroInfoPopover label={skill.name} content={skill.description} />
