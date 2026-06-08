@@ -42,17 +42,6 @@ function hasAuthCallbackParams() {
   );
 }
 
-function shouldResumeAuthenticatedSession() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return (
-    window.sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY) === '1' ||
-    window.localStorage.getItem(AUTH_REMEMBERED_LOGIN_STORAGE_KEY) === '1'
-  );
-}
-
 function hasRememberedLogin() {
   if (typeof window === 'undefined') {
     return false;
@@ -188,14 +177,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearRefreshTimer, createKeycloak, scheduleRefresh]);
 
   useEffect(() => {
-    if (!hasAuthCallbackParams() && !shouldResumeAuthenticatedSession()) {
+    if (!hasAuthCallbackParams()) {
       setLoading(false);
       return;
     }
 
-    const mode = hasAuthCallbackParams() ? 'callback' : 'resume';
-
-    void initializeKeycloak(mode).catch(() => {
+    void initializeKeycloak('callback').catch(() => {
       // The UI falls back to guest mode and exposes the error banner.
     });
 
