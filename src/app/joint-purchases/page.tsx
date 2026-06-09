@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
 import PurchaseHelpBanner from '@/components/joint-purchases/PurchaseHelpBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -16,7 +16,7 @@ const SHOW_PURCHASE_HELP_BANNER = false;
 export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
-  const { locale, messages } = useI18n();
+  const { messages } = useI18n();
   const { authenticated, canResumeLogin, loading, login } = useAuth();
   const loginLabel = canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login;
 
@@ -24,6 +24,14 @@ export default function JointPurchasesPage() {
     setSidebarOpen(false);
     router.push('/');
   };
+
+  const sidebarItems: SidebarMenuItem[] = [
+    { key: 'home', label: messages.home.menuPageOne, onClick: navigateHome },
+    { key: 'heroes', href: '/heroes', label: messages.home.menuPageTwo },
+    { key: 'hero-coach', href: '/hero-coach', label: messages.home.navHeroCoach },
+    { key: 'outfitter', href: '/outfitter', label: messages.home.navOutfitter },
+    { key: 'troops', href: '/troops', label: messages.home.navTroops },
+  ];
 
   if (loading) {
     return <LoadingScreen />;
@@ -36,80 +44,12 @@ export default function JointPurchasesPage() {
         onHomeClick={navigateHome}
       />
 
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="w-64 border-r border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl backdrop-blur">
-            <h2 className="mb-6 text-xl font-bold text-cyan-400">{messages.home.menuTitle}</h2>
-
-            <ul className="space-y-4">
-              <li>
-                <button
-                  type="button"
-                  onClick={navigateHome}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.menuPageOne}
-                </button>
-              </li>
-              <li>
-                <Link
-                  href="/heroes"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.menuPageTwo}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/hero-coach"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navHeroCoach}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/outfitter"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navOutfitter}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/troops"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops'}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/joint-purchases"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground)] transition hover:text-cyan-300"
-                >
-                  <span className="block">{messages.home.navJointPurchases}</span>
-                  {!authenticated ? (
-                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
-                      {messages.home.navJointPurchasesAuthHint}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className="flex-1 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      )}
+      <AppSidebarMenu
+        isOpen={isSidebarOpen}
+        items={sidebarItems}
+        onClose={() => setSidebarOpen(false)}
+        title={messages.home.menuTitle}
+      />
 
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         {authenticated ? (
