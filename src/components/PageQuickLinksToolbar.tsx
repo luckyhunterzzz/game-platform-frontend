@@ -4,7 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo } from 'react';
 
-import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 type QuickLinkItem = {
@@ -23,7 +22,6 @@ export default function PageQuickLinksToolbar({
   className,
   currentPath,
 }: PageQuickLinksToolbarProps) {
-  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
 
   const quickLinks = useMemo<QuickLinkItem[]>(
@@ -55,22 +53,13 @@ export default function PageQuickLinksToolbar({
         href: '/alliance',
         imageSrc: '/home-quick-links/alliances.png',
       },
-      {
-        label: messages.home.navJointPurchases,
-        href: '/joint-purchases',
-        imageSrc: '/home-quick-links/joint-purchases.webp',
-        authHint: authenticated ? undefined : messages.home.navJointPurchasesAuthHint,
-      },
     ],
     [
-      authenticated,
       locale,
       messages.home.navAlliances,
       messages.home.navEvents,
       messages.home.navHeroes,
       messages.home.navHeroCoach,
-      messages.home.navJointPurchases,
-      messages.home.navJointPurchasesAuthHint,
       messages.home.navOutfitter,
     ],
   );

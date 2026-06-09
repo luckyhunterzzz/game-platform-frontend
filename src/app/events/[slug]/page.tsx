@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import { Navbar } from '@/components/Navbar';
-import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { getEventGuideBySlug } from '@/lib/static/events';
 
@@ -2357,8 +2357,14 @@ function EventSectionCard({
 
 export default function EventDetailsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
+  const sidebarItems: SidebarMenuItem[] = [
+    { key: 'home', href: '/', label: messages.home.menuPageOne },
+    { key: 'heroes', href: '/heroes', label: messages.home.menuPageTwo },
+    { key: 'hero-coach', href: '/hero-coach', label: messages.home.navHeroCoach },
+    { key: 'outfitter', href: '/outfitter', label: messages.home.navOutfitter },
+    { key: 'troops', href: '/troops', label: messages.home.navTroops },
+  ];
   const params = useParams<{ slug: string | string[] }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
 
@@ -2373,22 +2379,13 @@ export default function EventDetailsPage() {
       { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
       { label: locale === 'ru' ? '\u0421\u0443\u043D\u0434\u0443\u043A\u0438' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
       { label: messages.home.navAlliances, href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
-      {
-        label: messages.home.navJointPurchases,
-        href: '/joint-purchases',
-        imageSrc: '/home-quick-links/joint-purchases.webp',
-        authHint: authenticated ? undefined : messages.home.navJointPurchasesAuthHint,
-      },
     ],
     [
-      authenticated,
       locale,
       messages.home.navAlliances,
       messages.home.navEvents,
       messages.home.navHeroCoach,
       messages.home.navHeroes,
-      messages.home.navJointPurchases,
-      messages.home.navJointPurchasesAuthHint,
       messages.home.navOutfitter,
     ],
   );
@@ -2551,80 +2548,12 @@ export default function EventDetailsPage() {
     <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="w-64 border-r border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl backdrop-blur">
-            <h2 className="mb-6 text-xl font-bold text-cyan-400">{messages.home.menuTitle}</h2>
-
-            <ul className="space-y-4">
-              <li>
-                <Link
-                  href="/"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.menuPageOne}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/heroes"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.menuPageTwo}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/hero-coach"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navHeroCoach}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/outfitter"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navOutfitter}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/troops"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {locale === 'ru' ? '\u041E\u0442\u0440\u044F\u0434\u044B' : 'Troops'}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/joint-purchases"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  <span className="block">{messages.home.navJointPurchases}</span>
-                  {!authenticated ? (
-                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
-                      {messages.home.navJointPurchasesAuthHint}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className="flex-1 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      )}
+      <AppSidebarMenu
+        isOpen={isSidebarOpen}
+        items={sidebarItems}
+        onClose={() => setSidebarOpen(false)}
+        title={messages.home.menuTitle}
+      />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-12">
         <div className="mb-12 flex flex-wrap justify-center gap-4">
