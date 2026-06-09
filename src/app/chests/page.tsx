@@ -1,13 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
-import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { chestColumns, chestRows } from '@/lib/static/guides/chest-table';
 
@@ -38,7 +37,6 @@ const hardLine = (value: string, hardLabel: string) => `${value} (${hardLabel})`
 
 export default function ChestsPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const { authenticated } = useAuth();
   const { locale, messages } = useI18n();
 
   const t = useMemo(() => {
@@ -394,6 +392,13 @@ export default function ChestsPage() {
 
     return { ...common, sections };
   }, [locale]);
+  const sidebarItems: SidebarMenuItem[] = [
+    { key: 'home', href: '/', label: t.backHome },
+    { key: 'heroes', href: '/heroes', label: t.backHeroes },
+    { key: 'hero-coach', href: '/hero-coach', label: messages.home.navHeroCoach },
+    { key: 'outfitter', href: '/outfitter', label: messages.home.navOutfitter },
+    { key: 'alliance', href: '/alliance', label: t.backAlliances },
+  ];
 
   const sectionAnchorByRow = useMemo(
     () =>
@@ -407,80 +412,12 @@ export default function ChestsPage() {
     <div className="flex min-h-screen scroll-smooth flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
 
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="w-64 border-r border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl backdrop-blur">
-            <h2 className="mb-6 text-xl font-bold text-cyan-400">{messages.home.menuTitle}</h2>
-
-            <ul className="space-y-4">
-              <li>
-                <Link
-                  href="/"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {t.backHome}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/heroes"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {t.backHeroes}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/hero-coach"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navHeroCoach}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/outfitter"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {messages.home.navOutfitter}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/alliance"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  {t.backAlliances}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/joint-purchases"
-                  onClick={() => setSidebarOpen(false)}
-                  className="block text-[var(--foreground-muted)] transition hover:text-[var(--foreground)]"
-                >
-                  <span className="block">{messages.home.navJointPurchases}</span>
-                  {!authenticated ? (
-                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
-                      {messages.home.navJointPurchasesAuthHint}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className="flex-1 bg-black/40 backdrop-blur-[1px]"
-            onClick={() => setSidebarOpen(false)}
-          />
-        </div>
-      )}
+      <AppSidebarMenu
+        isOpen={isSidebarOpen}
+        items={sidebarItems}
+        onClose={() => setSidebarOpen(false)}
+        title={messages.home.menuTitle}
+      />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-10 md:px-6">
         <PageQuickLinksToolbar currentPath="/chests" className="flex flex-wrap justify-center gap-4" />
