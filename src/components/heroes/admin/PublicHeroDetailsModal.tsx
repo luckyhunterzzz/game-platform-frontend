@@ -54,6 +54,8 @@ export type PublicHeroDetailsItem = {
   family?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
   manaSpeed?: { id: number; name: string; description?: string | null } | null;
   alphaTalent?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
+  roleGroups?: Array<{ id: number; name: string; description?: string | null; imageUrl?: string | null }>;
+  tags?: Array<{ id: number; name: string; description?: string | null; imageUrl?: string | null }>;
   specialSkill?: { name: string; description: string } | null;
   passiveSkills: Array<{
     id: number;
@@ -3674,6 +3676,49 @@ export default function PublicHeroDetailsModal({
                 tooltipContent={heroDetails.alphaTalent?.description ?? null}
                 imageSize={42}
               />
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)] md:col-span-2">
+              <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">
+                {locale === 'RU' ? '\u0422\u0438\u043f \u0433\u0435\u0440\u043e\u044f' : 'Hero type'}
+              </div>
+              {(heroDetails.roleGroups?.length ?? 0) === 0 && (heroDetails.tags?.length ?? 0) === 0 ? (
+                <div className="text-sm text-[var(--foreground-soft)]">
+                  {locale === 'RU'
+                    ? '\u0422\u0438\u043f \u0438 \u043f\u043e\u0434\u0442\u0438\u043f\u044b \u0433\u0435\u0440\u043e\u044f \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u044b'
+                    : 'No hero type or subtypes provided'}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(heroDetails.roleGroups?.length ?? 0) > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {heroDetails.roleGroups?.map((group) => (
+                        <span
+                          key={group.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200"
+                        >
+                          <span>{group.name}</span>
+                          {group.description ? (
+                            <HeroInfoPopover label={group.name} content={group.description} />
+                          ) : null}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {(heroDetails.tags?.length ?? 0) > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {heroDetails.tags?.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
+                        >
+                          <span>#{tag.name}</span>
+                          {tag.description ? <HeroInfoPopover label={tag.name} content={tag.description} /> : null}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
             {heroDetails.costumeBonusJson ? (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)] md:col-span-2">
