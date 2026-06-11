@@ -13,6 +13,8 @@ export type HeroDictionaryKey =
   | 'manaSpeeds'
   | 'families'
   | 'alphaTalents'
+  | 'heroRoleGroups'
+  | 'heroTags'
   | 'passiveSkills'
   | 'emblemProfiles'
   | 'evolutionMultipliers';
@@ -278,6 +280,92 @@ export function mapAlphaTalentDto(dto: AlphaTalentResponseDto): AlphaTalentItem 
     imageBucket: dto.imageBucket ?? null,
     imageObjectKey: dto.imageObjectKey ?? null,
     imageUrl: dto.imageUrl ?? null,
+  };
+}
+
+/* =========================
+ * Hero role groups
+ * ========================= */
+
+export interface HeroTagReferenceDto {
+  id: number;
+  nameJson: LocalizedText;
+}
+
+export interface HeroRoleGroupResponseDto {
+  id: number;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  tags: HeroTagReferenceDto[];
+}
+
+export interface HeroRoleGroupItem {
+  id: number;
+  name: LocalizedText;
+  description?: LocalizedText | null;
+  tags: HeroTagReferenceDto[];
+}
+
+export interface CreateHeroRoleGroupRequest {
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  tagIds?: number[];
+}
+
+export interface UpdateHeroRoleGroupRequest {
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  tagIds?: number[];
+}
+
+export function mapHeroRoleGroupDto(dto: HeroRoleGroupResponseDto): HeroRoleGroupItem {
+  return {
+    id: dto.id,
+    name: dto.nameJson,
+    description: dto.descriptionJson ?? null,
+    tags: dto.tags ?? [],
+  };
+}
+
+/* =========================
+ * Hero tags
+ * ========================= */
+
+export interface HeroTagResponseDto {
+  id: number;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  groupId: number;
+  groupNameJson?: LocalizedText | null;
+}
+
+export interface HeroTagItem {
+  id: number;
+  name: LocalizedText;
+  description?: LocalizedText | null;
+  groupId: number;
+  groupName?: LocalizedText | null;
+}
+
+export interface CreateHeroTagRequest {
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  groupId: number;
+}
+
+export interface UpdateHeroTagRequest {
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  groupId: number;
+}
+
+export function mapHeroTagDto(dto: HeroTagResponseDto): HeroTagItem {
+  return {
+    id: dto.id,
+    name: dto.nameJson,
+    description: dto.descriptionJson ?? null,
+    groupId: dto.groupId,
+    groupName: dto.groupNameJson ?? null,
   };
 }
 

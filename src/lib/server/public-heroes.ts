@@ -24,6 +24,8 @@ export type PublicHeroDetailsItem = {
   family?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
   manaSpeed?: { id: number; name: string; description?: string | null } | null;
   alphaTalent?: { id: number; name: string; description?: string | null; imageUrl?: string | null } | null;
+  roleGroups?: Array<{ id: number; name: string; description?: string | null; imageUrl?: string | null }>;
+  tags?: Array<{ id: number; name: string; description?: string | null; imageUrl?: string | null }>;
   specialSkill?: { name: string; description: string } | null;
   passiveSkills: Array<{
     id: number;

@@ -14,6 +14,8 @@ import HeroClassesWorkspace from './admin/HeroClassesWorkspace';
 import ManaSpeedsWorkspace from './admin/ManaSpeedsWorkspace';
 import FamiliesWorkspace from './admin/FamiliesWorkspace';
 import AlphaTalentsWorkspace from './admin/AlphaTalentsWorkspace';
+import HeroRoleGroupsWorkspace from './admin/HeroRoleGroupsWorkspace';
+import HeroTagsWorkspace from './admin/HeroTagsWorkspace';
 import PassiveSkillsWorkspace from './admin/PassiveSkillsWorkspace';
 import HeroClassEmblemBonusProfilesWorkspace from './admin/HeroClassEmblemBonusProfilesWorkspace';
 import RarityEvolutionMultipliersWorkspace from './admin/RarityEvolutionMultipliersWorkspace';
@@ -67,6 +69,16 @@ export default function HeroesPageClient() {
         description: messages.heroDictionaries.alphaTalentsDescription,
       },
       {
+        key: 'heroRoleGroups',
+        label: messages.heroDictionaries.heroRoleGroups,
+        description: messages.heroDictionaries.heroRoleGroupsDescription,
+      },
+      {
+        key: 'heroTags',
+        label: messages.heroDictionaries.heroTags,
+        description: messages.heroDictionaries.heroTagsDescription,
+      },
+      {
         key: 'passiveSkills',
         label: messages.heroDictionaries.passiveSkills,
         description: messages.heroDictionaries.passiveSkillsDescription,
@@ -102,6 +114,10 @@ export default function HeroesPageClient() {
         return <FamiliesWorkspace />;
       case 'alphaTalents':
         return <AlphaTalentsWorkspace />;
+      case 'heroRoleGroups':
+        return <HeroRoleGroupsWorkspace />;
+      case 'heroTags':
+        return <HeroTagsWorkspace />;
       case 'passiveSkills':
         return <PassiveSkillsWorkspace />;
       case 'emblemProfiles':
