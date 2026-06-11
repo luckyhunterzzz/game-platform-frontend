@@ -25,6 +25,8 @@ import {
   mapElementDto,
   mapFamilyDto,
   mapHeroClassDto,
+  mapHeroRoleGroupDto,
+  mapHeroTagDto,
   mapManaSpeedDto,
   mapPassiveSkillDto,
   mapRarityDto,
@@ -36,6 +38,10 @@ import {
   type FamilyResponseDto,
   type HeroClassItem,
   type HeroClassResponseDto,
+  type HeroRoleGroupItem,
+  type HeroRoleGroupResponseDto,
+  type HeroTagItem,
+  type HeroTagResponseDto,
   type CostumeBonus,
   type HeroLocale,
   type LocalizedText,
@@ -85,6 +91,8 @@ const HERO_CLASSES_API = '/api/v1/admin/heroes/hero-classes';
 const MANA_SPEEDS_API = '/api/v1/admin/heroes/mana-speeds';
 const FAMILIES_API = '/api/v1/admin/heroes/families';
 const ALPHA_TALENTS_API = '/api/v1/admin/heroes/alpha-talents';
+const HERO_ROLE_GROUPS_API = '/api/v1/admin/heroes/role-groups';
+const HERO_TAGS_API = '/api/v1/admin/heroes/tags';
 const PASSIVE_SKILLS_API = '/api/v1/admin/heroes/passive-skills';
 const HERO_IMAGE_UPLOAD_API = '/api/v1/admin/media/images/heroes';
 const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
@@ -152,6 +160,8 @@ type HeroCatalogFiltersResponse = {
   families: HeroFilterOption[];
   manaSpeeds: HeroFilterOption[];
   alphaTalents: HeroFilterOption[];
+  roleGroups: HeroFilterOption[];
+  heroTags: HeroFilterOption[];
 };
 
 type HeroLookupItem = {
@@ -167,6 +177,8 @@ type PublicCatalogFiltersState = {
   familyIds: number[];
   manaSpeedIds: number[];
   alphaTalentIds: number[];
+  roleGroupIds: number[];
+  tagIds: number[];
 };
 
 type PublicCatalogFilterSearchState = {
@@ -176,6 +188,8 @@ type PublicCatalogFilterSearchState = {
   familyIds: string;
   manaSpeedIds: string;
   alphaTalentIds: string;
+  roleGroupIds: string;
+  tagIds: string;
 };
 
 type PublicHeroVariantsResponse = {
@@ -263,6 +277,7 @@ type AdminHeroResponseDto = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   elementId: number;
   rarityId: number;
   heroClassId: number;
@@ -286,6 +301,7 @@ type AdminHeroResponseDto = {
   updatedBy: string;
   updatedByEmail?: string | null;
   passiveSkillIds: number[];
+  tagIds: number[];
 };
 
 type HeroItem = {
@@ -297,6 +313,7 @@ type HeroItem = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   elementId: number;
   rarityId: number;
   heroClassId: number;
@@ -320,6 +337,7 @@ type HeroItem = {
   updatedBy: string;
   updatedByEmail?: string | null;
   passiveSkillIds: number[];
+  tagIds: number[];
 };
 
 type HeroFormState = {
@@ -334,6 +352,7 @@ type HeroFormState = {
   familyId: string;
   alphaTalentId: string;
   passiveSkillIds: number[];
+  tagIds: number[];
   imageBucketJson: LocalizedText;
   imageObjectKeyJson: LocalizedText;
   previewBucket: string;
@@ -341,6 +360,7 @@ type HeroFormState = {
   baseAttack: string;
   baseArmor: string;
   baseHp: string;
+  basePower: string;
   status: HeroStatus;
   releaseDate: string;
   isCostume: boolean;
@@ -360,6 +380,7 @@ type HeroMutationRequest = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   elementId: number;
   rarityId: number;
   heroClassId: number;
@@ -379,6 +400,7 @@ type HeroMutationRequest = {
   updatedBy: string;
   updatedByEmail?: string | null;
   passiveSkillIds: number[];
+  tagIds: number[];
 };
 
 const EMPTY_FORM: HeroFormState = {
@@ -393,6 +415,7 @@ const EMPTY_FORM: HeroFormState = {
   familyId: '',
   alphaTalentId: '',
   passiveSkillIds: [],
+  tagIds: [],
   imageBucketJson: { ...EMPTY_LOCALIZED_TEXT },
   imageObjectKeyJson: { ...EMPTY_LOCALIZED_TEXT },
   previewBucket: '',
@@ -400,6 +423,7 @@ const EMPTY_FORM: HeroFormState = {
   baseAttack: '',
   baseArmor: '',
   baseHp: '',
+  basePower: '',
   status: 'READY',
   costumeBonusAttack: '',
   costumeBonusArmor: '',
@@ -418,6 +442,8 @@ const EMPTY_PUBLIC_FILTERS: PublicCatalogFiltersState = {
   familyIds: [],
   manaSpeedIds: [],
   alphaTalentIds: [],
+  roleGroupIds: [],
+  tagIds: [],
 };
 
 const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
@@ -427,6 +453,8 @@ const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
   familyIds: '',
   manaSpeedIds: '',
   alphaTalentIds: '',
+  roleGroupIds: '',
+  tagIds: '',
 };
 
 const EMPTY_ADMIN_FILTERS: AdminHeroFiltersState = {
@@ -483,6 +511,8 @@ function sortPublicFilterOptions(
     families: sortFilterOptions(response.families, locale),
     manaSpeeds: sortFilterOptions(response.manaSpeeds, locale),
     alphaTalents: sortFilterOptions(response.alphaTalents, locale),
+    roleGroups: sortFilterOptions(response.roleGroups, locale),
+    heroTags: sortFilterOptions(response.heroTags, locale),
   };
 }
 
@@ -496,6 +526,7 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     baseAttack: dto.baseAttack ?? null,
     baseArmor: dto.baseArmor ?? null,
     baseHp: dto.baseHp ?? null,
+    basePower: dto.basePower ?? null,
     elementId: dto.elementId,
     rarityId: dto.rarityId,
     heroClassId: dto.heroClassId,
@@ -519,6 +550,7 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     updatedBy: dto.updatedBy,
     updatedByEmail: dto.updatedByEmail ?? null,
     passiveSkillIds: dto.passiveSkillIds ?? [],
+    tagIds: dto.tagIds ?? [],
   };
 }
 
@@ -535,6 +567,7 @@ function toForm(hero: HeroItem): HeroFormState {
     familyId: hero.familyId ? String(hero.familyId) : '',
     alphaTalentId: hero.alphaTalentId ? String(hero.alphaTalentId) : '',
     passiveSkillIds: [...hero.passiveSkillIds],
+    tagIds: [...hero.tagIds],
     imageBucketJson: { ...hero.imageBucketJson },
     imageObjectKeyJson: { ...hero.imageObjectKeyJson },
     previewBucket: hero.previewBucket ?? '',
@@ -542,6 +575,7 @@ function toForm(hero: HeroItem): HeroFormState {
     baseAttack: hero.baseAttack == null ? '' : String(hero.baseAttack),
     baseArmor: hero.baseArmor == null ? '' : String(hero.baseArmor),
     baseHp: hero.baseHp == null ? '' : String(hero.baseHp),
+    basePower: hero.basePower == null ? '' : String(hero.basePower),
     status: hero.status,
     releaseDate: hero.releaseDate ?? '',
     isCostume: hero.isCostume,
@@ -756,6 +790,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [manaSpeeds, setManaSpeeds] = useState<ManaSpeedItem[]>([]);
   const [families, setFamilies] = useState<FamilyItem[]>([]);
   const [alphaTalents, setAlphaTalents] = useState<AlphaTalentItem[]>([]);
+  const [heroRoleGroups, setHeroRoleGroups] = useState<HeroRoleGroupItem[]>([]);
+  const [heroTags, setHeroTags] = useState<HeroTagItem[]>([]);
   const [passiveSkills, setPassiveSkills] = useState<PassiveSkillItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -795,6 +831,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [isEditPassiveSkillsOpen, setEditPassiveSkillsOpen] = useState(false);
   const [createPassiveSkillQuery, setCreatePassiveSkillQuery] = useState('');
   const [editPassiveSkillQuery, setEditPassiveSkillQuery] = useState('');
+  const [isCreateHeroTagsOpen, setCreateHeroTagsOpen] = useState(false);
+  const [isEditHeroTagsOpen, setEditHeroTagsOpen] = useState(false);
+  const [createHeroTagQuery, setCreateHeroTagQuery] = useState('');
+  const [editHeroTagQuery, setEditHeroTagQuery] = useState('');
   const [isPublicDetailsOpen, setPublicDetailsOpen] = useState(false);
   const [createForm, setCreateForm] = useState<HeroFormState>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<HeroFormState>(EMPTY_FORM);
@@ -833,7 +873,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [publicVisibilityFilter, setPublicVisibilityFilter] = useState<PublicVisibilityFilter>('READY_ONLY');
   const [publicVisibilitySaving, setPublicVisibilitySaving] = useState(false);
   const [publicVisibilityError, setPublicVisibilityError] = useState<string | null>(null);
-  const [adminFiltersExpanded, setAdminFiltersExpanded] = useState(true);
+  const [adminFiltersExpanded, setAdminFiltersExpanded] = useState(false);
   const defaultCreateRarityId = useMemo(() => getDefaultCreateRarityId(rarities), [rarities]);
   const isSuperAdmin = roles.includes('ROLE_superadmin');
 
@@ -1091,6 +1131,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       manaSpeedsResponse,
       familiesResponse,
       alphaTalentsResponse,
+      heroRoleGroupsResponse,
+      heroTagsResponse,
       passiveSkillsResponse,
     ] =
       await Promise.all([
@@ -1100,6 +1142,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         apiJson<ManaSpeedResponseDto[]>(MANA_SPEEDS_API),
         apiJson<FamilyResponseDto[]>(FAMILIES_API),
         apiJson<AlphaTalentResponseDto[]>(ALPHA_TALENTS_API),
+        apiJson<HeroRoleGroupResponseDto[]>(HERO_ROLE_GROUPS_API),
+        apiJson<HeroTagResponseDto[]>(HERO_TAGS_API),
         apiJson<PassiveSkillResponseDto[]>(PASSIVE_SKILLS_API),
       ]);
     setElements(elementsResponse.map(mapElementDto));
@@ -1108,6 +1152,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setManaSpeeds(manaSpeedsResponse.map(mapManaSpeedDto));
     setFamilies(familiesResponse.map(mapFamilyDto));
     setAlphaTalents(alphaTalentsResponse.map(mapAlphaTalentDto));
+    setHeroRoleGroups(heroRoleGroupsResponse.map(mapHeroRoleGroupDto));
+    setHeroTags(heroTagsResponse.map(mapHeroTagDto));
     setPassiveSkills(passiveSkillsResponse.map(mapPassiveSkillDto));
   }, [adminMode, apiJson]);
 
@@ -1165,6 +1211,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       appendIds('familyIds');
       appendIds('manaSpeedIds');
       appendIds('alphaTalentIds');
+      appendIds('roleGroupIds');
+      appendIds('tagIds');
 
       return `${PUBLIC_API}?${params.toString()}`;
     },
@@ -2171,6 +2219,31 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     return list.find((entry) => entry.id === id) ?? null;
   };
 
+  const getHeroTagsForIds = useCallback(
+    (tagIds: number[]) =>
+      heroTags.filter((tag) => tagIds.includes(tag.id)).sort((a, b) =>
+        getLocalizedText(a.name, locale).localeCompare(getLocalizedText(b.name, locale), locale === 'RU' ? 'ru' : 'en'),
+      ),
+    [heroTags, locale],
+  );
+
+  const getHeroRoleGroupsForTagIds = useCallback(
+    (tagIds: number[]) => {
+      const groupIds = Array.from(
+        new Set(
+          heroTags
+            .filter((tag) => tagIds.includes(tag.id))
+            .map((tag) => tag.groupId),
+        ),
+      );
+
+      return heroRoleGroups.filter((group) => groupIds.includes(group.id)).sort((a, b) =>
+        getLocalizedText(a.name, locale).localeCompare(getLocalizedText(b.name, locale), locale === 'RU' ? 'ru' : 'en'),
+      );
+    },
+    [heroRoleGroups, heroTags, locale],
+  );
+
   const resolveBaseHeroName = (id?: number | null) => {
     if (id == null) return t.noValue;
     const item = baseHeroes.find((entry) => entry.id === id);
@@ -2257,7 +2330,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       validateLocalizedTextPair(form.specialSkillName, t.skillNameRu, t.skillNameEn) ??
       validateLocalizedTextPair(form.specialSkillDescription, t.skillDescriptionRu, t.skillDescriptionEn);
     if (localizedError) return localizedError;
-    for (const value of [form.baseAttack, form.baseArmor, form.baseHp]) {
+    for (const value of [form.baseAttack, form.baseArmor, form.baseHp, form.basePower]) {
       if (value.trim() && (Number.isNaN(Number(value)) || Number(value) < 0)) return t.nonNegative;
     }
     for (const value of [
@@ -2272,6 +2345,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
     if (form.releaseDate.trim() && !normalizeReleaseDateInput(form.releaseDate)) {
       return t.invalidReleaseDate;
+    }
+    if (form.tagIds.length === 0) {
+      return locale === 'RU'
+        ? '\u041d\u0443\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u0438\u043d \u043f\u043e\u0434\u0442\u0438\u043f \u0433\u0435\u0440\u043e\u044f'
+        : 'Select at least one hero subtype';
     }
     return null;
   };
@@ -2290,6 +2368,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     baseAttack: optionalNumber(form.baseAttack),
     baseArmor: optionalNumber(form.baseArmor),
     baseHp: optionalNumber(form.baseHp),
+    basePower: optionalNumber(form.basePower),
     elementId: Number(form.elementId),
     rarityId: Number(form.rarityId),
     heroClassId: Number(form.heroClassId),
@@ -2316,6 +2395,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     updatedBy: userId ?? '',
     updatedByEmail: userEmail ?? null,
     passiveSkillIds: form.passiveSkillIds,
+    tagIds: form.tagIds,
   });
 
   const validateExpertOpinions = useCallback(
@@ -2612,6 +2692,20 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const addPassiveSkillActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
     const removePassiveSkillActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
     const searchPassiveSkillsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043d\u0430\u0432\u044b\u043a\u0430' : 'Search skill';
+    const heroTypeTitle = locale === 'RU' ? '\u0422\u0438\u043f \u0433\u0435\u0440\u043e\u044f' : 'Hero type';
+    const heroTypeHint =
+      locale === 'RU'
+        ? '\u0412\u044b\u0431\u0435\u0440\u0438 \u043f\u043e\u0434\u0442\u0438\u043f\u044b, \u0430 \u0442\u0438\u043f \u0433\u0435\u0440\u043e\u044f \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442\u0441\u044f \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438.'
+        : 'Select hero subtypes. Hero type is derived automatically.';
+    const noHeroTagsLabel = locale === 'RU' ? '\u041f\u043e\u0434\u0442\u0438\u043f\u044b \u043f\u043e\u043a\u0430 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No hero subtypes selected';
+    const addHeroTagLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u043e\u0434\u0442\u0438\u043f' : 'Add subtype';
+    const availableHeroTagsLabel = locale === 'RU' ? '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u043e\u0434\u0442\u0438\u043f\u044b' : 'Available subtypes';
+    const hideHeroTagsLabel = locale === 'RU' ? '\u0421\u043a\u0440\u044b\u0442\u044c \u0441\u043f\u0438\u0441\u043e\u043a' : 'Hide list';
+    const noAvailableHeroTagsLabel = locale === 'RU' ? '\u0412\u0441\u0435 \u043f\u043e\u0434\u0442\u0438\u043f\u044b \u0443\u0436\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'All hero subtypes are already selected';
+    const noHeroTagSearchResultsLabel = locale === 'RU' ? '\u041f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0437\u0430\u043f\u0440\u043e\u0441\u0443 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e' : 'No subtypes found for your search';
+    const addHeroTagActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
+    const removeHeroTagActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
+    const searchHeroTagsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u043e\u0434\u0442\u0438\u043f\u0430' : 'Search subtype';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
@@ -2632,6 +2726,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       );
     const passiveSkillsPickerOpen = isEdit ? isEditPassiveSkillsOpen : isCreatePassiveSkillsOpen;
     const setPassiveSkillsPickerOpen = isEdit ? setEditPassiveSkillsOpen : setCreatePassiveSkillsOpen;
+    const heroTagQuery = isEdit ? editHeroTagQuery : createHeroTagQuery;
+    const setHeroTagQuery = isEdit ? setEditHeroTagQuery : setCreateHeroTagQuery;
+    const normalizedHeroTagQuery = heroTagQuery.trim().toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US');
     const getFileInputRef = (imageLocale: HeroLocale) => {
       if (isEdit) {
         return imageLocale === 'RU' ? editRuImageInputRef : editEnImageInputRef;
@@ -2645,6 +2742,16 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const sortedManaSpeeds = sortLocalizedDictionary(manaSpeeds);
     const sortedFamilies = sortLocalizedDictionary(families);
     const sortedAlphaTalents = sortLocalizedDictionary(alphaTalents);
+    const sortedHeroTags = sortLocalizedDictionary(heroTags);
+    const unselectedHeroTags = sortedHeroTags.filter((tag) => !form.tagIds.includes(tag.id));
+    const availableHeroTags = unselectedHeroTags.filter((tag) =>
+      normalizedHeroTagQuery.length === 0
+        ? true
+        : getLocalizedText(tag.name, locale).toLocaleLowerCase(locale === 'RU' ? 'ru-RU' : 'en-US').includes(normalizedHeroTagQuery),
+    );
+    const heroTagsPickerOpen = isEdit ? isEditHeroTagsOpen : isCreateHeroTagsOpen;
+    const setHeroTagsPickerOpen = isEdit ? setEditHeroTagsOpen : setCreateHeroTagsOpen;
+    const selectedRoleGroups = getHeroRoleGroupsForTagIds(form.tagIds);
     const elementOptions = sortedElements.map((item) => ({
       value: String(item.id),
       label: getLocalizedText(item.name, locale),
@@ -2826,6 +2933,132 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         />
       </div>
       <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">{heroTypeTitle}</div>
+          <div className="mt-1 text-xs text-[var(--foreground-muted)]">{heroTypeHint}</div>
+        </div>
+        {selectedRoleGroups.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {selectedRoleGroups.map((group) => (
+              <span
+                key={group.id}
+                className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200"
+              >
+                {getLocalizedText(group.name, locale)}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {sortedHeroTags.length === 0 ? (
+          <div className="text-sm text-[var(--foreground-soft)]">{noHeroTagsLabel}</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-[var(--foreground-soft)]">{availableHeroTagsLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => setHeroTagsPickerOpen((prev) => !prev)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                >
+                  {heroTagsPickerOpen ? hideHeroTagsLabel : addHeroTagLabel}
+                </button>
+              </div>
+
+              {heroTagsPickerOpen ? (
+                <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3">
+                  <SearchField
+                    value={heroTagQuery}
+                    onChange={setHeroTagQuery}
+                    placeholder={searchHeroTagsLabel}
+                    ariaLabel={searchHeroTagsLabel}
+                    clearLabel={locale === 'RU' ? '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043f\u043e\u0438\u0441\u043a' : 'Clear search'}
+                  />
+                  {unselectedHeroTags.length === 0 ? (
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                      {noAvailableHeroTagsLabel}
+                    </div>
+                  ) : availableHeroTags.length === 0 ? (
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                      {noHeroTagSearchResultsLabel}
+                    </div>
+                  ) : (
+                    availableHeroTags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/10 px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2 text-sm text-[var(--foreground)]">
+                          <span className="text-xs text-cyan-200">#{getLocalizedText(tag.name, locale)}</span>
+                          {tag.description ? (
+                            <HeroInfoPopover
+                              label={getLocalizedText(tag.name, locale)}
+                              content={getLocalizedText(tag.description, locale)}
+                            />
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({
+                              ...prev,
+                              tagIds: [...prev.tagIds, tag.id],
+                            }));
+                            setHeroTagQuery('');
+                          }}
+                          className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200 transition hover:bg-cyan-400/15"
+                        >
+                          {addHeroTagActionLabel}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {form.tagIds.length === 0 ? (
+              <div className="text-sm text-[var(--foreground-soft)]">{noHeroTagsLabel}</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {form.tagIds.map((tagId) => {
+                  const tag = heroTags.find((item) => item.id === tagId);
+                  if (!tag) return null;
+
+                  return (
+                    <div
+                      key={tag.id}
+                      className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-xs text-cyan-200"
+                    >
+                      <span>#{getLocalizedText(tag.name, locale)}</span>
+                      {tag.description ? (
+                        <HeroInfoPopover
+                          label={getLocalizedText(tag.name, locale)}
+                          content={getLocalizedText(tag.description, locale)}
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            tagIds: prev.tagIds.filter((id) => id !== tag.id),
+                          }))
+                        }
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xs text-white/80 transition hover:bg-white/10"
+                        aria-label={`${removeHeroTagActionLabel} ${getLocalizedText(tag.name, locale)}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{passiveSkillsTitle}</div>
         {passiveSkills.length === 0 ? (
           <div className="text-sm text-[var(--foreground-soft)]">{noPassiveSkillsLabel}</div>
@@ -2951,7 +3184,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         disabled={submitting}
         createMode={!isEdit}
       />
-      <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
+      <div><div className="mb-2 text-sm font-semibold text-[var(--foreground)]">{t.stats}</div><div className="mb-3 text-xs text-[var(--foreground-muted)]">{t.statsHint}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><input type="number" min="0" value={form.baseAttack} onChange={(e) => setForm((prev) => ({ ...prev, baseAttack: e.target.value }))} placeholder={t.baseAttack} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseArmor} onChange={(e) => setForm((prev) => ({ ...prev, baseArmor: e.target.value }))} placeholder={t.baseArmor} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.baseHp} onChange={(e) => setForm((prev) => ({ ...prev, baseHp: e.target.value }))} placeholder={t.baseHp} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><input type="number" min="0" value={form.basePower} onChange={(e) => setForm((prev) => ({ ...prev, basePower: e.target.value }))} placeholder={locale === 'RU' ? '\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u043c\u043e\u0449\u044c' : 'Base power'} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></div></div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="text" inputMode="text" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} onBlur={(e) => { const normalizedValue = normalizeReleaseDateInput(e.target.value); if (!e.target.value.trim()) { setForm((prev) => ({ ...prev, releaseDate: '' })); return; } if (normalizedValue) { setForm((prev) => ({ ...prev, releaseDate: normalizedValue })); } }} placeholder={t.releaseDatePlaceholder} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><span className="text-xs text-[var(--foreground-muted)]">{t.releaseDateHint}</span></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack : '', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor : '', costumeBonusHp: e.target.checked ? prev.costumeBonusHp : '', costumeBonusMana: e.target.checked ? prev.costumeBonusMana : '', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
 {form.isCostume && <div className="space-y-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><SearchableSelectField label={t.baseHero} value={form.baseHeroId} onChange={(value) => { setForm((prev) => ({ ...prev, baseHeroId: value })); if (!isEdit) { setCreateBaseHeroSelectOpen(false); } }} options={baseHeroSelectOptions} placeholder={t.selectBaseHero} searchPlaceholder={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} searchAriaLabel={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} clearSearchLabel={locale === 'RU' ? 'Очистить поиск героя' : 'Clear hero search'} noResultsLabel={locale === 'RU' ? 'Базовый герой не найден' : 'No base hero found'} searchQuery={!isEdit ? createBaseHeroSearch : undefined} onSearchQueryChange={!isEdit ? setCreateBaseHeroSearch : undefined} open={!isEdit ? createBaseHeroSelectOpen : undefined} onOpenChange={!isEdit ? setCreateBaseHeroSelectOpen : undefined} /><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.costumeIndexLabel}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value, slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, e.target.value) }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="mb-3 flex items-center gap-3"><DictionaryMiniIcon imageUrl="/dictionary-icons/costume.png" label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'} size={34} chromeless fallbackToLetter={false} /><span className="text-base font-bold text-[var(--foreground)]">{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0430\u0442\u0430\u043a\u0435, %' : 'Attack bonus, %'}</span><input type="number" min="0" value={form.costumeBonusAttack} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusAttack: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0430\u0449\u0438\u0442\u0435, %' : 'Defence bonus, %'}</span><input type="number" min="0" value={form.costumeBonusArmor} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusArmor: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044e, %' : 'Health bonus, %'}</span><input type="number" min="0" value={form.costumeBonusHp} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusHp: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u043c\u0430\u043d\u0435, %' : 'Mana bonus, %'}</span><input type="number" min="0" value={form.costumeBonusMana} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusMana: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div></div></div>}
@@ -3041,6 +3274,16 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                     { key: 'familyIds', label: t.family, options: publicFilterOptions.families },
                     { key: 'manaSpeedIds', label: t.manaSpeed, options: publicFilterOptions.manaSpeeds },
                     { key: 'alphaTalentIds', label: t.alphaTalent, options: publicFilterOptions.alphaTalents },
+                    {
+                      key: 'roleGroupIds',
+                      label: locale === 'RU' ? '\u0422\u0438\u043f \u0433\u0435\u0440\u043e\u044f' : 'Hero type',
+                      options: publicFilterOptions.roleGroups,
+                    },
+                    {
+                      key: 'tagIds',
+                      label: locale === 'RU' ? '\u041f\u043e\u0434\u0442\u0438\u043f \u0433\u0435\u0440\u043e\u044f' : 'Hero subtype',
+                      options: publicFilterOptions.heroTags,
+                    },
                   ] as Array<{
                     key: keyof PublicCatalogFiltersState;
                     label: string;
@@ -3793,6 +4036,58 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 </div>
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
+                  <span>{locale === 'RU' ? '\u0422\u0438\u043f \u0433\u0435\u0440\u043e\u044f' : 'Hero type'}</span>
+                </div>
+                {(() => {
+                  const groups = getHeroRoleGroupsForTagIds(selectedItem.tagIds);
+                  const tags = getHeroTagsForIds(selectedItem.tagIds);
+
+                  if (groups.length === 0 && tags.length === 0) {
+                    return (
+                      <div className="text-sm text-[var(--foreground-soft)]">
+                        {locale === 'RU' ? '\u0422\u0438\u043f \u0438 \u043f\u043e\u0434\u0442\u0438\u043f\u044b \u0433\u0435\u0440\u043e\u044f \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No hero type or subtypes selected'}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {groups.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {groups.map((group) => (
+                            <span
+                              key={group.id}
+                              className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-200"
+                            >
+                              {getLocalizedText(group.name, locale)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {tags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200"
+                            >
+                              <span>#{getLocalizedText(tag.name, locale)}</span>
+                              {tag.description ? (
+                                <HeroInfoPopover
+                                  label={getLocalizedText(tag.name, locale)}
+                                  content={getLocalizedText(tag.description, locale)}
+                                />
+                              ) : null}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                   <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438' : 'Passive skills'}</div>
                 {selectedItem.passiveSkillIds.length === 0 ? (
                     <div className="text-sm text-[var(--foreground-soft)]">{locale === 'RU' ? '\u041f\u0430\u0441\u0441\u0438\u0432\u043d\u044b\u0435 \u043d\u0430\u0432\u044b\u043a\u0438 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d\u044b' : 'No passive skills selected'}</div>
@@ -3878,7 +4173,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div></div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseAttack}: {selectedItem.baseAttack ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseArmor}: {selectedItem.baseArmor ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHp}: {selectedItem.baseHp ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{locale === 'RU' ? '\u0411\u0430\u0437\u043e\u0432\u0430\u044f \u043c\u043e\u0449\u044c' : 'Base power'}: {selectedItem.basePower ?? t.noValue}</div></div>
               <HeroStatCalculatorPanel locale={locale} heroId={selectedItem.id} heroSlug={selectedItem.slug} calculateEndpoint={`/api/v1/admin/heroes/${selectedItem.id}/stats/calculate`} rarityStars={resolveItem(rarities, selectedItem.rarityId)?.stars ?? null} isCostume={selectedItem.isCostume} currentCostumeIndex={selectedItem.costumeIndex ?? null} baseAttack={selectedItem.baseAttack ?? null} baseArmor={selectedItem.baseArmor ?? null} baseHp={selectedItem.baseHp ?? null} costumes={selectedAdminVariants?.costumes} />
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.status}: {selectedItem.status}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.releaseDate}: {selectedItem.releaseDate || t.noValue}</div></div>
 {selectedItem.isCostume && <div className="grid grid-cols-1 gap-4 md:grid-cols-3"><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.baseHero}: {resolveBaseHeroName(selectedItem.baseHeroId)}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]">{t.costumeIndexLabel}: {selectedItem.costumeIndex ?? t.noValue}</div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground)]"><div className="flex items-center gap-3"><DictionaryMiniIcon imageUrl="/dictionary-icons/costume.png" label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'} size={34} chromeless fallbackToLetter={false} /><span className="min-w-0 flex-1 text-base font-bold text-[var(--foreground)]">{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span>{selectedItem.costumeBonus ? <HeroInfoPopover label={locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a\u043e\u0441\u0442\u044e\u043c\u0430' : 'Costume bonus'} content={formatCostumeBonusContent(locale, selectedItem.costumeBonus)} /> : null}</div></div></div>}

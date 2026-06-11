@@ -166,6 +166,8 @@ export type Messages = {
     manaSpeeds: string;
     families: string;
     alphaTalents: string;
+    heroRoleGroups: string;
+    heroTags: string;
     passiveSkills: string;
     emblemProfiles: string;
     evolutionMultipliers: string;
@@ -176,6 +178,8 @@ export type Messages = {
     manaSpeedsDescription: string;
     familiesDescription: string;
     alphaTalentsDescription: string;
+    heroRoleGroupsDescription: string;
+    heroTagsDescription: string;
     passiveSkillsDescription: string;
     emblemProfilesDescription: string;
     evolutionMultipliersDescription: string;
