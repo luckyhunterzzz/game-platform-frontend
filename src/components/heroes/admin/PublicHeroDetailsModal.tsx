@@ -1787,8 +1787,8 @@ function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | n
   if (normalized.includes('paladin') || normalized.includes('палад')) return 'paladin';
   if (normalized.includes('ranger') || normalized.includes('рейндж')) return 'ranger';
   if (normalized.includes('rogue') || normalized.includes('ассас') || normalized.includes('разбой')) return 'rogue';
-  if (normalized.includes('sorcerer') || normalized.includes('колдун') || normalized.includes('маг')) return 'sorcerer';
-  if (normalized.includes('wizard') || normalized.includes('волшеб')) return 'wizard';
+  if (normalized.includes('sorcerer') || normalized.includes('колдун')) return 'sorcerer';
+  if (normalized.includes('wizard') || normalized.includes('волшеб') || normalized.includes('маг')) return 'wizard';
 
   return null;
 }
