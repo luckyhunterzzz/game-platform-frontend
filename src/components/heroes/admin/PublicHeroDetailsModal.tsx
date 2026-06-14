@@ -79,6 +79,7 @@ export type PublicHeroDetailsItem = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   costumeBonusJson?: {
     attack?: number | null;
     armor?: number | null;
@@ -3831,8 +3832,8 @@ export default function PublicHeroDetailsModal({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.costumes}</div>
                 {resolvedCostumes.length === 0 ? (
                   <div className="text-sm text-[var(--foreground-soft)]">{t.noCostumes}</div>
@@ -3999,6 +4000,7 @@ export default function PublicHeroDetailsModal({
                   baseAttack={heroDetails.baseAttack ?? heroCard.baseAttack ?? null}
                   baseArmor={heroDetails.baseArmor ?? heroCard.baseArmor ?? null}
                   baseHp={heroDetails.baseHp ?? heroCard.baseHp ?? null}
+                  basePower={heroDetails.basePower ?? null}
                   costumes={heroDetails.costumes}
                   troopOptions={calculatorTroopOptions}
                 />
