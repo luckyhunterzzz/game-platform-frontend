@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { calculateHeroPower } from '@/lib/hero-power';
 import { ApiError, useApi } from '@/lib/use-api';
 
 type HeroLocale = 'RU' | 'EN';
@@ -38,6 +39,7 @@ type HeroStatCalculationResponse = {
   emblemPathType?: EmblemPathType | null;
   includeMasterEmblems: boolean;
   finalStats: HeroStatBlockResponse;
+  finalPower?: number | null;
 };
 
 export type HeroStatTroopOption = {
@@ -64,6 +66,7 @@ type HeroStatCalculatorPanelProps = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   costumes?: HeroVariantSummary[];
   troopOptions?: HeroStatTroopOption[];
 };
@@ -161,6 +164,7 @@ export default function HeroStatCalculatorPanel({
   baseAttack,
   baseArmor,
   baseHp,
+  basePower,
   costumes = [],
   troopOptions = [],
 }: HeroStatCalculatorPanelProps) {
@@ -210,6 +214,7 @@ export default function HeroStatCalculatorPanel({
             attack: 'Атака',
             armor: 'Броня',
             hp: 'HP',
+            power: 'POWER',
             stageLabel: resolveStageLabel,
           }
         : {
@@ -229,6 +234,7 @@ export default function HeroStatCalculatorPanel({
             attack: 'Attack',
             armor: 'Armor',
             hp: 'HP',
+            power: 'POWER',
             stageLabel: resolveStageLabel,
           },
     [locale, rarityStars],
@@ -395,6 +401,16 @@ export default function HeroStatCalculatorPanel({
         hp: applyPercentBonus(finalStats.hp, selectedTroop.totalHealthBonusPercent),
       }
     : finalStats;
+  const displayedPower =
+    result?.finalPower ??
+    basePower ??
+    calculateHeroPower({
+      attack: finalStats.attack,
+      armor: finalStats.armor,
+      hp: finalStats.hp,
+      rarityStars,
+      talentCount: emblemPathType == null ? 0 : includeMasterEmblems ? 25 : 20,
+    });
   const costumeFieldLabel =
     isCostume
       ? locale === 'RU'
@@ -420,6 +436,7 @@ export default function HeroStatCalculatorPanel({
     { key: 'attack', icon: '⚔️', label: t.attack, value: displayedStats.attack, base: baseAttack },
     { key: 'armor', icon: '🛡️', label: t.armor, value: displayedStats.armor, base: baseArmor },
     { key: 'hp', icon: '❤️', label: t.hp, value: displayedStats.hp, base: baseHp },
+    ...(displayedPower != null ? [{ key: 'power', icon: '⚡', label: t.power, value: displayedPower, base: basePower ?? null }] : []),
   ] as const;
 
   return (
@@ -636,7 +653,7 @@ export default function HeroStatCalculatorPanel({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {statCards.map((stat) => {
             const deltaLabel = statDeltaLabel(stat.value, stat.base);
             return (

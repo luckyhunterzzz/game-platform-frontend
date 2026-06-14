@@ -43,6 +43,7 @@ export type PublicHeroDetailsItem = {
   baseAttack?: number | null;
   baseArmor?: number | null;
   baseHp?: number | null;
+  basePower?: number | null;
   costumeBonusJson?: {
     attack?: number | null;
     armor?: number | null;
