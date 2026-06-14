@@ -37,7 +37,7 @@ export default function PageQuickLinksToolbar({
         href: '/chests',
         imageSrc: '/home-quick-links/guides.png',
       },
-      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/events.png' },
+      { label: messages.home.navEvents, href: '/events', imageSrc: '/home-quick-links/event.webp' },
       {
         label: messages.home.navHeroCoach,
         href: '/hero-coach',
@@ -51,7 +51,7 @@ export default function PageQuickLinksToolbar({
       {
         label: messages.home.navAlliances,
         href: '/alliance',
-        imageSrc: '/home-quick-links/alliances.png',
+        imageSrc: '/home-quick-links/alliance.webp',
       },
     ],
     [
