@@ -622,9 +622,9 @@ export default function TroopsPageClient() {
       { label: messages.home.navHeroCoach, href: '/hero-coach', imageSrc: '/heroes/activity-icons/hero-coach.png' },
       { label: messages.home.navOutfitter, href: '/outfitter', imageSrc: '/heroes/activity-icons/visiting-outfitter.png' },
       { label: locale === 'ru' ? 'Отряды' : 'Troops', href: '/troops', imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp' },
-      { label: locale === 'ru' ? 'События' : 'Events', href: '/events', imageSrc: '/home-quick-links/events.png' },
+      { label: locale === 'ru' ? 'События' : 'Events', href: '/events', imageSrc: '/home-quick-links/event.webp' },
       { label: locale === 'ru' ? 'Сундуки' : 'Chests', href: '/chests', imageSrc: '/home-quick-links/guides.png' },
-      { label: locale === 'ru' ? 'Альянсы' : 'Alliances', href: '/alliance', imageSrc: '/home-quick-links/alliances.png' },
+      { label: locale === 'ru' ? 'Альянсы' : 'Alliances', href: '/alliance', imageSrc: '/home-quick-links/alliance.webp' },
     ],
     [
       locale,
