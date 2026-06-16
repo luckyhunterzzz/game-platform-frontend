@@ -2,11 +2,13 @@
 
 import Image from 'next/image';
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import PublicationsSection from '@/components/publications/PublicationsSection';
+import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 const titleImages = {
@@ -33,6 +35,8 @@ const titleImageMeta = {
 export default function HomePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { messages } = useI18n();
+  const { authenticated, roles } = useAuth();
+  const isAdmin = authenticated && (roles.includes('ROLE_admin') || roles.includes('ROLE_superadmin'));
   const sidebarItems: SidebarMenuItem[] = [
     { key: 'home', href: '/', label: messages.home.menuPageOne },
     { key: 'heroes', href: '/heroes', label: messages.home.menuPageTwo },
@@ -121,12 +125,23 @@ export default function HomePage() {
           <p className="text-lg font-light uppercase tracking-[0.24em] text-[var(--foreground-soft)] md:text-xl md:tracking-widest">
             {messages.home.heroSubtitle}
           </p>
+
+          {isAdmin ? (
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/admin/home"
+                className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-amber-300 transition hover:bg-amber-400/15"
+              >
+                {messages.heroes.adminBadge}
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <PageQuickLinksToolbar currentPath="/" />
 
         <div className="w-full">
-          <PublicationsSection />
+          <PublicationsSection forcePublic />
         </div>
       </main>
     </div>
