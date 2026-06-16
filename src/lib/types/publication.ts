@@ -61,6 +61,13 @@ export interface PublicationAdminFeedResponse {
   hasNext: boolean;
 }
 
+export interface PublicationAdminHomeResponse {
+  published: PublicationAdminFeedResponse;
+  drafts: PublicationAdminFeedResponse;
+  scheduled: PublicationAdminFeedResponse;
+  alliances: PublicationAdminFeedResponse;
+}
+
 export interface PublicationUpsertRequest {
   titleJson: LocalizedText;
   contentJson: LocalizedText;
