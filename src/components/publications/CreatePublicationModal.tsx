@@ -196,6 +196,28 @@ function toFormFromPublication(publication: PublicationAdminDetails): Publicatio
   };
 }
 
+function resolvePublishedAtForSubmit(
+  form: PublicationUpsertRequest,
+  mode: 'create' | 'edit',
+  initialPublication: PublicationAdminDetails | null,
+): string | null {
+  if (form.status === PublicationStatus.SCHEDULED) {
+    return form.publishedAt ?? null;
+  }
+
+  if (form.status === PublicationStatus.PUBLISHED) {
+    if (form.publishedAt) {
+      return form.publishedAt;
+    }
+
+    if (mode === 'edit') {
+      return initialPublication?.publishedAt ?? null;
+    }
+  }
+
+  return null;
+}
+
 function getFileNameFromObjectKey(value?: string | null): string | null {
   if (!value) return null;
   const parts = value.split('/');
@@ -515,7 +537,7 @@ export default function CreatePublicationModal({
         contentJson: cloneLocalizedText(form.contentJson),
         pinnedUntil: form.pinned ? form.pinnedUntil : null,
         showInNewsFeed: form.type === PublicationType.ALLIANCE ? form.showInNewsFeed : false,
-        publishedAt: form.status === PublicationStatus.SCHEDULED ? form.publishedAt : null,
+        publishedAt: resolvePublishedAtForSubmit(form, mode, initialPublication),
       };
 
       if (mode === 'edit' && initialPublication) {
