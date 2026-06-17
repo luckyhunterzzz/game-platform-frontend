@@ -58,7 +58,7 @@ export default function PublicationsSection({
   forcePublic = false,
 }: PublicationsSectionProps) {
   const { apiJson } = useApi();
-  const { roles, authenticated } = useAuth();
+  const { roles } = useAuth();
   const { locale, messages } = useI18n();
 
   const [items, setItems] = useState<PublicationItem[]>([]);
@@ -224,20 +224,23 @@ export default function PublicationsSection({
     PublicationType.GIFTCODES,
   ];
 
+  const showAdminControls = isAdmin;
+  const showPublicTypeTabs = !isAdmin && publicView === 'main';
+
   return (
     <section className="mx-auto mt-10 w-full max-w-5xl px-4">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-[var(--foreground)]">
-            {title ?? messages.publications.title}
-          </h2>
-          <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-            {subtitle ?? messages.publications.subtitle}
-          </p>
-        </div>
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-[var(--foreground)]">
+              {title ?? messages.publications.title}
+            </h2>
+            <p className="mt-2 text-sm text-[var(--foreground-soft)]">
+              {subtitle ?? messages.publications.subtitle}
+            </p>
+          </div>
 
-        {authenticated && isAdmin && (
-          <div className="flex flex-col gap-2">
+          {showAdminControls && (
             <button
               type="button"
               onClick={handleOpenCreate}
@@ -245,58 +248,74 @@ export default function PublicationsSection({
             >
               {messages.publications.createButton}
             </button>
+          )}
+        </div>
 
-            <div className="flex flex-wrap gap-2">
-              {publicationTabs.map((tab) => {
-                const active = activeAdminStatus === tab.status;
+        {showAdminControls && (
+          <div className="sticky top-3 z-20 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-lg backdrop-blur-sm">
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--foreground-soft)]">
+                {locale === 'ru' ? 'Статус' : 'Status'}
+              </div>
 
-                return (
-                  <button
-                    key={tab.status}
-                    type="button"
-                    onClick={() => {
-                      setActiveAdminStatus(tab.status);
-                      setPage(0);
-                    }}
-                    className={
-                      active
-                        ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-cyan-300'
-                        : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
-                    }
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+              <div className="flex flex-wrap gap-2">
+                {publicationTabs.map((tab) => {
+                  const active = activeAdminStatus === tab.status;
+
+                  return (
+                    <button
+                      key={tab.status}
+                      type="button"
+                      onClick={() => {
+                        setActiveAdminStatus(tab.status);
+                        setPage(0);
+                      }}
+                      className={
+                        active
+                          ? 'rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-cyan-300'
+                          : 'rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                      }
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {adminTypeTabs.map((tab) => {
-                const active = activeAdminType === tab.type;
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--foreground-soft)]">
+                {locale === 'ru' ? 'Тип публикации' : 'Publication type'}
+              </div>
 
-                return (
-                  <button
-                    key={tab.type}
-                    type="button"
-                    onClick={() => {
-                      setActiveAdminType(tab.type);
-                      setPage(0);
-                    }}
-                    className={
-                      active
-                        ? 'rounded-xl border border-violet-400/40 bg-violet-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-violet-300'
-                        : 'rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
-                    }
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+              <div className="flex flex-wrap gap-2">
+                {adminTypeTabs.map((tab) => {
+                  const active = activeAdminType === tab.type;
+
+                  return (
+                    <button
+                      key={tab.type}
+                      type="button"
+                      onClick={() => {
+                        setActiveAdminType(tab.type);
+                        setPage(0);
+                      }}
+                      className={
+                        active
+                          ? 'rounded-xl border border-violet-400/40 bg-violet-400/10 px-4 py-2 text-sm font-semibold tracking-wide text-violet-300'
+                          : 'rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm font-medium text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                      }
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
-        {!isAdmin && publicView === 'main' && (
+        {showPublicTypeTabs && (
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             {publicTypeTabs.map((type) => {
               const active = activePublicType === type;
