@@ -2,7 +2,7 @@
 
 import { format as formatDateValue, isValid as isValidDateValue, parse as parseDateValue, type Locale } from 'date-fns';
 import { enGB, enUS, ru } from 'date-fns/locale';
-import { ChevronDown, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -84,6 +84,7 @@ const ADMIN_PUBLIC_VISIBILITY_API = '/api/v1/admin/heroes/public-visibility';
 const PUBLIC_FILTERS_API = '/api/v1/public/heroes/filters';
 const PUBLIC_NAMES_API = '/api/v1/public/heroes/names';
 const buildAdminExpertOpinionsApi = (heroId: number) => `/api/v1/admin/heroes/${heroId}/expert-opinions`;
+const buildAdminBugReportsApi = (heroId: number) => `/api/v1/admin/heroes/${heroId}/bug-reports`;
 const buildPublicExpertOpinionsApi = (slug: string, locale: 'RU' | 'EN') =>
   `/api/v1/public/heroes/${slug}/expert-opinions?language=${locale}`;
 const ELEMENTS_API = '/api/v1/admin/heroes/elements';
@@ -259,6 +260,23 @@ type HeroCatalogImportResponseDto = {
   skippedHeroes: HeroCatalogImportSkippedItemDto[];
 };
 
+type HeroBugReportDto = {
+  id: string;
+  heroId: number;
+  authorId?: string | null;
+  authorName: string;
+  description: string;
+  isOpen: boolean;
+  createdAt: string;
+  closedAt?: string | null;
+  closedBy?: string | null;
+};
+
+type HeroBugReportsAdminResponseDto = {
+  activeReport?: HeroBugReportDto | null;
+  history: HeroBugReportDto[];
+};
+
 type HeroImportFormState = {
   sourceUrl: string;
   localizedSourceUrl: string;
@@ -301,6 +319,7 @@ type AdminHeroResponseDto = {
   updatedAt: string;
   updatedBy: string;
   updatedByEmail?: string | null;
+  hasOpenBugReport: boolean;
   passiveSkillIds: number[];
   tagIds: number[];
 };
@@ -337,6 +356,7 @@ type HeroItem = {
   updatedAt: string;
   updatedBy: string;
   updatedByEmail?: string | null;
+  hasOpenBugReport: boolean;
   passiveSkillIds: number[];
   tagIds: number[];
 };
@@ -371,6 +391,7 @@ type HeroFormState = {
   costumeBonusArmor: string;
   costumeBonusHp: string;
   costumeBonusMana: string;
+  hasOpenBugReport: boolean;
 };
 
 type HeroMutationRequest = {
@@ -400,6 +421,7 @@ type HeroMutationRequest = {
   status: HeroStatus;
   updatedBy: string;
   updatedByEmail?: string | null;
+  hasOpenBugReport: boolean;
   passiveSkillIds: number[];
   tagIds: number[];
 };
@@ -430,6 +452,7 @@ const EMPTY_FORM: HeroFormState = {
   costumeBonusArmor: '',
   costumeBonusHp: '',
   costumeBonusMana: '',
+  hasOpenBugReport: false,
   releaseDate: '',
   isCostume: false,
   baseHeroId: '',
@@ -550,6 +573,7 @@ function mapHero(dto: AdminHeroResponseDto): HeroItem {
     updatedAt: dto.updatedAt,
     updatedBy: dto.updatedBy,
     updatedByEmail: dto.updatedByEmail ?? null,
+    hasOpenBugReport: dto.hasOpenBugReport,
     passiveSkillIds: dto.passiveSkillIds ?? [],
     tagIds: dto.tagIds ?? [],
   };
@@ -586,6 +610,7 @@ function toForm(hero: HeroItem): HeroFormState {
     costumeBonusArmor: hero.costumeBonus?.armor == null ? '' : String(hero.costumeBonus.armor),
     costumeBonusHp: hero.costumeBonus?.hp == null ? '' : String(hero.costumeBonus.hp),
     costumeBonusMana: hero.costumeBonus?.mana == null ? '' : String(hero.costumeBonus.mana),
+    hasOpenBugReport: hero.hasOpenBugReport,
   };
 }
 
@@ -814,6 +839,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [selectedItem, setSelectedItem] = useState<HeroItem | null>(null);
   const [editingHeroId, setEditingHeroId] = useState<number | null>(null);
   const [selectedAdminVariants, setSelectedAdminVariants] = useState<AdminHeroVariantsResponse | null>(null);
+  const [selectedAdminBugReports, setSelectedAdminBugReports] = useState<HeroBugReportsAdminResponseDto | null>(null);
   const [selectedAdminHeroExpertOpinions, setSelectedAdminHeroExpertOpinions] = useState<HeroExpertOpinionDraft[]>([]);
   const [elements, setElements] = useState<ElementItem[]>([]);
   const [rarities, setRarities] = useState<RarityItem[]>([]);
@@ -828,6 +854,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingPublicDetails, setLoadingPublicDetails] = useState(false);
   const [loadingAdminHeroExpertOpinions, setLoadingAdminHeroExpertOpinions] = useState(false);
+  const [loadingAdminBugReports, setLoadingAdminBugReports] = useState(false);
   const [loadingPublicHeroExpertOpinions, setLoadingPublicHeroExpertOpinions] = useState(false);
   const [createUploadingImage, setCreateUploadingImage] = useState<Record<HeroLocale, boolean>>({
     RU: false,
@@ -844,6 +871,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [publicDetailsError, setPublicDetailsError] = useState<string | null>(null);
   const [adminHeroExpertOpinionsError, setAdminHeroExpertOpinionsError] = useState<string | null>(null);
+  const [adminBugReportsError, setAdminBugReportsError] = useState<string | null>(null);
   const [publicHeroExpertOpinionsError, setPublicHeroExpertOpinionsError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createImageUploadError, setCreateImageUploadError] = useState<Record<HeroLocale, string | null>>({
@@ -858,6 +886,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [editPreviewUploadError, setEditPreviewUploadError] = useState<string | null>(null);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
+  const [adminBugHistoryOpen, setAdminBugHistoryOpen] = useState(false);
   const [isCreatePassiveSkillsOpen, setCreatePassiveSkillsOpen] = useState(false);
   const [isEditPassiveSkillsOpen, setEditPassiveSkillsOpen] = useState(false);
   const [createPassiveSkillQuery, setCreatePassiveSkillQuery] = useState('');
@@ -1481,6 +1510,23 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setSelectedAdminVariants(null);
     }
   }, [apiJson, locale]);
+
+  const loadAdminBugReports = useCallback(async (id: number) => {
+    setLoadingAdminBugReports(true);
+    setAdminBugReportsError(null);
+
+    try {
+      const response = await apiJson<HeroBugReportsAdminResponseDto>(buildAdminBugReportsApi(id));
+      setSelectedAdminBugReports(response);
+      setAdminBugHistoryOpen(Boolean(response.activeReport));
+    } catch (error) {
+      setSelectedAdminBugReports(null);
+      setAdminBugReportsError(error instanceof Error ? error.message : 'Failed to load bug reports');
+      setAdminBugHistoryOpen(false);
+    } finally {
+      setLoadingAdminBugReports(false);
+    }
+  }, [apiJson]);
 
   const findBaseHeroCardBySlug = useCallback((slug: string) => {
     return publicItems.find((item) => item.slug === slug) ?? null;
@@ -2152,10 +2198,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       setSubmitError(selectionSyncError);
       return;
     }
-    setEditForm(toForm(selectedItem));
+    setEditForm({
+      ...toForm(selectedItem),
+      hasOpenBugReport: Boolean(selectedAdminBugReports?.activeReport ?? selectedItem.hasOpenBugReport),
+    });
     setEditingHeroId(selectedItem.id);
     setEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
     setInitialEditExpertOpinions(sortHeroExpertOpinions(selectedAdminHeroExpertOpinions));
+    setAdminBugHistoryOpen(Boolean(selectedAdminBugReports?.activeReport));
     setSubmitError(null);
     setEditPassiveSkillsOpen(false);
     setEditPassiveSkillQuery('');
@@ -2196,6 +2246,17 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     resetImageInput('edit', 'EN');
     resetPreviewImageInput('edit');
   };
+
+  useEffect(() => {
+    if (!isEditOpen) {
+      return;
+    }
+
+    setEditForm((prev) => ({
+      ...prev,
+      hasOpenBugReport: Boolean(selectedAdminBugReports?.activeReport),
+    }));
+  }, [isEditOpen, selectedAdminBugReports?.activeReport]);
 
   const baseHeroes = useMemo(
     () => [...baseHeroOptions].sort((a, b) => a.name.localeCompare(b.name, locale === 'RU' ? 'ru' : 'en')),
@@ -2428,6 +2489,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     status: form.status,
     updatedBy: userId ?? '',
     updatedByEmail: userEmail ?? null,
+    hasOpenBugReport: form.hasOpenBugReport,
     passiveSkillIds: form.passiveSkillIds,
     tagIds: form.tagIds,
   });
@@ -2525,13 +2587,17 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     if (adminMode && selectedId !== null) {
       void loadDetails(selectedId);
       void loadAdminVariants(selectedId);
+      void loadAdminBugReports(selectedId);
       void loadAdminHeroExpertOpinions(selectedId);
     } else if (adminMode) {
       setSelectedAdminVariants(null);
+      setSelectedAdminBugReports(null);
+      setAdminBugReportsError(null);
+      setAdminBugHistoryOpen(false);
       setSelectedAdminHeroExpertOpinions([]);
       setAdminHeroExpertOpinionsError(null);
     }
-  }, [adminMode, selectedId, loadAdminHeroExpertOpinions, loadAdminVariants, loadDetails]);
+  }, [adminMode, selectedId, loadAdminBugReports, loadAdminHeroExpertOpinions, loadAdminVariants, loadDetails]);
 
   const upsertHero = (dto: AdminHeroResponseDto) => {
     const hero = mapHero(dto);
@@ -2650,6 +2716,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       }
 
       upsertHero(updated);
+      await loadDetails(editingHeroId);
+      await loadAdminVariants(editingHeroId);
+      await loadAdminBugReports(editingHeroId);
       setSelectedAdminHeroExpertOpinions(savedExpertOpinions);
       setInitialEditExpertOpinions(savedExpertOpinions);
       setEditPassiveSkillsOpen(false);
@@ -2742,6 +2811,19 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     const addHeroTagActionLabel = locale === 'RU' ? '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c' : 'Add';
     const removeHeroTagActionLabel = locale === 'RU' ? '\u0423\u0434\u0430\u043b\u0438\u0442\u044c' : 'Remove';
     const searchHeroTagsLabel = locale === 'RU' ? '\u041f\u043e\u0438\u0441\u043a \u043f\u043e\u0434\u0442\u0438\u043f\u0430' : 'Search subtype';
+    const bugReportsTitle = locale === 'RU' ? 'Баг-репорты' : 'Bug reports';
+    const activeBugReportTitle = locale === 'RU' ? 'Активный репорт' : 'Active report';
+    const bugReportsHistoryTitle = locale === 'RU' ? 'История репортов' : 'Report history';
+    const bugReportAuthorLabel = locale === 'RU' ? 'Автор' : 'Author';
+    const bugReportDateLabel = locale === 'RU' ? 'Дата' : 'Date';
+    const bugReportDescriptionLabel = locale === 'RU' ? 'Описание' : 'Description';
+    const bugReportFixedLabel = locale === 'RU' ? 'Исправлено' : 'Fixed';
+    const bugReportOpenStateLabel = locale === 'RU' ? 'Открыт' : 'Open';
+    const bugReportClosedStateLabel = locale === 'RU' ? 'Исправлен' : 'Fixed';
+    const bugReportHistoryShowLabel = locale === 'RU' ? 'Показать историю' : 'Show history';
+    const bugReportHistoryHideLabel = locale === 'RU' ? 'Скрыть историю' : 'Hide history';
+    const bugReportEmptyHistoryLabel = locale === 'RU' ? 'Репорты по этому герою пока не создавались' : 'No bug reports for this hero yet';
+    const bugReportLoadingLabel = locale === 'RU' ? 'Загрузка баг-репортов...' : 'Loading bug reports...';
     const localizedUploadFields: Array<{ imageLocale: HeroLocale; label: string }> = [
       { imageLocale: 'RU', label: ruImageLabel },
       { imageLocale: 'EN', label: enImageLabel },
@@ -3224,6 +3306,126 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.status}</span><select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as HeroStatus }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none">{(['DRAFT', 'READY', 'HIDDEN', 'ARCHIVED'] as HeroStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}</select></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.releaseDate}</span><input type="text" inputMode="text" value={form.releaseDate} onChange={(e) => setForm((prev) => ({ ...prev, releaseDate: e.target.value }))} onBlur={(e) => { const normalizedValue = normalizeReleaseDateInput(e.target.value); if (!e.target.value.trim()) { setForm((prev) => ({ ...prev, releaseDate: '' })); return; } if (normalizedValue) { setForm((prev) => ({ ...prev, releaseDate: normalizedValue })); } }} placeholder={t.releaseDatePlaceholder} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /><span className="text-xs text-[var(--foreground-muted)]">{t.releaseDateHint}</span></label></div>
       <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3"><input type="checkbox" checked={form.isCostume} onChange={(e) => setForm((prev) => ({ ...prev, isCostume: e.target.checked, baseHeroId: e.target.checked ? prev.baseHeroId : '', costumeIndex: e.target.checked ? prev.costumeIndex : '', costumeBonusAttack: e.target.checked ? prev.costumeBonusAttack : '', costumeBonusArmor: e.target.checked ? prev.costumeBonusArmor : '', costumeBonusHp: e.target.checked ? prev.costumeBonusHp : '', costumeBonusMana: e.target.checked ? prev.costumeBonusMana : '', slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), e.target.checked, prev.costumeIndex) }))} /><span className="text-sm text-[var(--foreground-soft)]">{t.isCostume}</span></label>
 {form.isCostume && <div className="space-y-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2"><SearchableSelectField label={t.baseHero} value={form.baseHeroId} onChange={(value) => { setForm((prev) => ({ ...prev, baseHeroId: value })); if (!isEdit) { setCreateBaseHeroSelectOpen(false); } }} options={baseHeroSelectOptions} placeholder={t.selectBaseHero} searchPlaceholder={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} searchAriaLabel={locale === 'RU' ? 'Поиск базового героя' : 'Search base hero'} clearSearchLabel={locale === 'RU' ? 'Очистить поиск героя' : 'Clear hero search'} noResultsLabel={locale === 'RU' ? 'Базовый герой не найден' : 'No base hero found'} searchQuery={!isEdit ? createBaseHeroSearch : undefined} onSearchQueryChange={!isEdit ? setCreateBaseHeroSearch : undefined} open={!isEdit ? createBaseHeroSelectOpen : undefined} onOpenChange={!isEdit ? setCreateBaseHeroSelectOpen : undefined} /><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{t.costumeIndexLabel}</span><input type="number" min="1" value={form.costumeIndex} onChange={(e) => setForm((prev) => ({ ...prev, costumeIndex: e.target.value, slug: applyCostumeSlugSuffix(slugifyHeroName(prev.name.en), prev.isCostume, e.target.value) }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div><div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="mb-3 flex items-center gap-3"><DictionaryMiniIcon imageUrl="/dictionary-icons/costume.png" label={locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'} size={34} chromeless fallbackToLetter={false} /><span className="text-base font-bold text-[var(--foreground)]">{locale === 'RU' ? 'Бонус костюма' : 'Costume bonus'}</span></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0430\u0442\u0430\u043a\u0435, %' : 'Attack bonus, %'}</span><input type="number" min="0" value={form.costumeBonusAttack} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusAttack: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0430\u0449\u0438\u0442\u0435, %' : 'Defence bonus, %'}</span><input type="number" min="0" value={form.costumeBonusArmor} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusArmor: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u0437\u0434\u043e\u0440\u043e\u0432\u044c\u044e, %' : 'Health bonus, %'}</span><input type="number" min="0" value={form.costumeBonusHp} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusHp: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label><label className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--foreground-soft)]">{locale === 'RU' ? '\u0411\u043e\u043d\u0443\u0441 \u043a \u043c\u0430\u043d\u0435, %' : 'Mana bonus, %'}</span><input type="number" min="0" value={form.costumeBonusMana} onChange={(e) => setForm((prev) => ({ ...prev, costumeBonusMana: e.target.value }))} className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none" /></label></div></div></div>}
+      {isEdit ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-base font-bold text-[var(--foreground)]">{bugReportsTitle}</div>
+              <div className="mt-1 text-xs text-[var(--foreground-muted)]">
+                {selectedAdminBugReports?.activeReport ? activeBugReportTitle : bugReportsHistoryTitle}
+              </div>
+            </div>
+            {selectedAdminBugReports?.activeReport ? (
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, hasOpenBugReport: !prev.hasOpenBugReport }))}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full border transition ${
+                  form.hasOpenBugReport
+                    ? 'border-red-500/40 bg-red-500/20'
+                    : 'border-emerald-500/40 bg-emerald-500/20'
+                }`}
+                aria-label={bugReportFixedLabel}
+                title={bugReportFixedLabel}
+              >
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transition ${
+                    form.hasOpenBugReport ? 'translate-x-1' : 'translate-x-6'
+                  }`}
+                />
+              </button>
+            ) : null}
+          </div>
+          {loadingAdminBugReports ? (
+            <div className="text-sm text-[var(--foreground-soft)]">{bugReportLoadingLabel}</div>
+          ) : adminBugReportsError ? (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {adminBugReportsError}
+            </div>
+          ) : selectedAdminBugReports?.activeReport ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-red-200">
+                    {form.hasOpenBugReport ? bugReportOpenStateLabel : bugReportClosedStateLabel}
+                  </div>
+                  {!form.hasOpenBugReport ? (
+                    <div className="text-xs text-emerald-300">{bugReportFixedLabel}</div>
+                  ) : null}
+                </div>
+                <div className="space-y-2 text-sm text-[var(--foreground)]">
+                  <div><span className="text-[var(--foreground-muted)]">{bugReportAuthorLabel}:</span> {selectedAdminBugReports.activeReport.authorName}</div>
+                  <div><span className="text-[var(--foreground-muted)]">{bugReportDateLabel}:</span> {formatAdminDate(selectedAdminBugReports.activeReport.createdAt, locale, t.noValue)}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-[var(--foreground-soft)]">
+                    <div className="mb-2 text-xs uppercase tracking-wide text-[var(--foreground-muted)]">{bugReportDescriptionLabel}</div>
+                    <div className="whitespace-pre-wrap">{selectedAdminBugReports.activeReport.description}</div>
+                  </div>
+                </div>
+              </div>
+              {selectedAdminBugReports.history.length > 0 ? (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdminBugHistoryOpen((prev) => !prev)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    aria-label={adminBugHistoryOpen ? bugReportHistoryHideLabel : bugReportHistoryShowLabel}
+                    title={adminBugHistoryOpen ? bugReportHistoryHideLabel : bugReportHistoryShowLabel}
+                  >
+                    {adminBugHistoryOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                  {adminBugHistoryOpen ? (
+                    <div className="space-y-3">
+                      {selectedAdminBugReports.history.map((report) => (
+                        <details key={report.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+                          <summary className="cursor-pointer list-none text-sm font-medium text-[var(--foreground)]">
+                            {report.authorName} • {formatAdminDate(report.createdAt, locale, t.noValue)}
+                          </summary>
+                          <div className="mt-3 space-y-2 text-sm text-[var(--foreground-soft)]">
+                            <div>{bugReportDescriptionLabel}</div>
+                            <div className="whitespace-pre-wrap rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                              {report.description}
+                            </div>
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : selectedAdminBugReports && selectedAdminBugReports.history.length > 0 ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setAdminBugHistoryOpen((prev) => !prev)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                aria-label={adminBugHistoryOpen ? bugReportHistoryHideLabel : bugReportHistoryShowLabel}
+                title={adminBugHistoryOpen ? bugReportHistoryHideLabel : bugReportHistoryShowLabel}
+              >
+                {adminBugHistoryOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {adminBugHistoryOpen ? (
+                <div className="space-y-3">
+                  {selectedAdminBugReports.history.map((report) => (
+                    <details key={report.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+                      <summary className="cursor-pointer list-none text-sm font-medium text-[var(--foreground)]">
+                        {report.authorName} • {formatAdminDate(report.createdAt, locale, t.noValue)}
+                      </summary>
+                      <div className="mt-3 space-y-2 text-sm text-[var(--foreground-soft)]">
+                        <div>{bugReportDescriptionLabel}</div>
+                        <div className="whitespace-pre-wrap rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                          {report.description}
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="text-sm text-[var(--foreground-soft)]">{bugReportEmptyHistoryLabel}</div>
+          )}
+        </div>
+      ) : null}
       {currentAuditLabel && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-[var(--foreground-muted)]">{t.updatedBy}: {currentAuditLabel}</div>}
     </div>
   );
