@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Flag } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import DictionaryModal from './DictionaryModal';
@@ -11,6 +12,8 @@ import HeroStatCalculatorPanel, { type HeroStatTroopOption } from './HeroStatCal
 import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
 import { buildEpicTroopEntries } from '@/lib/static/troops';
+import { useAuth } from '@/lib/auth-context';
+import { ApiError, useApi } from '@/lib/use-api';
 
 const MANA_OPTIMIZATION_VISIBLE_TROOPS_LIMIT = 2;
 const SPECIAL_SKILL_OVERLAY_STORAGE_KEY = 'public-hero-modal-special-skill-overlay-open';
@@ -91,6 +94,7 @@ export type PublicHeroDetailsItem = {
   releaseDate?: string | null;
   heroCoachDate?: string | null;
   visitingOutfitterDate?: string | null;
+  hasOpenBugReport?: boolean;
 };
 
 export type PublicHeroVariantSummaryItem = {
@@ -125,6 +129,11 @@ type PublicHeroDetailsModalProps = {
   error: string | null;
   onClose: () => void;
   onOpenRelatedHero?: (slug: string) => void;
+};
+
+type HeroBugReportCreateRequest = {
+  authorName: string;
+  description: string;
 };
 
 type LimitBreakElementKey = 'nature' | 'ice' | 'fire' | 'dark' | 'holy';
@@ -2650,8 +2659,17 @@ export default function PublicHeroDetailsModal({
   onClose,
   onOpenRelatedHero,
 }: PublicHeroDetailsModalProps) {
+  const { apiPostJson } = useApi();
+  const { displayName } = useAuth();
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [copiedHeroLink, setCopiedHeroLink] = useState(false);
+  const [bugReportModalOpen, setBugReportModalOpen] = useState(false);
+  const [bugReportAuthorName, setBugReportAuthorName] = useState('');
+  const [bugReportDescription, setBugReportDescription] = useState('');
+  const [bugReportSubmitting, setBugReportSubmitting] = useState(false);
+  const [bugReportError, setBugReportError] = useState<string | null>(null);
+  const [bugReportThanksVisible, setBugReportThanksVisible] = useState(false);
+  const [localHasOpenBugReport, setLocalHasOpenBugReport] = useState(false);
   const [specialSkillOverlayOpen, setSpecialSkillOverlayOpen] = useState(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -2820,6 +2838,42 @@ export default function PublicHeroDetailsModal({
           },
     [locale],
   );
+  const reportText = useMemo(
+    () =>
+      locale === 'RU'
+        ? {
+            action: 'Сообщить о баге',
+            title: 'Сообщить о баге',
+            name: 'Ваше имя',
+            description: 'Описание ошибки',
+            send: 'Отправить',
+            sending: 'Отправка...',
+            cancel: 'Отмена',
+            thanks: 'Спасибо',
+            disabledTooltip: 'На данного героя уже заведена задача на исправление ошибок',
+            namePlaceholder: 'Например, Иван',
+            descriptionPlaceholder: 'Опишите проблему с героем',
+            requiredName: 'Укажите имя',
+            requiredDescription: 'Опишите ошибку',
+          }
+        : {
+            action: 'Report bug',
+            title: 'Report bug',
+            name: 'Your name',
+            description: 'Bug description',
+            send: 'Send',
+            sending: 'Sending...',
+            cancel: 'Cancel',
+            thanks: 'Thank you',
+            disabledTooltip: 'A fix task has already been created for this hero',
+            namePlaceholder: 'For example, Jack',
+            descriptionPlaceholder: 'Describe the problem with this hero',
+            requiredName: 'Enter your name',
+            requiredDescription: 'Describe the bug',
+          },
+    [locale],
+  );
+  const effectiveHasOpenBugReport = localHasOpenBugReport || Boolean(heroDetails?.hasOpenBugReport);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -2831,6 +2885,30 @@ export default function PublicHeroDetailsModal({
       specialSkillOverlayOpen ? '1' : '0',
     );
   }, [specialSkillOverlayOpen]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setBugReportModalOpen(false);
+    setBugReportError(null);
+    setBugReportDescription('');
+    setBugReportAuthorName(displayName ?? '');
+    setLocalHasOpenBugReport(Boolean(heroDetails?.hasOpenBugReport));
+  }, [displayName, heroDetails?.hasOpenBugReport, heroDetails?.id, open]);
+
+  useEffect(() => {
+    if (!bugReportThanksVisible) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setBugReportThanksVisible(false);
+    }, 2200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [bugReportThanksVisible]);
 
   const releaseDate = heroDetails?.releaseDate ? formatDate(heroDetails.releaseDate, locale, t.noValue) : null;
   const heroCoachInfoTitle = locale === 'RU' ? 'Тренер героев' : 'Hero Coach Info';
@@ -3484,8 +3562,81 @@ export default function PublicHeroDetailsModal({
     );
   };
 
+  const handleCreateBugReport = async () => {
+    if (!currentHeroSlug) {
+      return;
+    }
+
+    const normalizedAuthorName = bugReportAuthorName.trim();
+    const normalizedDescription = bugReportDescription.trim();
+
+    if (!normalizedAuthorName) {
+      setBugReportError(reportText.requiredName);
+      return;
+    }
+
+    if (!normalizedDescription) {
+      setBugReportError(reportText.requiredDescription);
+      return;
+    }
+
+    setBugReportSubmitting(true);
+    setBugReportError(null);
+
+    try {
+      await apiPostJson<HeroBugReportCreateRequest, void>(
+        `/api/v1/public/heroes/${encodeURIComponent(currentHeroSlug)}/report`,
+        {
+          authorName: normalizedAuthorName,
+          description: normalizedDescription,
+        },
+      );
+      setLocalHasOpenBugReport(true);
+      setBugReportModalOpen(false);
+      setBugReportDescription('');
+      setBugReportThanksVisible(true);
+    } catch (submitError) {
+      setBugReportError(
+        submitError instanceof ApiError || submitError instanceof Error
+          ? submitError.message
+          : t.detailsUnavailable,
+      );
+    } finally {
+      setBugReportSubmitting(false);
+    }
+  };
+
   return (
-    <DictionaryModal open={open} title={modalTitle} closeLabel={t.close} onClose={onClose}>
+    <DictionaryModal
+      open={open}
+      title={modalTitle}
+      closeLabel={t.close}
+      onClose={onClose}
+      headerActions={
+        currentHeroSlug ? (
+          <div className="group relative">
+            <button
+              type="button"
+              disabled={effectiveHasOpenBugReport}
+              onClick={() => {
+                setBugReportError(null);
+                setBugReportModalOpen(true);
+              }}
+              aria-label={reportText.action}
+              title={effectiveHasOpenBugReport ? undefined : reportText.action}
+              className="inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)] leading-none transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Flag className="h-4 w-4" />
+            </button>
+            {effectiveHasOpenBugReport ? (
+              <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 hidden w-64 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--foreground-soft)] shadow-xl group-hover:block">
+                {reportText.disabledTooltip}
+              </div>
+            ) : null}
+          </div>
+        ) : null
+      }
+    >
       {loading ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-sm text-[var(--foreground-soft)]">
           {t.loading}
@@ -3500,6 +3651,11 @@ export default function PublicHeroDetailsModal({
         </div>
       ) : (
         <div className="space-y-6 text-[15px] md:text-base">
+          {bugReportThanksVisible ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              {reportText.thanks}
+            </div>
+          ) : null}
           <div className="space-y-4 md:flex md:items-start md:gap-4 md:space-y-0">
             <div
               ref={imageContainerRef}
@@ -4059,6 +4215,70 @@ export default function PublicHeroDetailsModal({
           onClose={() => setSelectedManaStrategyId(null)}
         />
       ) : null}
+
+      <DictionaryModal
+        open={bugReportModalOpen}
+        title={reportText.title}
+        closeLabel={reportText.cancel}
+        closeOnBackdropClick={!bugReportSubmitting}
+        onClose={() => {
+          if (bugReportSubmitting) {
+            return;
+          }
+
+          setBugReportModalOpen(false);
+          setBugReportError(null);
+        }}
+      >
+        <div className="space-y-4">
+          {bugReportError ? (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {bugReportError}
+            </div>
+          ) : null}
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[var(--foreground-soft)]">{reportText.name}</span>
+            <input
+              type="text"
+              value={bugReportAuthorName}
+              onChange={(event) => setBugReportAuthorName(event.target.value)}
+              placeholder={reportText.namePlaceholder}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[var(--foreground-soft)]">{reportText.description}</span>
+            <textarea
+              rows={5}
+              value={bugReportDescription}
+              onChange={(event) => setBugReportDescription(event.target.value)}
+              placeholder={reportText.descriptionPlaceholder}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+            />
+          </label>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={bugReportSubmitting}
+              onClick={() => {
+                setBugReportModalOpen(false);
+                setBugReportError(null);
+              }}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {reportText.cancel}
+            </button>
+            <button
+              type="button"
+              disabled={bugReportSubmitting}
+              onClick={() => void handleCreateBugReport()}
+              className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {bugReportSubmitting ? reportText.sending : reportText.send}
+            </button>
+          </div>
+        </div>
+      </DictionaryModal>
     </DictionaryModal>
   );
 }
