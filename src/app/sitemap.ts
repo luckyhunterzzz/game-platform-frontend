@@ -1,10 +1,13 @@
-import type { MetadataRoute } from 'next';
+﻿import type { MetadataRoute } from 'next';
 
 import { eventGuideItems } from '@/lib/static/events';
 import { getHeroNames } from '@/lib/server/public-heroes';
+import { resolveAlternateOrigin } from '@/lib/server/site-context';
 
-const siteUrl = 'https://gameops-platform.dev';
 export const dynamic = 'force-dynamic';
+
+const enSiteUrl = resolveAlternateOrigin('en');
+const ruSiteUrl = resolveAlternateOrigin('ru');
 
 const staticRoutes = [
   '',
@@ -18,22 +21,34 @@ const staticRoutes = [
   '/troops',
 ];
 
+function buildLocalizedEntries(
+  path: string,
+  options: Pick<MetadataRoute.Sitemap[number], 'changeFrequency' | 'priority' | 'lastModified'>,
+): MetadataRoute.Sitemap {
+  return [enSiteUrl, ruSiteUrl].map((siteUrl) => ({
+    url: `${siteUrl}${path}`,
+    ...options,
+  }));
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  const staticPages: MetadataRoute.Sitemap = staticRoutes.map((route) => ({
-    url: `${siteUrl}${route}`,
-    lastModified: now,
-    changeFrequency: route === '' ? 'daily' : 'weekly',
-    priority: route === '' ? 1 : 0.8,
-  }));
+  const staticPages: MetadataRoute.Sitemap = staticRoutes.flatMap((route) =>
+    buildLocalizedEntries(route, {
+      lastModified: now,
+      changeFrequency: route === '' ? 'daily' : 'weekly',
+      priority: route === '' ? 1 : 0.8,
+    }),
+  );
 
-  const eventPages: MetadataRoute.Sitemap = eventGuideItems.map((event) => ({
-    url: `${siteUrl}/events/${event.slug}`,
-    lastModified: now,
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }));
+  const eventPages: MetadataRoute.Sitemap = eventGuideItems.flatMap((event) =>
+    buildLocalizedEntries(`/events/${event.slug}`, {
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    }),
+  );
 
   const heroPages: MetadataRoute.Sitemap = [];
 
@@ -42,12 +57,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const uniqueSlugs = [...new Set(heroItems.map((hero) => hero.slug).filter(Boolean))];
 
     heroPages.push(
-      ...uniqueSlugs.map((slug) => ({
-        url: `${siteUrl}/heroes?hero=${encodeURIComponent(slug)}`,
-        lastModified: now,
-        changeFrequency: 'weekly' as const,
-        priority: 0.7,
-      })),
+      ...uniqueSlugs.flatMap((slug) =>
+        buildLocalizedEntries(`/heroes?hero=${encodeURIComponent(slug)}`, {
+          lastModified: now,
+          changeFrequency: 'weekly',
+          priority: 0.7,
+        }),
+      ),
     );
   } catch (error) {
     console.error('Failed to generate hero sitemap entries', error);

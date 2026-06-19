@@ -1,3 +1,5 @@
+﻿import { resolveAlternateOrigin } from '@/lib/server/site-context';
+
 export type HeroLanguage = 'RU' | 'EN';
 
 export type HeroLookupItem = {
@@ -89,7 +91,7 @@ const API_BASE_URL =
   process.env.INTERNAL_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   'http://localhost:8081';
-export const SITE_URL = 'https://gameops-platform.dev';
+export const SITE_URL = resolveAlternateOrigin('en');
 
 type FetchOptions = {
   revalidate?: number;
@@ -115,15 +117,15 @@ async function fetchApiJson<TResponse>(
   return response.json() as Promise<TResponse>;
 }
 
-export function getHeroPageUrl(slug: string): string {
-  return `${SITE_URL}/heroes?hero=${encodeURIComponent(slug)}`;
+export function getHeroPageUrl(slug: string, siteUrl: string = SITE_URL): string {
+  return `${siteUrl}/heroes?hero=${encodeURIComponent(slug)}`;
 }
 
-export function getHeroSharePageUrl(slug: string): string {
-  return `${SITE_URL}/heroes/share/${encodeURIComponent(slug)}`;
+export function getHeroSharePageUrl(slug: string, siteUrl: string = SITE_URL): string {
+  return `${siteUrl}/heroes/share/${encodeURIComponent(slug)}`;
 }
 
-export function toAbsoluteSiteUrl(value: string | null | undefined): string | null {
+export function toAbsoluteSiteUrl(value: string | null | undefined, siteUrl: string = SITE_URL): string | null {
   if (!value) {
     return null;
   }
@@ -132,7 +134,7 @@ export function toAbsoluteSiteUrl(value: string | null | undefined): string | nu
     return value;
   }
 
-  return `${SITE_URL}${value.startsWith('/') ? value : `/${value}`}`;
+  return `${siteUrl}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
 export async function getHeroNames(language: HeroLanguage = 'RU'): Promise<HeroLookupItem[]> {
