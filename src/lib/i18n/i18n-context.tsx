@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import {
   useCallback,
@@ -33,13 +33,13 @@ function isLocale(value: string | null): value is Locale {
   return value === 'en' || value === 'ru';
 }
 
-function getStoredLocale(): Locale {
+function getStoredLocale(defaultLocale: Locale): Locale {
   if (typeof window === 'undefined') {
-    return 'ru';
+    return defaultLocale;
   }
 
   const savedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  return isLocale(savedLocale) ? savedLocale : 'ru';
+  return isLocale(savedLocale) ? savedLocale : defaultLocale;
 }
 
 function subscribeToLocaleChange(onStoreChange: () => void) {
@@ -63,11 +63,17 @@ function subscribeToLocaleChange(onStoreChange: () => void) {
   };
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({
+  children,
+  initialLocale = 'ru',
+}: {
+  children: ReactNode;
+  initialLocale?: Locale;
+}) {
   const locale = useSyncExternalStore<Locale>(
     subscribeToLocaleChange,
-    getStoredLocale,
-    () => 'ru',
+    () => getStoredLocale(initialLocale),
+    () => initialLocale,
   );
 
   useEffect(() => {
