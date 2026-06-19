@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import HeroesPageShell from '@/components/heroes/HeroesPageShell';
 import { buildHeroesPageMetadata } from '@/lib/server/hero-seo';
 import { getHeroVariantsBySlug, type PublicHeroDetailsItem } from '@/lib/server/public-heroes';
-import { resolveLocaleByHost } from '@/lib/server/site-context';
+import { resolveLocaleFromHeaders } from '@/lib/server/site-context';
 
 type HeroesPageProps = {
   searchParams?: Promise<{
@@ -100,7 +100,7 @@ export async function generateMetadata({ searchParams }: HeroesPageProps): Promi
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const slug = normalizeHeroSlug(resolvedSearchParams?.hero);
   const requestHeaders = await headers();
-  const locale = resolveLocaleByHost(requestHeaders.get('host'));
+  const locale = resolveLocaleFromHeaders(requestHeaders);
   const language = locale === 'ru' ? 'RU' : 'EN';
   const details = slug ? (await getHeroVariantsBySlug(slug, language))?.currentHero ?? null : null;
 
@@ -111,7 +111,7 @@ export default async function HeroesPage({ searchParams }: HeroesPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const slug = normalizeHeroSlug(resolvedSearchParams?.hero);
   const requestHeaders = await headers();
-  const locale = resolveLocaleByHost(requestHeaders.get('host'));
+  const locale = resolveLocaleFromHeaders(requestHeaders);
   const language = locale === 'ru' ? 'RU' : 'EN';
   const details = slug ? (await getHeroVariantsBySlug(slug, language))?.currentHero ?? null : null;
 
