@@ -7,6 +7,10 @@ function normalizeHostValue(host: string | null | undefined): string {
   return (host ?? '').trim().toLowerCase();
 }
 
+function normalizeForwardedHost(value: string | null | undefined): string {
+  return value?.split(',')[0]?.trim().toLowerCase() ?? '';
+}
+
 function stripPort(host: string): string {
   const normalizedHost = normalizeHostValue(host);
 
@@ -23,9 +27,20 @@ function isLocalHost(host: string): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
 }
 
+export function resolveRequestHost(headersLike: Headers): string {
+  const forwardedHost = normalizeForwardedHost(headersLike.get('x-forwarded-host'));
+  const host = normalizeForwardedHost(headersLike.get('host'));
+
+  return stripPort(forwardedHost || host || DEFAULT_EN_HOST);
+}
+
 export function resolveLocaleByHost(host: string | null | undefined): Locale {
   const normalizedHost = stripPort(normalizeHostValue(host));
   return normalizedHost === DEFAULT_RU_HOST ? 'ru' : 'en';
+}
+
+export function resolveLocaleFromHeaders(headersLike: Headers): Locale {
+  return resolveLocaleByHost(resolveRequestHost(headersLike));
 }
 
 export function resolveSiteOrigin(host: string | null | undefined): string {

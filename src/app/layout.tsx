@@ -6,7 +6,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { I18nProvider } from '@/lib/i18n/i18n-context';
 import { RuntimeConfigProvider } from '@/lib/runtime-config/context';
-import { resolveLocaleByHost } from '@/lib/server/site-context';
+import { resolveLocaleFromHeaders } from '@/lib/server/site-context';
 import { resolveRuntimeConfigFromHeaders } from '@/lib/runtime-config/server';
 import { ThemeProvider } from '@/lib/theme/theme-context';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
@@ -28,7 +28,7 @@ export default async function RootLayout({
 }>) {
   const requestHeaders = await headers();
   const runtimeConfig = resolveRuntimeConfigFromHeaders(requestHeaders);
-  const initialLocale = resolveLocaleByHost(requestHeaders.get('host'));
+  const initialLocale = resolveLocaleFromHeaders(requestHeaders);
 
   return (
     <html lang={initialLocale} suppressHydrationWarning>
