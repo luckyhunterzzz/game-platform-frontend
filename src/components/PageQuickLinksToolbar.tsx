@@ -33,7 +33,7 @@ export default function PageQuickLinksToolbar({
         imageSrc: '/heroes/troops/legendary/red_legendary_master_assassin.webp',
       },
       {
-        label: locale === 'ru' ? 'Сундуки' : 'Chests',
+        label: locale === 'ru' ? 'Сундуки & Авы' : 'Chests & Avatars',
         href: '/chests',
         imageSrc: '/home-quick-links/guides.png',
       },
