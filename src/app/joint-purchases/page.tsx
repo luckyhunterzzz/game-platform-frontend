@@ -5,13 +5,11 @@ import { useState } from 'react';
 
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
-import PurchaseHelpBanner from '@/components/joint-purchases/PurchaseHelpBanner';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
-const SHOW_PURCHASE_HELP_BANNER = false;
 
 export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -54,7 +52,6 @@ export default function JointPurchasesPage() {
       <main className="flex flex-1 flex-col items-center px-4 py-10">
         {authenticated ? (
           <div className="flex w-full max-w-7xl flex-col gap-8">
-            {SHOW_PURCHASE_HELP_BANNER ? <PurchaseHelpBanner /> : null}
             <JointPurchasesPageClient />
           </div>
         ) : (
@@ -87,7 +84,7 @@ export default function JointPurchasesPage() {
               </div>
             </div>
 
-            {SHOW_PURCHASE_HELP_BANNER ? <PurchaseHelpBanner /> : null}
+
           </div>
         )}
       </main>

@@ -19,6 +19,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import type { Locale } from '@/lib/i18n/types';
 import { useTheme, type ThemeMode } from '@/lib/theme/theme-context';
+import PurchaseHelpNavbarNotice from '@/components/joint-purchases/PurchaseHelpNavbarNotice';
 
 export const Navbar = ({
   onMenuClick,
@@ -92,7 +93,7 @@ export const Navbar = ({
   const currentLocaleLabel = locale.toUpperCase();
   const authErrorMessage =
     locale === 'ru'
-      ? 'Авторизация временно недоступна. Сайт продолжает работать в гостевом режиме.'
+      ? 'Р С’Р Р†РЎвЂљР С•РЎР‚Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏ Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р Р…Р В°. Р РЋР В°Р в„–РЎвЂљ Р С—РЎР‚Р С•Р Т‘Р С•Р В»Р В¶Р В°Р ВµРЎвЂљ РЎР‚Р В°Р В±Р С•РЎвЂљР В°РЎвЂљРЎРЉ Р Р† Р С–Р С•РЎРѓРЎвЂљР ВµР Р†Р С•Р С РЎР‚Р ВµР В¶Р С‘Р СР Вµ.'
       : 'Authentication is temporarily unavailable. The site is running in guest mode.';
 
   const ThemeIcon = theme === 'light' ? Sun : Moon;
@@ -176,6 +177,12 @@ export const Navbar = ({
             className="h-8 w-8 shrink-0 object-contain sm:h-12 sm:w-12"
           />
         </Link>
+      </div>
+
+      <div className="pointer-events-none fixed left-1/2 top-2 z-[90] flex w-full max-w-[calc(100vw-6rem)] -translate-x-1/2 justify-center px-3 sm:top-3 sm:max-w-[calc(100vw-9rem)] md:max-w-[min(42rem,calc(100vw-18rem))]">
+        <div className="pointer-events-auto min-w-0">
+          <PurchaseHelpNavbarNotice />
+        </div>
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2 md:gap-3">
