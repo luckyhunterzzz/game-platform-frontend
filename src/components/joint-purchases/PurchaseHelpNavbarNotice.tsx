@@ -190,55 +190,7 @@ export default function PurchaseHelpNavbarNotice() {
 
               <div className="px-5 py-5 sm:px-6 sm:py-6">
                 <div className="space-y-5">
-                  {purchaseHelpSteps.map((step) => (
-                    <section
-                      key={step.title}
-                      className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
-                    >
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                        {step.title}
-                      </div>
-
-                      {step.extraContent === 'store-link' ? (
-                        <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--foreground-soft)]">
-                          <p>
-                            {copy.vpnIntro}{' '}
-                            <a
-                              href={STORE_URL}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-medium text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
-                            >
-                              {copy.storeLabel}
-                            </a>
-                          </p>
-                          <p>{step.description}</p>
-                        </div>
-                      ) : (
-                        <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">{step.description}</p>
-                      )}
-
-                      {step.images.length > 0 ? (
-                        <div className={`mt-4 grid gap-4 ${step.images.length > 1 ? 'md:grid-cols-2' : ''}`}>
-                          {step.images.map((image) => (
-                            <div
-                              key={image.src}
-                              className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-slate-950/40"
-                            >
-                              <Image
-                                src={image.src}
-                                alt={image.alt}
-                                width={image.width}
-                                height={image.height}
-                                className="h-auto w-full object-cover"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
-                  ))}
-
+                  {/* Purchase steps 1-5 are hidden for now. The purchaseHelpSteps data stays in this file for quick restore later. */}
                   <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
                     <p className="text-sm font-semibold leading-7 text-[var(--foreground)]">{copy.footer}</p>
                   </section>
