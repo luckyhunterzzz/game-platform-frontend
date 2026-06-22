@@ -14,6 +14,7 @@ const TELEGRAM_WEB_URL = `https://t.me/${TELEGRAM_HANDLE}`;
 const STORE_URL = 'https://www.empiresandpuzzles.com/ru#gempacks';
 const COLLAPSE_STORAGE_KEY = 'joint-purchase-help-banner-collapsed-until';
 const COLLAPSE_DURATION_MS = 24 * 60 * 60 * 1000;
+const SHOW_PURCHASE_HELP_STEPS = false;
 
 function getInitialCollapsedState(): boolean {
   if (typeof window === 'undefined') {
@@ -53,78 +54,78 @@ type PurchaseHelpStep = {
   extraContent?: 'store-link';
 };
 
-const purchaseHelpSteps: PurchaseHelpStep[] = [
-  {
-    title: 'Шаг 1',
-    description:
-      'Вы выбираете нужную акцию. Во многих предложениях таким способом можно получить дополнительные бонусы.',
-    extraContent: 'store-link',
-    images: [
-      {
-        src: '/joint-purchases/purchase-help/step-1-offer.png',
-        alt: 'Пример акционного предложения в игре',
-        width: 1080,
-        height: 760,
-      },
-    ],
-  },
-  {
-    title: 'Шаг 2',
-    description:
-      'Я отправляю одноразовые реквизиты европейской банковской карты для безопасной онлайн-оплаты.',
-    images: [
-      {
-        src: '/joint-purchases/purchase-help/step-2-card-details.png',
-        alt: 'Сообщение с реквизитами карты',
-        width: 209,
-        height: 101,
-      },
-    ],
-  },
-  {
-    title: 'Шаг 3',
-    description:
-      'Вы пробуете провести платеж. После этого я вижу, какая сумма требуется для списания.',
-    images: [
-      {
-        src: '/joint-purchases/purchase-help/step-3-payment-declined.png',
-        alt: 'Экран отклоненного платежа',
-        width: 591,
-        height: 1280,
-      },
-      {
-        src: '/joint-purchases/purchase-help/step-3-bank-notification.png',
-        alt: 'Банковское уведомление о нехватке средств',
-        width: 1212,
-        height: 380,
-      },
-    ],
-  },
-  {
-    title: 'Шаг 4',
-    description:
-      'После этого я сообщаю, какая стоимость в рублях будет у данной акции, и вы переводите нужную сумму в рублях на указанную мной российскую карту, после чего я пополняю одноразовую карту.',
-    images: [],
-  },
-  {
-    title: 'Шаг 5',
-    description: 'Вы повторно проводите платеж и завершаете покупку.',
-    images: [
-      {
-        src: '/joint-purchases/purchase-help/step-5-payment-success-bank.png',
-        alt: 'Банковское уведомление об успешном списании',
-        width: 1125,
-        height: 274,
-      },
-      {
-        src: '/joint-purchases/purchase-help/step-5-payment-success-game.png',
-        alt: 'Экран успешной покупки в игре',
-        width: 591,
-        height: 1280,
-      },
-    ],
-  },
-];
+// const purchaseHelpSteps: PurchaseHelpStep[] = [
+//   {
+//     title: 'Шаг 1',
+//     description:
+//       'Вы выбираете нужную акцию. Во многих предложениях таким способом можно получить дополнительные бонусы.',
+//     extraContent: 'store-link',
+//     images: [
+//       {
+//         src: '/joint-purchases/purchase-help/step-1-offer.png',
+//         alt: 'Пример акционного предложения в игре',
+//         width: 1080,
+//         height: 760,
+//       },
+//     ],
+//   },
+//   {
+//     title: 'Шаг 2',
+//     description:
+//       'Я отправляю одноразовые реквизиты европейской банковской карты для безопасной онлайн-оплаты.',
+//     images: [
+//       {
+//         src: '/joint-purchases/purchase-help/step-2-card-details.png',
+//         alt: 'Сообщение с реквизитами карты',
+//         width: 209,
+//         height: 101,
+//       },
+//     ],
+//   },
+//   {
+//     title: 'Шаг 3',
+//     description:
+//       'Вы пробуете провести платеж. После этого я вижу, какая сумма требуется для списания.',
+//     images: [
+//       {
+//         src: '/joint-purchases/purchase-help/step-3-payment-declined.png',
+//         alt: 'Экран отклоненного платежа',
+//         width: 591,
+//         height: 1280,
+//       },
+//       {
+//         src: '/joint-purchases/purchase-help/step-3-bank-notification.png',
+//         alt: 'Банковское уведомление о нехватке средств',
+//         width: 1212,
+//         height: 380,
+//       },
+//     ],
+//   },
+//   {
+//     title: 'Шаг 4',
+//     description:
+//       'После этого я сообщаю, какая стоимость в рублях будет у данной акции, и вы переводите нужную сумму в рублях на указанную мной российскую карту, после чего я пополняю одноразовую карту.',
+//     images: [],
+//   },
+//   {
+//     title: 'Шаг 5',
+//     description: 'Вы повторно проводите платеж и завершаете покупку.',
+//     images: [
+//       {
+//         src: '/joint-purchases/purchase-help/step-5-payment-success-bank.png',
+//         alt: 'Банковское уведомление об успешном списании',
+//         width: 1125,
+//         height: 274,
+//       },
+//       {
+//         src: '/joint-purchases/purchase-help/step-5-payment-success-game.png',
+//         alt: 'Экран успешной покупки в игре',
+//         width: 591,
+//         height: 1280,
+//       },
+//     ],
+//   },
+// ];
 
 export default function PurchaseHelpBanner() {
   const { locale } = useI18n();
@@ -321,62 +322,7 @@ export default function PurchaseHelpBanner() {
 
               <div className="px-5 py-5 sm:px-6 sm:py-6">
                 <div className="space-y-5">
-                  {purchaseHelpSteps.map((step) => (
-                    <section
-                      key={step.title}
-                      className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
-                    >
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                        {step.title}
-                      </div>
-
-                      {step.extraContent === 'store-link' ? (
-                        <div className="mt-3 space-y-3 text-sm leading-7 text-[var(--foreground-soft)]">
-                          <p>
-                            Включите VPN (хотя он у вас уже должен быть включен, иначе как вы тут
-                            оказались?:D), потом откройте ссылку на магазин:{' '}
-                            <a
-                              href={STORE_URL}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-medium text-cyan-300 underline decoration-cyan-400/40 underline-offset-4 transition hover:text-cyan-200"
-                            >
-                              Магазин
-                            </a>
-                          </p>
-                          <p>{step.description}</p>
-                        </div>
-                      ) : (
-                        <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">
-                          {step.description}
-                        </p>
-                      )}
-
-                      {step.images.length > 0 ? (
-                        <div
-                          className={`mt-4 grid gap-4 ${
-                            step.images.length > 1 ? 'md:grid-cols-2' : ''
-                          }`}
-                        >
-                          {step.images.map((image) => (
-                            <div
-                              key={image.src}
-                              className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-slate-950/40"
-                            >
-                              <Image
-                                src={image.src}
-                                alt={image.alt}
-                                width={image.width}
-                                height={image.height}
-                                className="h-auto w-full object-cover"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
-                  ))}
-
+                  {/* Purchase steps 1-5 are hidden for now. The purchaseHelpSteps data stays in this file for quick restore later. */}
                   <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
                     <p className="text-sm font-semibold leading-7 text-[var(--foreground)]">
                       Никакой передачи аккаунта. Те же расходы, но с возможностью получить
