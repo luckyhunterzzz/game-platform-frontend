@@ -179,13 +179,16 @@ export const Navbar = ({
         </Link>
       </div>
 
-      <div className="pointer-events-none fixed left-1/2 top-2 z-[90] flex w-full max-w-[calc(100vw-6rem)] -translate-x-1/2 justify-center px-3 sm:top-3 sm:max-w-[calc(100vw-9rem)] md:max-w-[min(42rem,calc(100vw-18rem))]">
+      <div className="pointer-events-none fixed left-1/2 top-2 z-[90] hidden w-full max-w-[calc(100vw-6rem)] -translate-x-1/2 justify-center px-3 sm:top-3 sm:max-w-[calc(100vw-9rem)] md:flex md:max-w-[min(42rem,calc(100vw-18rem))]">
         <div className="pointer-events-auto min-w-0">
           <PurchaseHelpNavbarNotice />
         </div>
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2 md:gap-3">
+        <div className="shrink-0 md:hidden">
+          <PurchaseHelpNavbarNotice />
+        </div>
         <button
           type="button"
           onClick={() => setIsAboutModalOpen(true)}
