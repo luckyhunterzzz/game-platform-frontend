@@ -1,242 +1,124 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
-import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
+import EventsAdminLinkBadge from '@/components/events/EventsAdminLinkBadge';
+import EventsPageShell from '@/components/events/EventsPageShell';
 import { useI18n } from '@/lib/i18n/i18n-context';
-import { eventGuideItems } from '@/lib/static/events';
-
-type RotatingPreviewState = {
-  currentIndex: number;
-  visibleIndex: number;
-  incomingIndex: number | null;
-  isIncomingVisible: boolean;
-};
-
-function useRotatingPreview(slug: string) {
-  const [state, setState] = useState<RotatingPreviewState>({
-    currentIndex: 0,
-    visibleIndex: 0,
-    incomingIndex: null,
-    isIncomingVisible: false,
-  });
-
-  useEffect(() => {
-    const eventItem = eventGuideItems.find((item) => item.slug === slug);
-    const imageVariants = eventItem?.listPreviewImageRotationSrcs ?? [];
-    if (imageVariants.length < 2) {
-      return;
-    }
-
-    let animationFrameId: number | null = null;
-    let timeoutId: number | null = null;
-
-    const intervalId = window.setInterval(() => {
-      setState((current) => {
-        let next = current.currentIndex;
-        while (next === current.currentIndex) {
-          next = Math.floor(Math.random() * imageVariants.length);
-        }
-
-        if (animationFrameId !== null) {
-          window.cancelAnimationFrame(animationFrameId);
-        }
-        if (timeoutId !== null) {
-          window.clearTimeout(timeoutId);
-        }
-
-        animationFrameId = window.requestAnimationFrame(() => {
-          setState((previewState) => ({
-            ...previewState,
-            isIncomingVisible: true,
-          }));
-        });
-
-        timeoutId = window.setTimeout(() => {
-          setState((previewState) => ({
-            ...previewState,
-            visibleIndex: next,
-            incomingIndex: null,
-            isIncomingVisible: false,
-          }));
-        }, 850);
-
-        return {
-          currentIndex: next,
-          visibleIndex: current.visibleIndex,
-          incomingIndex: next,
-          isIncomingVisible: false,
-        };
-      });
-    }, 7000);
-
-    return () => {
-      window.clearInterval(intervalId);
-      if (animationFrameId !== null) {
-        window.cancelAnimationFrame(animationFrameId);
-      }
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [slug]);
-
-  return state;
-}
+import type { PublicEventFeedResponse } from '@/lib/types/event';
+import { ApiError, useApi } from '@/lib/use-api';
 
 export default function EventsPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const ninjaTowerPreview = useRotatingPreview('ninja-tower');
-  const windfallTemplePreview = useRotatingPreview('windfall-temple');
-  const { locale, messages } = useI18n();
-  const sidebarItems: SidebarMenuItem[] = [
-    { key: 'home', href: '/', label: messages.home.menuPageOne },
-    { key: 'heroes', href: '/heroes', label: messages.home.menuPageTwo },
-    { key: 'hero-coach', href: '/hero-coach', label: messages.home.navHeroCoach },
-    { key: 'outfitter', href: '/outfitter', label: messages.home.navOutfitter },
-    { key: 'troops', href: '/troops', label: messages.home.navTroops },
-  ];
+  const { apiJson } = useApi();
+  const { locale } = useI18n();
+  const [feed, setFeed] = useState<PublicEventFeedResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const pageTitle = locale === 'ru' ? 'События' : 'Events';
-  const pageSubtitle =
-    locale === 'ru'
-      ? 'Подборка игровых событий.'
-      : 'A collection of game events.';
+  const language = locale === 'ru' ? 'RU' : 'EN';
+
+  const t = useMemo(
+    () =>
+      locale === 'ru'
+        ? {
+            title: 'События',
+            publicBadge: 'Публичный каталог',
+            emptyTitle: 'Событий пока нет',
+            emptyDescription: 'Когда администратор добавит события, они появятся здесь.',
+            open: 'Открыть событие',
+            event: 'Событие',
+            loading: 'Загрузка событий...',
+            loadError: 'Не удалось загрузить события.',
+          }
+        : {
+            title: 'Events',
+            publicBadge: 'Public catalog',
+            emptyTitle: 'No events yet',
+            emptyDescription: 'Events will appear here after an admin creates them.',
+            open: 'Open event',
+            event: 'Event',
+            loading: 'Loading events...',
+            loadError: 'Failed to load events.',
+          },
+    [locale],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage(null);
+        const response = await apiJson<PublicEventFeedResponse>(`/api/v1/public/events?page=0&size=100&language=${language}`);
+        if (!cancelled) {
+          setFeed(response);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof ApiError || error instanceof Error ? error.message : t.loadError);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, language, t.loadError]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
-      <AppSidebarMenu
-        isOpen={isSidebarOpen}
-        items={sidebarItems}
-        onClose={() => setSidebarOpen(false)}
-        title={messages.home.menuTitle}
-      />
-
-      <main className="flex flex-1 flex-col items-center px-4 py-12">
-        <PageQuickLinksToolbar currentPath="/events" />
-
-        <section className="w-full max-w-7xl">
-          <div className="mb-8 rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:p-8">
-            <h1 className="text-3xl font-black tracking-tight text-[var(--foreground)] md:text-5xl">
-              {pageTitle}
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--foreground-soft)] md:text-base">
-              {pageSubtitle}
-            </p>
+    <EventsPageShell currentPath="/events">
+      <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-cyan-400/12 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_42%),linear-gradient(180deg,var(--surface-strong),var(--surface))] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.18)] md:flex-row md:items-start md:justify-between md:p-8">
+        <div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-300">
+              {t.publicBadge}
+            </span>
+            <EventsAdminLinkBadge />
           </div>
+          <h1 className="text-3xl font-black tracking-tight text-[var(--foreground)] md:text-5xl">{t.title}</h1>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-            {eventGuideItems.map((item) => {
-              const title = locale === 'ru' ? item.titleRu : item.titleEn;
-              const isActive = item.isActive === true;
-              const shouldKeepFullColorWhenInactive = item.keepFullColorWhenInactive === true;
-              const currentPreviewSrc =
-                item.slug === 'ninja-tower' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
-                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
-                  : item.slug === 'windfall-temple' && item.listPreviewImageRotationSrcs && item.listPreviewImageRotationSrcs.length > 0
-                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.visibleIndex % item.listPreviewImageRotationSrcs.length]
-                  : item.listPreviewImageSrc ?? item.previewImageSrc;
-              const incomingPreviewSrc =
-                item.slug === 'ninja-tower' &&
-                ninjaTowerPreview.incomingIndex !== null &&
-                item.listPreviewImageRotationSrcs &&
-                item.listPreviewImageRotationSrcs.length > 0
-                  ? item.listPreviewImageRotationSrcs[ninjaTowerPreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
-                  : item.slug === 'windfall-temple' &&
-                    windfallTemplePreview.incomingIndex !== null &&
-                    item.listPreviewImageRotationSrcs &&
-                    item.listPreviewImageRotationSrcs.length > 0
-                    ? item.listPreviewImageRotationSrcs[windfallTemplePreview.incomingIndex % item.listPreviewImageRotationSrcs.length]
-                  : null;
-              const isIncomingPreviewVisible =
-                item.slug === 'ninja-tower'
-                  ? ninjaTowerPreview.isIncomingVisible
-                  : item.slug === 'windfall-temple'
-                    ? windfallTemplePreview.isIncomingVisible
-                    : false;
-              const usesWidePreview = Boolean(item.listPreviewImageSrc);
-              const cardContent = (
-                <article
-                  className={`flex h-full flex-col rounded-[calc(1rem-2px)] bg-[var(--surface)] p-4 transition ${
-                    isActive || shouldKeepFullColorWhenInactive ? '' : 'opacity-70 saturate-0'
-                  }`}
-                >
-                  <div className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_56%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                    <div className="relative aspect-[3/4] w-full overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
-                      <Image
-                        src={currentPreviewSrc}
-                        alt={title}
-                        fill
-                        sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                        className={`relative z-10 transition-[opacity,transform] duration-700 ease-in-out ${
-                          usesWidePreview ? 'object-cover object-center' : 'object-contain object-top p-4'
-                        } ${
-                          isActive ? 'scale-[0.96] group-hover:scale-100 group-active:scale-[0.93]' : 'scale-[0.94]'
-                        }`}
-                      />
-                      {incomingPreviewSrc ? (
-                        <Image
-                          src={incomingPreviewSrc}
-                          alt={title}
-                          fill
-                          sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                          className={`absolute inset-0 z-20 transition-opacity duration-700 ease-in-out ${
-                            usesWidePreview ? 'object-cover object-center' : 'object-contain object-top p-4'
-                          } ${
-                            isActive ? 'scale-[0.96] group-hover:scale-100 group-active:scale-[0.93]' : 'scale-[0.94]'
-                          }`}
-                          style={{ opacity: isIncomingPreviewVisible ? 1 : 0 }}
-                        />
-                      ) : null}
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
-                    </div>
-                  </div>
+      {loading ? (
+        <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-10 text-center shadow-sm text-[var(--foreground-soft)]">{t.loading}</div>
+      ) : errorMessage ? (
+        <div className="rounded-[2rem] border border-red-400/20 bg-red-400/10 p-10 text-center text-red-300 shadow-sm">{errorMessage}</div>
+      ) : !feed || feed.items.length === 0 ? (
+        <div className="rounded-[2rem] border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center shadow-sm">
+          <h2 className="text-2xl font-bold text-[var(--foreground)]">{t.emptyTitle}</h2>
+          <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">{t.emptyDescription}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {feed.items.map((item) => (
+            <Link key={item.id} href={`/events/${item.slug}`} className="group overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-4 shadow-[0_20px_48px_rgba(0,0,0,0.14)] transition hover:-translate-y-1 hover:border-cyan-400/30 hover:shadow-[0_28px_70px_rgba(34,211,238,0.12)]">
+              <div className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_56%)]">
+                {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt={item.name} className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                ) : (
+                  <div className="aspect-[4/3] w-full bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.16),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]" />
+                )}
+              </div>
 
-                  <div className="mt-auto">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground-soft)]">
-                      {locale === 'ru' ? 'Событие' : 'Event'}
-                    </div>
-                    <h2 className="mt-2 text-base font-bold leading-tight text-[var(--foreground)] md:text-lg">
-                      {title}
-                    </h2>
-                  </div>
-                </article>
-              );
-
-              if (isActive) {
-                return (
-                  <Link
-                    key={item.slug}
-                    href={`/events/${item.slug}`}
-                    className={`group overflow-hidden rounded-2xl border p-[2px] transition duration-200 hover:-translate-y-1 hover:brightness-110 active:translate-y-[1px] active:scale-[0.985] ${item.accentClassName}`}
-                  >
-                    {cardContent}
-                  </Link>
-                );
-              }
-
-              return (
-                <div
-                  key={item.slug}
-                  className={`overflow-hidden rounded-2xl border p-[2px] ${item.accentClassName} ${
-                    shouldKeepFullColorWhenInactive ? '' : 'grayscale-[0.85]'
-                  }`}
-                >
-                  {cardContent}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </main>
-    </div>
+              <div className="mt-4">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--foreground-soft)]">{t.event}</div>
+                <h2 className="mt-2 text-xl font-bold text-[var(--foreground)]">{item.name}</h2>
+                <p className="mt-3 line-clamp-4 text-sm leading-7 text-[var(--foreground-soft)]">{item.description}</p>
+                <div className="mt-4 text-sm font-semibold text-cyan-300">{t.open}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </EventsPageShell>
   );
 }
-
