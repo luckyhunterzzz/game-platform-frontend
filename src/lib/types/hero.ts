@@ -88,19 +88,11 @@ export function validateLocalizedTextPair(
   enRequiredLabel: string,
 ): string | null {
   if (!value.ru.trim()) {
-    return `${ruRequiredLabel} обязательно`;
+    return `${ruRequiredLabel} \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e`;
   }
 
   if (!value.en.trim()) {
     return `${enRequiredLabel} is required`;
-  }
-
-  if (!isFlexibleCyrillicText(value.ru)) {
-    return `${ruRequiredLabel} должно содержать кириллицу`;
-  }
-
-  if (!isFlexibleLatinText(value.en)) {
-    return `${enRequiredLabel} must contain Latin characters`;
   }
 
   return null;
