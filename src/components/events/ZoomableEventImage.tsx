@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export default function ZoomableEventImage({
   src,
@@ -36,6 +36,43 @@ export default function ZoomableEventImage({
     };
   }, [locale]);
 
+  const clampOffset = useCallback((nextOffset: { x: number; y: number }, nextScale: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport || nextScale <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+    const maxX = Math.max(0, ((width * nextScale) - width) / 2);
+    const maxY = Math.max(0, ((height * nextScale) - height) / 2);
+
+    return {
+      x: Math.max(-maxX, Math.min(maxX, nextOffset.x)),
+      y: Math.max(-maxY, Math.min(maxY, nextOffset.y)),
+    };
+  }, []);
+
+  const applyScale = useCallback((updater: (prev: number) => number) => {
+    setScale((prev) => {
+      const next = updater(prev);
+      setOffset((current) => clampOffset(current, next));
+      return next;
+    });
+  }, [clampOffset]);
+
+  const resetView = useCallback(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+    dragRef.current = { active: false, x: 0, y: 0 };
+    setDragging(false);
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setOpen(false);
+    resetView();
+  }, [resetView]);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -58,44 +95,7 @@ export default function ZoomableEventImage({
       document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
-  }, [open]);
-
-  const clampOffset = (nextOffset: { x: number; y: number }, nextScale: number) => {
-    const viewport = viewportRef.current;
-    if (!viewport || nextScale <= 1) {
-      return { x: 0, y: 0 };
-    }
-
-    const width = viewport.clientWidth;
-    const height = viewport.clientHeight;
-    const maxX = Math.max(0, ((width * nextScale) - width) / 2);
-    const maxY = Math.max(0, ((height * nextScale) - height) / 2);
-
-    return {
-      x: Math.max(-maxX, Math.min(maxX, nextOffset.x)),
-      y: Math.max(-maxY, Math.min(maxY, nextOffset.y)),
-    };
-  };
-
-  const applyScale = (updater: (prev: number) => number) => {
-    setScale((prev) => {
-      const next = updater(prev);
-      setOffset((current) => clampOffset(current, next));
-      return next;
-    });
-  };
-
-  const resetView = () => {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-    dragRef.current = { active: false, x: 0, y: 0 };
-    setDragging(false);
-  };
-
-  const closeViewer = () => {
-    setOpen(false);
-    resetView();
-  };
+  }, [closeViewer, open]);
 
   const startDrag = (clientX: number, clientY: number) => {
     if (scale <= 1) {
