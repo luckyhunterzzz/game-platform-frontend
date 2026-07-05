@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -10,8 +10,7 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 import {
   EMPTY_LOCALIZED_TEXT,
   getLocalizedText,
-  validateLocalizedTextPair,
-  type HeroLocale,
+    type HeroLocale,
   type LocalizedText,
 } from '@/lib/types/hero';
 import {
@@ -27,6 +26,7 @@ import {
 import { ApiError, useApi } from '@/lib/use-api';
 
 import EventImageUploadField from './EventImageUploadField';
+import LocalizedEventImageUploadField from './LocalizedEventImageUploadField';
 
 const ADMIN_EVENTS_API = '/api/v1/admin/events';
 
@@ -43,9 +43,9 @@ type EventFormState = {
 type BlockFormState = {
   name: LocalizedText;
   description: LocalizedText;
-  imageBucket?: string | null;
-  imageObjectKey?: string | null;
-  imageUrl?: string | null;
+  imageBucketJson?: LocalizedText | null;
+  imageObjectKeyJson?: LocalizedText | null;
+  imageUrlJson?: LocalizedText | null;
   visible: boolean;
 };
 
@@ -62,9 +62,9 @@ const EMPTY_EVENT_FORM: EventFormState = {
 const EMPTY_BLOCK_FORM: BlockFormState = {
   name: { ...EMPTY_LOCALIZED_TEXT },
   description: { ...EMPTY_LOCALIZED_TEXT },
-  imageBucket: null,
-  imageObjectKey: null,
-  imageUrl: null,
+  imageBucketJson: null,
+  imageObjectKeyJson: null,
+  imageUrlJson: null,
   visible: true,
 };
 
@@ -73,7 +73,7 @@ function mapEventToForm(event: EventAdminDetails): EventFormState {
     slug: event.slug,
     status: event.status,
     name: event.nameJson,
-    description: event.descriptionJson,
+    description: event.descriptionJson ?? { ...EMPTY_LOCALIZED_TEXT },
     imageBucket: event.imageBucket ?? null,
     imageObjectKey: event.imageObjectKey ?? null,
     imageUrl: event.imageUrl ?? null,
@@ -83,10 +83,10 @@ function mapEventToForm(event: EventAdminDetails): EventFormState {
 function mapBlockToForm(block: EventBlockAdminItem): BlockFormState {
   return {
     name: block.nameJson,
-    description: block.descriptionJson,
-    imageBucket: block.imageBucket ?? null,
-    imageObjectKey: block.imageObjectKey ?? null,
-    imageUrl: block.imageUrl ?? null,
+    description: block.descriptionJson ?? { ...EMPTY_LOCALIZED_TEXT },
+    imageBucketJson: block.imageBucketJson ?? null,
+    imageObjectKeyJson: block.imageObjectKeyJson ?? null,
+    imageUrlJson: block.imageUrlJson ?? null,
     visible: block.visible,
   };
 }
@@ -97,6 +97,35 @@ function normalizeSlug(value: string): string {
 
 function buildBlockPositionState(blocks: EventBlockAdminItem[]): Record<number, string> {
   return Object.fromEntries(blocks.map((block) => [block.id, String(block.position)]));
+}
+
+function validateRequiredLocalizedTextPair(
+  value: LocalizedText,
+  ruRequiredLabel: string,
+  enRequiredLabel: string,
+): string | null {
+  if (!value.ru.trim()) {
+    return `${ruRequiredLabel} обязательно`;
+  }
+
+  if (!value.en.trim()) {
+    return `${enRequiredLabel} is required`;
+  }
+
+  return null;
+}
+
+function normalizeOptionalLocalizedText(value: LocalizedText): LocalizedText | null {
+  const normalized = {
+    ru: value.ru.trim(),
+    en: value.en.trim(),
+  };
+
+  if (!normalized.ru && !normalized.en) {
+    return null;
+  }
+
+  return normalized;
 }
 
 export default function EventsWorkspace() {
@@ -126,6 +155,8 @@ export default function EventsWorkspace() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [blockImageError, setBlockImageError] = useState<string | null>(null);
+  const [eventModalError, setEventModalError] = useState<string | null>(null);
+  const [blockModalError, setBlockModalError] = useState<string | null>(null);
 
   const t = useMemo(() => {
     if (locale === 'ru') {
@@ -182,6 +213,7 @@ export default function EventsWorkspace() {
         nameEn: 'Name EN',
         descriptionRu: '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 RU',
         descriptionEn: 'Description EN',
+        optionalHint: '\u041d\u0435\u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e',
       };
     }
 
@@ -238,6 +270,7 @@ export default function EventsWorkspace() {
       nameEn: 'Name EN',
       descriptionRu: 'Description RU',
       descriptionEn: 'Description EN',
+      optionalHint: 'Optional',
     };
   }, [locale]);
   const statusOptions: Array<{ value: EventStatus | 'ALL'; label: string }> = [
@@ -298,6 +331,7 @@ export default function EventsWorkspace() {
     setEventForm(EMPTY_EVENT_FORM);
     setEventModalMode('create');
     setImageError(null);
+    setEventModalError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
   };
@@ -307,6 +341,7 @@ export default function EventsWorkspace() {
     setEventForm(mapEventToForm(selectedItem));
     setEventModalMode('edit');
     setImageError(null);
+    setEventModalError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
   };
@@ -314,6 +349,7 @@ export default function EventsWorkspace() {
   const closeEventModal = () => {
     setEventModalMode(null);
     setImageError(null);
+    setEventModalError(null);
   };
 
   const openCreateBlockModal = () => {
@@ -325,6 +361,7 @@ export default function EventsWorkspace() {
     setEditingBlockId(null);
     setBlockModalMode('create');
     setBlockImageError(null);
+    setBlockModalError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
   };
@@ -334,6 +371,7 @@ export default function EventsWorkspace() {
     setEditingBlockId(block.id);
     setBlockModalMode('edit');
     setBlockImageError(null);
+    setBlockModalError(null);
     setErrorMessage(null);
     setSuccessMessage(null);
   };
@@ -343,17 +381,16 @@ export default function EventsWorkspace() {
     setEditingBlockId(null);
     setBlockForm(EMPTY_BLOCK_FORM);
     setBlockImageError(null);
+    setBlockModalError(null);
   };
 
   const validateEventForm = () => {
     if (!normalizeSlug(eventForm.slug)) return 'Slug is required';
-    return validateLocalizedTextPair(eventForm.name, t.nameRu, t.nameEn)
-      ?? validateLocalizedTextPair(eventForm.description, t.descriptionRu, t.descriptionEn);
+    return validateRequiredLocalizedTextPair(eventForm.name, t.nameRu, t.nameEn);
   };
 
   const validateBlockForm = () => {
-    return validateLocalizedTextPair(blockForm.name, t.nameRu, t.nameEn)
-      ?? validateLocalizedTextPair(blockForm.description, t.descriptionRu, t.descriptionEn);
+    return validateRequiredLocalizedTextPair(blockForm.name, t.nameRu, t.nameEn);
   };
 
   const validateBlockPositions = (blocks: EventBlockAdminItem[]) => {
@@ -374,7 +411,7 @@ export default function EventsWorkspace() {
   const handleSaveEvent = async () => {
     const validationError = validateEventForm();
     if (validationError) {
-      setErrorMessage(validationError);
+      setEventModalError(validationError);
       return;
     }
 
@@ -382,11 +419,12 @@ export default function EventsWorkspace() {
       setSavingEvent(true);
       setErrorMessage(null);
       setSuccessMessage(null);
+      setEventModalError(null);
       const request: EventUpsertRequest = {
         slug: normalizeSlug(eventForm.slug),
         status: eventForm.status,
         nameJson: { ru: eventForm.name.ru.trim(), en: eventForm.name.en.trim() },
-        descriptionJson: { ru: eventForm.description.ru.trim(), en: eventForm.description.en.trim() },
+        descriptionJson: normalizeOptionalLocalizedText(eventForm.description),
         imageBucket: eventForm.imageBucket ?? null,
         imageObjectKey: eventForm.imageObjectKey ?? null,
       };
@@ -402,7 +440,9 @@ export default function EventsWorkspace() {
       closeEventModal();
       await loadCatalog();
     } catch (error) {
-      setErrorMessage(error instanceof ApiError || error instanceof Error ? error.message : t.loadError);
+      const message = error instanceof ApiError || error instanceof Error ? error.message : t.loadError;
+      setEventModalError(message);
+      setErrorMessage(message);
     } finally {
       setSavingEvent(false);
     }
@@ -425,14 +465,15 @@ export default function EventsWorkspace() {
       setErrorMessage(error instanceof ApiError || error instanceof Error ? error.message : t.loadError);
     }
   };
+
   const handleSaveBlock = async () => {
     if (!selectedItem) {
-      setErrorMessage(t.createEventFirst);
+      setBlockModalError(t.createEventFirst);
       return;
     }
     const validationError = validateBlockForm();
     if (validationError) {
-      setErrorMessage(validationError);
+      setBlockModalError(validationError);
       return;
     }
 
@@ -440,11 +481,12 @@ export default function EventsWorkspace() {
       setSavingBlock(true);
       setErrorMessage(null);
       setSuccessMessage(null);
+      setBlockModalError(null);
       const request: EventBlockUpsertRequest = {
         nameJson: { ru: blockForm.name.ru.trim(), en: blockForm.name.en.trim() },
-        descriptionJson: { ru: blockForm.description.ru.trim(), en: blockForm.description.en.trim() },
-        imageBucket: blockForm.imageBucket ?? null,
-        imageObjectKey: blockForm.imageObjectKey ?? null,
+        descriptionJson: normalizeOptionalLocalizedText(blockForm.description),
+        imageBucketJson: blockForm.imageBucketJson ?? null,
+        imageObjectKeyJson: blockForm.imageObjectKeyJson ?? null,
         visible: blockForm.visible,
       };
 
@@ -458,7 +500,9 @@ export default function EventsWorkspace() {
       closeBlockModal();
       await loadCatalog();
     } catch (error) {
-      setErrorMessage(error instanceof ApiError || error instanceof Error ? error.message : t.loadError);
+      const message = error instanceof ApiError || error instanceof Error ? error.message : t.loadError;
+      setBlockModalError(message);
+      setErrorMessage(message);
     } finally {
       setSavingBlock(false);
     }
@@ -609,7 +653,7 @@ export default function EventsWorkspace() {
                 </div>
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-5">
                   <div className="text-sm font-semibold text-[var(--foreground)]">{t.detailsTitle}</div>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground-soft)]">{getLocalizedText(selectedItem.descriptionJson, heroLocale)}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground-soft)]">{getLocalizedText(selectedItem.descriptionJson ?? null, heroLocale)}</p>
                 </div>
               </div>
 
@@ -642,7 +686,7 @@ export default function EventsWorkspace() {
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <h5 className="text-lg font-semibold text-[var(--foreground)]">{getLocalizedText(block.nameJson, heroLocale)}</h5>
-                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground-soft)]">{getLocalizedText(block.descriptionJson, heroLocale)}</p>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground-soft)]">{getLocalizedText(block.descriptionJson ?? null, heroLocale)}</p>
                                 </div>
                                 <button type="button" onClick={() => openEditBlockModal(block)} className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-400/15">{t.editBlock}</button>
                               </div>
@@ -680,10 +724,14 @@ export default function EventsWorkspace() {
           </label>
 
           <LocalizedTextFields value={eventForm.name} onChange={(value) => setEventForm((prev) => ({ ...prev, name: value }))} ruLabel={t.nameRu} enLabel={t.nameEn} />
-          <LocalizedTextareaFields value={eventForm.description} onChange={(value) => setEventForm((prev) => ({ ...prev, description: value }))} ruLabel={t.descriptionRu} enLabel={t.descriptionEn} rows={5} />
+          <div className="space-y-2">
+            <div className="text-xs text-[var(--foreground-muted)]">{t.optionalHint}</div>
+            <LocalizedTextareaFields value={eventForm.description} onChange={(value) => setEventForm((prev) => ({ ...prev, description: value }))} ruLabel={t.descriptionRu} enLabel={t.descriptionEn} rows={5} showValidation={false} />
+          </div>
 
           <EventImageUploadField locale={heroLocale} value={eventForm} onChange={(value) => setEventForm((prev) => ({ ...prev, ...value }))} onUploadingChange={setEventUploading} onErrorChange={setImageError} disabled={savingEvent} />
           {imageError ? <div className="text-sm text-red-300">{imageError}</div> : null}
+          {eventModalError ? <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-300">{eventModalError}</div> : null}
 
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => void handleSaveEvent()} disabled={savingEvent || eventUploading} className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50">{t.save}</button>
@@ -695,13 +743,17 @@ export default function EventsWorkspace() {
       <DictionaryModal open={blockModalMode !== null} onClose={closeBlockModal} closeLabel={t.close} title={blockModalMode === 'edit' ? t.blockModalEditTitle : t.blockModalCreateTitle}>
         <div className="space-y-4">
           <LocalizedTextFields value={blockForm.name} onChange={(value) => setBlockForm((prev) => ({ ...prev, name: value }))} ruLabel={t.nameRu} enLabel={t.nameEn} />
-          <LocalizedTextareaFields value={blockForm.description} onChange={(value) => setBlockForm((prev) => ({ ...prev, description: value }))} ruLabel={t.descriptionRu} enLabel={t.descriptionEn} rows={5} />
+          <div className="space-y-2">
+            <div className="text-xs text-[var(--foreground-muted)]">{t.optionalHint}</div>
+            <LocalizedTextareaFields value={blockForm.description} onChange={(value) => setBlockForm((prev) => ({ ...prev, description: value }))} ruLabel={t.descriptionRu} enLabel={t.descriptionEn} rows={5} showValidation={false} />
+          </div>
           <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]">
             <input type="checkbox" checked={blockForm.visible} onChange={(event) => setBlockForm((prev) => ({ ...prev, visible: event.target.checked }))} className="h-4 w-4 rounded border-[var(--border)]" />
             <span>{t.blockVisible}</span>
           </label>
-          <EventImageUploadField locale={heroLocale} value={blockForm} onChange={(value) => setBlockForm((prev) => ({ ...prev, ...value }))} onUploadingChange={setBlockUploading} onErrorChange={setBlockImageError} disabled={savingBlock} />
+          <LocalizedEventImageUploadField locale={heroLocale} value={blockForm} onChange={(value) => setBlockForm((prev) => ({ ...prev, ...value }))} onUploadingChange={setBlockUploading} onErrorChange={setBlockImageError} disabled={savingBlock} />
           {blockImageError ? <div className="text-sm text-red-300">{blockImageError}</div> : null}
+          {blockModalError ? <div className="rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-300">{blockModalError}</div> : null}
 
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => void handleSaveBlock()} disabled={savingBlock || blockUploading} className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/15 disabled:cursor-not-allowed disabled:opacity-50">{t.save}</button>
@@ -713,3 +765,19 @@ export default function EventsWorkspace() {
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

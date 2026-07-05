@@ -1,11 +1,13 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import EventsAdminLinkBadge from '@/components/events/EventsAdminLinkBadge';
+import EventRichText from '@/components/events/EventRichText';
 import EventsPageShell from '@/components/events/EventsPageShell';
+import ZoomableEventImage from '@/components/events/ZoomableEventImage';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import type { PublicEventDetails } from '@/lib/types/event';
 import { ApiError, useApi } from '@/lib/use-api';
@@ -93,7 +95,7 @@ export default function EventDetailsPage() {
                   <EventsAdminLinkBadge />
                 </div>
                 <h1 className="text-3xl font-black tracking-tight text-[var(--foreground)] md:text-5xl">{event.name}</h1>
-                <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--foreground-soft)] md:text-base">{event.description}</p>
+                <EventRichText text={event.description} className="mt-4 max-w-4xl space-y-4" />
               </div>
             </div>
           </section>
@@ -102,21 +104,20 @@ export default function EventDetailsPage() {
             {event.blocks.length === 0 ? (
               <p className="text-sm leading-7 text-[var(--foreground-soft)]">{t.emptyBlocks}</p>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {event.blocks.map((block) => (
-                  <article key={block.id} className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))]">
-                    <div className="grid gap-0 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
-                      <div className="p-5 md:p-6">
+                  <article key={block.id} className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-[linear-gradient(180deg,var(--surface-strong),var(--surface))] p-5 md:p-6">
+                    <div className="space-y-5">
+                      <div>
                         <h3 className="text-xl font-bold text-[var(--foreground)]">{block.name}</h3>
-                        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-[var(--foreground-soft)]">{block.description}</p>
+                        <EventRichText text={block.description} className="mt-4 space-y-4" />
                       </div>
 
                       {block.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={block.imageUrl} alt={block.name} className="h-full min-h-64 w-full object-cover" />
-                      ) : (
-                        <div className="min-h-64 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_60%),linear-gradient(180deg,rgba(15,23,42,0.14),rgba(15,23,42,0.04))]" />
-                      )}
+                        <div className="pt-2">
+                          <ZoomableEventImage src={block.imageUrl} alt={block.name} locale={locale} />
+                        </div>
+                      ) : null}
                     </div>
                   </article>
                 ))}
