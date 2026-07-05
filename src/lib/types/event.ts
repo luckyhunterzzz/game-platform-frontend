@@ -1,4 +1,4 @@
-import type { LocalizedText } from './hero';
+﻿import type { LocalizedText } from './hero';
 
 export enum EventStatus {
   DRAFT = 'DRAFT',
@@ -12,7 +12,7 @@ export interface PublicEventBlock {
   id: number;
   position: number;
   name: string;
-  description: string;
+  description?: string | null;
   imageUrl?: string | null;
 }
 
@@ -20,7 +20,7 @@ export interface PublicEventSummary {
   id: number;
   slug: string;
   name: string;
-  description: string;
+  description?: string | null;
   imageUrl?: string | null;
 }
 
@@ -42,7 +42,7 @@ export interface EventAdminSummary {
   slug: string;
   status: EventStatus;
   nameJson: LocalizedText;
-  descriptionJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
   imageUrl?: string | null;
   blockCount: number;
   updatedAt?: string | null;
@@ -61,10 +61,10 @@ export interface EventBlockAdminItem {
   id: number;
   position: number;
   nameJson: LocalizedText;
-  descriptionJson: LocalizedText;
-  imageBucket?: string | null;
-  imageObjectKey?: string | null;
-  imageUrl?: string | null;
+  descriptionJson?: LocalizedText | null;
+  imageBucketJson?: LocalizedText | null;
+  imageObjectKeyJson?: LocalizedText | null;
+  imageUrlJson?: LocalizedText | null;
   visible: boolean;
   createdBy?: string | null;
   updatedBy?: string | null;
@@ -77,7 +77,7 @@ export interface EventAdminDetails {
   slug: string;
   status: EventStatus;
   nameJson: LocalizedText;
-  descriptionJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
   imageBucket?: string | null;
   imageObjectKey?: string | null;
   imageUrl?: string | null;
@@ -91,7 +91,7 @@ export interface EventAdminDetails {
 export interface EventUpsertRequest {
   slug: string;
   nameJson: LocalizedText;
-  descriptionJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
   status: EventStatus;
   imageBucket?: string | null;
   imageObjectKey?: string | null;
@@ -99,9 +99,9 @@ export interface EventUpsertRequest {
 
 export interface EventBlockUpsertRequest {
   nameJson: LocalizedText;
-  descriptionJson: LocalizedText;
-  imageBucket?: string | null;
-  imageObjectKey?: string | null;
+  descriptionJson?: LocalizedText | null;
+  imageBucketJson?: LocalizedText | null;
+  imageObjectKeyJson?: LocalizedText | null;
   visible: boolean;
 }
 
