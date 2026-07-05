@@ -1,38 +1,31 @@
 'use client';
-
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-
+import SafeMarkdown from '@/components/markdown/SafeMarkdown';
 type HeroInfoPopoverProps = {
   label: string;
   content: string;
   trigger?: ReactNode;
   triggerClassName?: string;
 };
-
 type PopoverAnchor =
   | { type: 'pointer'; x: number; y: number }
   | { type: 'trigger' };
-
 type PopoverPosition = {
   top: number;
   left: number;
 };
-
 const VIEWPORT_MARGIN = 16;
 const POINTER_OFFSET = 14;
 const TRIGGER_OFFSET = 8;
 const HOVER_CLOSE_DELAY_MS = 90;
-
 function clamp(value: number, min: number, max: number) {
   if (max < min) {
     return min;
   }
-
   return Math.min(Math.max(value, min), max);
 }
-
 function resolvePopoverPosition(
   anchor: PopoverAnchor,
   dimensions: { width: number; height: number },
@@ -40,7 +33,6 @@ function resolvePopoverPosition(
 ): PopoverPosition {
   const maxLeft = window.innerWidth - dimensions.width - VIEWPORT_MARGIN;
   const maxTop = window.innerHeight - dimensions.height - VIEWPORT_MARGIN;
-
   if (anchor.type === 'pointer') {
     const preferredRight = anchor.x + POINTER_OFFSET;
     const fallbackLeft = anchor.x - dimensions.width - POINTER_OFFSET;
@@ -52,40 +44,29 @@ function resolvePopoverPosition(
       anchor.y - dimensions.height - POINTER_OFFSET >= VIEWPORT_MARGIN
         ? anchor.y - dimensions.height - POINTER_OFFSET
         : anchor.y + POINTER_OFFSET;
-
     return {
       top: clamp(rawTop, VIEWPORT_MARGIN, maxTop),
       left: clamp(rawLeft, VIEWPORT_MARGIN, maxLeft),
     };
   }
-
   if (!triggerRect) {
     return {
       top: VIEWPORT_MARGIN,
       left: VIEWPORT_MARGIN,
     };
   }
-
   const centeredLeft = triggerRect.left + triggerRect.width / 2 - dimensions.width / 2;
   const preferredTop = triggerRect.top - dimensions.height - TRIGGER_OFFSET;
   const fallbackTop = triggerRect.bottom + TRIGGER_OFFSET;
   const rawTop = preferredTop >= VIEWPORT_MARGIN ? preferredTop : fallbackTop;
-
   return {
     top: clamp(rawTop, VIEWPORT_MARGIN, maxTop),
     left: clamp(centeredLeft, VIEWPORT_MARGIN, maxLeft),
   };
 }
-
 function formatPopoverContent(content: string) {
-  return content
-    .replace(/\r\n/g, '\n')
-    .replace(/:\s+-\s+/g, ':\n- ')
-    .replace(/\.\s+-\s+/g, '.\n- ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return content.replace(/\r\n/g, '\n').trim();
 }
-
 export default function HeroInfoPopover({
   label,
   content,
@@ -100,35 +81,30 @@ export default function HeroInfoPopover({
   const [position, setPosition] = useState<PopoverPosition | null>(null);
   const formattedContent = formatPopoverContent(content);
   const hasContent = formattedContent.length > 0;
-
   const clearScheduledClose = useCallback(() => {
     if (closeTimeoutRef.current !== null) {
       window.clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
   }, []);
-
   const closePopover = useCallback(() => {
     clearScheduledClose();
     setOpen(false);
     setAnchor(null);
     setPosition(null);
   }, [clearScheduledClose]);
-
   const scheduleClose = useCallback(() => {
     clearScheduledClose();
     closeTimeoutRef.current = window.setTimeout(() => {
       closePopover();
     }, HOVER_CLOSE_DELAY_MS);
   }, [clearScheduledClose, closePopover]);
-
   const openAtTrigger = useCallback(() => {
     clearScheduledClose();
     setAnchor({ type: 'trigger' });
     setPosition(null);
     setOpen(true);
   }, [clearScheduledClose]);
-
   const openAtPointer = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       clearScheduledClose();
@@ -138,23 +114,18 @@ export default function HeroInfoPopover({
     },
     [clearScheduledClose],
   );
-
   useLayoutEffect(() => {
     if (!hasContent || !open || !anchor || !popoverRef.current) {
       return;
     }
-
     const rect = triggerRef.current?.getBoundingClientRect() ?? null;
     const { width, height } = popoverRef.current.getBoundingClientRect();
-
     setPosition(resolvePopoverPosition(anchor, { width, height }, rect));
   }, [anchor, formattedContent, hasContent, open]);
-
   useEffect(() => {
     if (!hasContent || !open) {
       return;
     }
-
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) {
@@ -162,13 +133,11 @@ export default function HeroInfoPopover({
       }
       closePopover();
     };
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closePopover();
       }
     };
-
     const handleScroll = (event: Event) => {
       const target = event.target as Node | null;
       if (
@@ -177,15 +146,12 @@ export default function HeroInfoPopover({
       ) {
         return;
       }
-
       closePopover();
     };
-
     window.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('keydown', handleEscape);
     window.addEventListener('resize', closePopover);
     window.addEventListener('scroll', handleScroll, true);
-
     return () => {
       window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleEscape);
@@ -193,18 +159,15 @@ export default function HeroInfoPopover({
       window.removeEventListener('scroll', handleScroll, true);
     };
   }, [closePopover, hasContent, open]);
-
   useEffect(
     () => () => {
       clearScheduledClose();
     },
     [clearScheduledClose],
   );
-
   if (!hasContent) {
     return null;
   }
-
   return (
     <>
       <button
@@ -220,7 +183,6 @@ export default function HeroInfoPopover({
             closePopover();
             return;
           }
-
           openAtTrigger();
         }}
         className={triggerClassName}
@@ -233,7 +195,7 @@ export default function HeroInfoPopover({
         ? createPortal(
             <div
               ref={popoverRef}
-              className="fixed z-[90] w-[min(18rem,calc(100vw-2rem))] max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left text-xs leading-5 text-[var(--foreground-soft)] shadow-2xl whitespace-pre-wrap overscroll-contain"
+              className="fixed z-[90] w-[min(18rem,calc(100vw-2rem))] max-h-[min(24rem,calc(100vh-2rem))] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-left shadow-2xl overscroll-contain"
               style={{
                 top: position?.top ?? VIEWPORT_MARGIN,
                 left: position?.left ?? VIEWPORT_MARGIN,
@@ -242,7 +204,10 @@ export default function HeroInfoPopover({
               onMouseEnter={clearScheduledClose}
               onMouseLeave={scheduleClose}
             >
-              {formattedContent}
+              <SafeMarkdown
+                content={formattedContent}
+                textClassName="text-xs leading-5 text-[var(--foreground-soft)]"
+              />
             </div>,
             document.body,
           )

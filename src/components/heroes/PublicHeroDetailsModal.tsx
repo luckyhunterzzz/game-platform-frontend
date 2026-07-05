@@ -5,6 +5,7 @@ import DictionaryModal from './admin/DictionaryModal';
 import HeroInfoPopover from './admin/HeroInfoPopover';
 import DictionaryInlineValue from './DictionaryInlineValue';
 import DictionaryMiniIcon from './DictionaryMiniIcon';
+import SafeMarkdown from '@/components/markdown/SafeMarkdown';
 
 type Reference = {
   id: number;
@@ -354,8 +355,11 @@ export default function PublicHeroDetailsModal({
             <div className="text-sm font-medium text-[var(--foreground)]">
               {renderValue(details.specialSkill?.name)}
             </div>
-            <div className="mt-2 text-sm text-[var(--foreground-soft)]">
-              {renderValue(details.specialSkill?.description)}
+            <div className="mt-2">
+              <SafeMarkdown
+                content={details.specialSkill?.description}
+                textClassName="text-sm leading-6 text-[var(--foreground-soft)]"
+              />
             </div>
           </div>
 
@@ -455,9 +459,10 @@ export default function PublicHeroDetailsModal({
                         valueClassName="font-medium text-[var(--foreground)]"
                       />
                     </div>
-                    <div className="text-sm text-[var(--foreground-soft)]">
-                      {skill.description}
-                    </div>
+                    <SafeMarkdown
+                      content={skill.description}
+                      textClassName="text-sm leading-6 text-[var(--foreground-soft)]"
+                    />
                   </div>
                 ))}
               </div>

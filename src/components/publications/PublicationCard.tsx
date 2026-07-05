@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
+import SafeMarkdown from '@/components/markdown/SafeMarkdown';
 import type {
   PublicationItem,
   PublicationStatus,
@@ -253,9 +254,16 @@ export default function PublicationCard({
 
         {content ? (
           <div className="min-w-0 space-y-2">
-            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--foreground-muted)] [overflow-wrap:anywhere]">
-              {displayedContent}
-            </p>
+            {expanded || !isLongContent ? (
+              <SafeMarkdown
+                content={displayedContent}
+                textClassName="text-sm leading-6 text-[var(--foreground-muted)]"
+              />
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--foreground-muted)] [overflow-wrap:anywhere]">
+                {displayedContent}
+              </p>
+            )}
 
             {isLongContent && (
               <button

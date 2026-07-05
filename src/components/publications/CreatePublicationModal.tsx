@@ -7,6 +7,7 @@ import { enGB, ru } from 'date-fns/locale';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { ApiError, useApi } from '@/lib/use-api';
 import { EMPTY_LOCALIZED_TEXT, type LocalizedText } from '@/lib/types/hero';
+import LocalizedTextareaFields from '@/components/heroes/admin/LocalizedTextareaFields';
 import {
   type ImageUploadResponse,
   type PublicationAdminDetails,
@@ -627,33 +628,21 @@ export default function CreatePublicationModal({
                 <div className="mb-4 text-sm font-semibold text-[var(--foreground)]">
                   {modalText.contentBlock}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                      {modalText.contentRu}
-                    </label>
-                    <textarea
-                      value={form.contentJson.ru}
-                      onChange={(e) => handleLocalizedChange('contentJson', 'ru', e.target.value)}
-                      rows={6}
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-                      placeholder={modalText.contentRuPlaceholder}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-muted)]">
-                      {modalText.contentEn}
-                    </label>
-                    <textarea
-                      value={form.contentJson.en}
-                      onChange={(e) => handleLocalizedChange('contentJson', 'en', e.target.value)}
-                      rows={6}
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-4 py-3 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-soft)]"
-                      placeholder={modalText.contentEnPlaceholder}
-                    />
-                  </div>
-                </div>
+                <LocalizedTextareaFields
+                  value={form.contentJson}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      contentJson: value,
+                    }))
+                  }
+                  ruLabel={modalText.contentRu}
+                  enLabel={modalText.contentEn}
+                  ruPlaceholder={modalText.contentRuPlaceholder}
+                  enPlaceholder={modalText.contentEnPlaceholder}
+                  rows={6}
+                  showValidation={false}
+                />
               </div>
 
               <div>
