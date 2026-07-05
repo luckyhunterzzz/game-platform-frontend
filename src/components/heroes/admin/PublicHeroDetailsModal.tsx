@@ -10,6 +10,7 @@ import DictionaryMiniIcon from '../DictionaryMiniIcon';
 import HeroInfoPopover from './HeroInfoPopover';
 import HeroStatCalculatorPanel, { type HeroStatTroopOption } from './HeroStatCalculatorPanel';
 import HeroExpertOpinionsPublicBlock from './HeroExpertOpinionsPublicBlock';
+import SafeMarkdown from '@/components/markdown/SafeMarkdown';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
 import { buildEpicTroopEntries } from '@/lib/static/troops';
 import { useAuth } from '@/lib/auth-context';
@@ -3715,11 +3716,12 @@ export default function PublicHeroDetailsModal({
                         </div>
                       </div>
                       <div className="px-4 py-3">
-                        <div
-                          className="whitespace-pre-wrap text-sm leading-5 text-white/95"
-                          style={specialSkillTextShadow}
-                        >
-                          {specialSkillDescription || t.noValue}
+                        <div style={specialSkillTextShadow}>
+                          <SafeMarkdown
+                            content={specialSkillDescription || t.noValue}
+                            textClassName="text-sm leading-5 text-white/95"
+                            linkClassName="font-semibold text-cyan-200 transition hover:text-white"
+                          />
                         </div>
                       </div>
                     </div>
@@ -3927,8 +3929,11 @@ export default function PublicHeroDetailsModal({
                 <div className="text-base font-medium text-[var(--foreground)]">
                   {specialSkillName || t.noValue}
                 </div>
-                <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
-                  {specialSkillDescription || t.noValue}
+                <div className="mt-3">
+                  <SafeMarkdown
+                    content={specialSkillDescription || t.noValue}
+                    textClassName="text-sm leading-6 text-[var(--foreground-soft)]"
+                  />
                 </div>
               </div>
             ) : null}
