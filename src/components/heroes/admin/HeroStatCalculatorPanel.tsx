@@ -178,6 +178,7 @@ export default function HeroStatCalculatorPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HeroStatCalculationResponse | null>(null);
+  const [powerBaseStats, setPowerBaseStats] = useState<HeroStatBlockResponse | null>(null);
   const [selectedTroopKey, setSelectedTroopKey] = useState<string>('');
   const [troopDropdownOpen, setTroopDropdownOpen] = useState(false);
   const troopDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -300,6 +301,7 @@ export default function HeroStatCalculatorPanel({
   useEffect(() => {
     if (baseAttack == null || baseArmor == null || baseHp == null) {
       setResult(null);
+      setPowerBaseStats(null);
       setError(null);
       return;
     }
@@ -311,27 +313,50 @@ export default function HeroStatCalculatorPanel({
       setError(null);
 
       try {
-        const response = await apiPostJson<
-          {
-            stageCode: EvolutionStageCode;
-            costumeHeroId?: number | null;
-            emblemPathType?: EmblemPathType | null;
-            includeMasterEmblems: boolean;
-          },
-          HeroStatCalculationResponse
-        >(calculateEndpoint, {
+        const requestPayload = {
           stageCode,
           costumeHeroId: selectedCostumeHeroId,
           emblemPathType,
           includeMasterEmblems,
-        });
+        };
+        const powerBasePayload = {
+          stageCode,
+          costumeHeroId: selectedCostumeHeroId,
+          emblemPathType: null,
+          includeMasterEmblems: false,
+        };
+
+        const [response, powerBaseResponse] = await Promise.all([
+          apiPostJson<
+            {
+              stageCode: EvolutionStageCode;
+              costumeHeroId?: number | null;
+              emblemPathType?: EmblemPathType | null;
+              includeMasterEmblems: boolean;
+            },
+            HeroStatCalculationResponse
+          >(calculateEndpoint, requestPayload),
+          emblemPathType == null
+            ? Promise.resolve<HeroStatCalculationResponse | null>(null)
+            : apiPostJson<
+                {
+                  stageCode: EvolutionStageCode;
+                  costumeHeroId?: number | null;
+                  emblemPathType?: EmblemPathType | null;
+                  includeMasterEmblems: boolean;
+                },
+                HeroStatCalculationResponse
+              >(calculateEndpoint, powerBasePayload),
+        ]);
 
         if (!cancelled) {
           setResult(response);
+          setPowerBaseStats(powerBaseResponse?.finalStats ?? response.finalStats);
         }
       } catch (nextError) {
         if (!cancelled) {
           setResult(null);
+          setPowerBaseStats(null);
           setError(
             nextError instanceof ApiError || nextError instanceof Error
               ? nextError.message
@@ -401,16 +426,17 @@ export default function HeroStatCalculatorPanel({
         hp: applyPercentBonus(finalStats.hp, selectedTroop.totalHealthBonusPercent),
       }
     : finalStats;
+  const powerStats = powerBaseStats ?? finalStats;
   const displayedPower =
-    result?.finalPower ??
-    basePower ??
     calculateHeroPower({
-      attack: finalStats.attack,
-      armor: finalStats.armor,
-      hp: finalStats.hp,
+      attack: powerStats.attack,
+      armor: powerStats.armor,
+      hp: powerStats.hp,
       rarityStars,
       talentCount: emblemPathType == null ? 0 : includeMasterEmblems ? 25 : 20,
-    });
+    }) ??
+    basePower ??
+    null;
   const costumeFieldLabel =
     isCostume
       ? locale === 'RU'
