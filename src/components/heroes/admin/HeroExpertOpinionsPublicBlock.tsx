@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { HeroLocale } from '@/lib/types/hero';
 import type { HeroExpertOpinionPublicResponseDto } from '@/lib/types/hero-expert-opinion';
+import SafeMarkdown from '@/components/markdown/SafeMarkdown';
 import DictionaryModal from './DictionaryModal';
 
 type HeroExpertOpinionsPublicBlockProps = {
@@ -147,9 +148,10 @@ export default function HeroExpertOpinionsPublicBlock({
             </div>
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <div className="whitespace-pre-wrap text-sm leading-6 text-[var(--foreground-soft)]">
-                {selectedOpinion.content?.trim() || t.empty}
-              </div>
+              <SafeMarkdown
+                content={selectedOpinion.content?.trim() || t.empty}
+                textClassName="text-sm leading-6 text-[var(--foreground-soft)]"
+              />
             </div>
           </div>
         ) : null}
