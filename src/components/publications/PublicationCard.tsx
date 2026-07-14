@@ -254,16 +254,15 @@ export default function PublicationCard({
 
         {content ? (
           <div className="min-w-0 space-y-2">
-            {expanded || !isLongContent ? (
-              <SafeMarkdown
-                content={displayedContent}
-                textClassName="text-sm leading-6 text-[var(--foreground-muted)]"
-              />
-            ) : (
-              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--foreground-muted)] [overflow-wrap:anywhere]">
-                {displayedContent}
-              </p>
-            )}
+            {<SafeMarkdown
+              content={content}
+              className={
+                expanded || !isLongContent
+                  ? ''
+                  : '[display:-webkit-box] overflow-hidden [-webkit-box-orient:vertical] [-webkit-line-clamp:6]'
+              }
+              textClassName="text-sm leading-6 text-[var(--foreground-muted)]"
+            />}
 
             {isLongContent && (
               <button
