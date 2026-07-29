@@ -63,15 +63,8 @@ const purchaseHelpSteps: PurchaseHelpStep[] = [
   {
     title: '\u0428\u0430\u0433 2',
     description:
-      '\u042f \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u044e \u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0435 \u0440\u0435\u043a\u0432\u0438\u0437\u0438\u0442\u044b \u0435\u0432\u0440\u043e\u043f\u0435\u0439\u0441\u043a\u043e\u0439 \u0431\u0430\u043d\u043a\u043e\u0432\u0441\u043a\u043e\u0439 \u043a\u0430\u0440\u0442\u044b \u0434\u043b\u044f \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0439 \u043e\u043d\u043b\u0430\u0439\u043d-\u043e\u043f\u043b\u0430\u0442\u044b.',
-    images: [
-      {
-        src: '/joint-purchases/purchase-help/step-2-card-details.png',
-        alt: '\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0441 \u0440\u0435\u043a\u0432\u0438\u0437\u0438\u0442\u0430\u043c\u0438 \u043a\u0430\u0440\u0442\u044b',
-        width: 209,
-        height: 101,
-      },
-    ],
+      '\u042f\u0020\u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u044e\u0020\u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044e\u002c\u0434\u043b\u044f\u0020\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0439\u0020\u043e\u043d\u043b\u0430\u0439\u043d\u0020\u043e\u043f\u043b\u0430\u0442\u044b',
+    images: [],
   },
   {
     title: '\u0428\u0430\u0433 3',
@@ -95,7 +88,7 @@ const purchaseHelpSteps: PurchaseHelpStep[] = [
   {
     title: '\u0428\u0430\u0433 4',
     description:
-      '\u041f\u043e\u0441\u043b\u0435 \u044d\u0442\u043e\u0433\u043e \u044f \u0441\u043e\u043e\u0431\u0449\u0430\u044e, \u043a\u0430\u043a\u0430\u044f \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0432 \u0440\u0443\u0431\u043b\u044f\u0445 \u0431\u0443\u0434\u0435\u0442 \u0443 \u0434\u0430\u043d\u043d\u043e\u0439 \u0430\u043a\u0446\u0438\u0438, \u0438 \u0432\u044b \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u0435 \u043d\u0443\u0436\u043d\u0443\u044e \u0441\u0443\u043c\u043c\u0443 \u0432 \u0440\u0443\u0431\u043b\u044f\u0445 \u043d\u0430 \u0443\u043a\u0430\u0437\u0430\u043d\u043d\u0443\u044e \u043c\u043d\u043e\u0439 \u0440\u043e\u0441\u0441\u0438\u0439\u0441\u043a\u0443\u044e \u043a\u0430\u0440\u0442\u0443, \u043f\u043e\u0441\u043b\u0435 \u0447\u0435\u0433\u043e \u044f \u043f\u043e\u043f\u043e\u043b\u043d\u044f\u044e \u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u0443\u044e \u043a\u0430\u0440\u0442\u0443.',
+      '\u041f\u043e\u0441\u043b\u0435\u0020\u044d\u0442\u043e\u0433\u043e\u0020\u044f\u0020\u0441\u043e\u043e\u0431\u0449\u0430\u044e\u002c\u0020\u043a\u0430\u043a\u0430\u044f\u0020\u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c\u0020\u0432\u0020\u0440\u0443\u0431\u043b\u044f\u0445\u0020\u0431\u0443\u0434\u0435\u0442\u0020\u0443\u0020\u0434\u0430\u043d\u043d\u043e\u0439\u0020\u0430\u043a\u0446\u0438\u0438\u002c\u0020\u0438\u0020\u0432\u044b\u0020\u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u0435\u0020\u043d\u0443\u0436\u043d\u0443\u044e\u0020\u0441\u0443\u043c\u043c\u0443\u0020\u0432\u0020\u0440\u0443\u0431\u043b\u044f\u0445\u0020\u043d\u0430\u0020\u0443\u043a\u0430\u0437\u0430\u043d\u043d\u0443\u044e\u0020\u043c\u043d\u043e\u0439\u0020\u0440\u043e\u0441\u0441\u0438\u0439\u0441\u043a\u0443\u044e\u0020\u043a\u0430\u0440\u0442\u0443\u002e',
     images: [],
   },
   {
@@ -190,7 +183,50 @@ export default function PurchaseHelpNavbarNotice() {
 
               <div className="px-5 py-5 sm:px-6 sm:py-6">
                 <div className="space-y-5">
-                  {/* Purchase steps 1-5 are hidden for now. The purchaseHelpSteps data stays in this file for quick restore later. */}
+                  {purchaseHelpSteps.map((step) => (
+                    <section
+                      key={step.title}
+                      className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
+                    >
+                      <h4 className="text-base font-black text-[var(--foreground)]">{step.title}</h4>
+                      <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
+                        {step.description}
+                      </p>
+
+                      {step.extraContent === 'store-link' ? (
+                        <a
+                          href={STORE_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/15"
+                        >
+                          {copy.storeLabel}
+                        </a>
+                      ) : null}
+
+                      {step.images.length > 0 ? (
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          {step.images.map((image) => (
+                            <a
+                              key={image.src}
+                              href={image.src}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]"
+                            >
+                              <Image
+                                src={image.src}
+                                alt={image.alt}
+                                width={image.width}
+                                height={image.height}
+                                className="h-auto w-full object-contain"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </section>
+                  ))}
                   <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
                     <p className="text-sm font-semibold leading-7 text-[var(--foreground)]">{copy.footer}</p>
                   </section>
