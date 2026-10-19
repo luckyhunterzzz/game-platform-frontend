@@ -1,7 +1,7 @@
 import type { LocalizedText } from './hero';
 
 export type SummonContentStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
-export type SummonProbabilityKind = 'MAIN' | 'INDEPENDENT_BONUS' | 'CONDITIONAL_BONUS';
+export type SummonProbabilityKind = 'MAIN' | 'BONUS';
 export type SummonBonusKind = 'INDEPENDENT' | 'CONDITIONAL';
 export type BonusResultConditionType = 'ANY_RESULT' | 'RARITY' | 'PROBABILITY';
 export type BonusRewardMode = 'MAIN_ROLL' | 'SPECIFIC_PROBABILITY';
@@ -26,10 +26,12 @@ export interface SummonProbabilityDefinition {
 export interface SummonProbability {
   id: string;
   definition: SummonProbabilityDefinition;
-  kind: string;
+  kind: SummonProbabilityKind;
   valuePercent: number;
   position: number;
   heroIds: number[];
+  userSelectionEnabled: boolean;
+  defaultSelectedHeroCount?: number | null;
 }
 
 export interface SummonBonusCondition {
@@ -110,6 +112,8 @@ export interface SummonProbabilityCreateRequest {
   valuePercent: number;
   position: number;
   heroIds: number[];
+  userSelectionEnabled: boolean;
+  defaultSelectedHeroCount?: number | null;
 }
 
 export interface SummonBonusConditionRequest {
@@ -150,4 +154,79 @@ export interface SummonCreateRequest {
 export interface SummonProbabilityDefinitionCreateRequest {
   nameJson: LocalizedText;
   descriptionJson?: LocalizedText | null;
+}
+
+export interface SummonVariantCloneRequest {
+  sourceVariantId: string;
+  startsAt: string;
+  endsAt: string;
+  status: Exclude<SummonContentStatus, 'HIDDEN'>;
+}
+
+export interface SummonVariantUpdateRequest {
+  startsAt: string;
+  endsAt: string;
+  status: Exclude<SummonContentStatus, 'HIDDEN'>;
+  probabilities: SummonProbabilityCreateRequest[];
+  bonusRules: SummonBonusRuleCreateRequest[];
+}
+
+export interface SummonHeroPreview {
+  id: number;
+  slug: string;
+  nameJson: LocalizedText;
+  previewUrl?: string | null;
+  rarityStars?: number | null;
+}
+
+export interface SummonPublicProbability {
+  id: string;
+  definition: SummonProbabilityDefinition;
+  kind: SummonProbabilityKind;
+  valuePercent: number;
+  position: number;
+  userSelectionEnabled: boolean;
+  defaultSelectedHeroCount?: number | null;
+  heroes: SummonHeroPreview[];
+}
+
+export interface SummonPublicVariant {
+  id: string;
+  variantType: 'DEFAULT' | 'SCHEDULED';
+  startsAt?: string | null;
+  endsAt?: string | null;
+  probabilities: SummonPublicProbability[];
+}
+
+export interface SummonPublicItem {
+  id: string;
+  slug: string;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  imageUrl?: string | null;
+  backgroundImageUrl?: string | null;
+  variant: SummonPublicVariant;
+}
+
+export interface SummonCalendarFeed {
+  current: SummonPublicItem[];
+  upcoming: SummonPublicItem[];
+}
+
+export interface SummonPageResponse {
+  items: SummonPublicItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface SummonVariantPageResponse {
+  items: SummonVariant[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
 }

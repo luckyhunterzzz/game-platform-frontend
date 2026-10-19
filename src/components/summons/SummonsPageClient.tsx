@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 import SummonsAdminLinkBadge from './SummonsAdminLinkBadge';
+import SummonsCalendar from './SummonsCalendar';
 import SummonsPageShell from './SummonsPageShell';
 
 type SummonsTab = 'calendar' | 'simulator';
@@ -109,13 +110,7 @@ export default function SummonsPageClient() {
       </div>
 
       {activeTab === 'calendar' ? (
-        <section className="rounded-[2rem] border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center shadow-sm md:p-12">
-          <CalendarDays className="mx-auto h-10 w-10 text-fuchsia-300" aria-hidden="true" />
-          <h2 className="mt-4 text-2xl font-bold text-[var(--foreground)]">{text.emptyCalendarTitle}</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-[var(--foreground-soft)]">
-            {text.emptyCalendarDescription}
-          </p>
-        </section>
+        <SummonsCalendar />
       ) : (
         <section className="rounded-[2rem] border border-dashed border-[var(--border)] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_55%),var(--surface)] p-8 text-center shadow-sm md:p-12">
           <Sparkles className="mx-auto h-10 w-10 text-blue-300" aria-hidden="true" />

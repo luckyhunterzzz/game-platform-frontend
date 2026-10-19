@@ -23,6 +23,8 @@ export default function SummonHeroPoolField({
   selectedIds,
   onChange,
   disabled = false,
+  allowedRarityStars,
+  maxSelected,
 }: {
   locale: 'ru' | 'en';
   heroes: SummonHeroOption[];
@@ -31,11 +33,27 @@ export default function SummonHeroPoolField({
   selectedIds: number[];
   onChange: (heroIds: number[]) => void;
   disabled?: boolean;
+  allowedRarityStars?: number;
+  maxSelected?: number;
 }) {
   const [search, setSearch] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [familyId, setFamilyId] = useState('');
   const [rarityId, setRarityId] = useState('');
+  const allowedRarityIds = useMemo(
+    () => new Set(
+      rarities
+        .filter((rarity) => allowedRarityStars === undefined || rarity.stars === allowedRarityStars)
+        .map((rarity) => rarity.id),
+    ),
+    [allowedRarityStars, rarities],
+  );
+  const eligibleHeroes = useMemo(
+    () => heroes.filter(
+      (hero) => allowedRarityStars === undefined || (hero.rarityId && allowedRarityIds.has(hero.rarityId)),
+    ),
+    [allowedRarityIds, allowedRarityStars, heroes],
+  );
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedHeroes = useMemo(
     () => heroes.filter((hero) => selectedSet.has(hero.id)),
@@ -45,22 +63,22 @@ export default function SummonHeroPoolField({
     const normalized = search.trim().toLocaleLowerCase();
     if (!normalized) return [];
 
-    return heroes
+    return eligibleHeroes
       .filter((hero) => {
         if (selectedSet.has(hero.id)) return false;
         return `${heroName(hero, locale)} ${hero.slug}`.toLocaleLowerCase().includes(normalized);
       })
       .slice(0, 40);
-  }, [heroes, locale, search, selectedSet]);
+  }, [eligibleHeroes, locale, search, selectedSet]);
   const bulkHeroes = useMemo(() => {
     if (!familyId && !rarityId) return [];
-    return heroes.filter(
+    return eligibleHeroes.filter(
       (hero) =>
         !selectedSet.has(hero.id) &&
         (!familyId || hero.familyId === Number(familyId)) &&
         (!rarityId || hero.rarityId === Number(rarityId)),
     );
-  }, [familyId, heroes, rarityId, selectedSet]);
+  }, [eligibleHeroes, familyId, rarityId, selectedSet]);
   const filteredFamilies = useMemo(() => {
     const normalized = familySearch.trim().toLocaleLowerCase();
     if (!normalized) return families;
@@ -90,6 +108,7 @@ export default function SummonHeroPoolField({
           allRarities: 'Все редкости',
           addFiltered: 'Добавить найденных',
           willAdd: 'Будет добавлено',
+          fiveStarsOnly: 'Для рекомендованного пула доступны только герои 5★.',
         }
       : {
           label: 'Heroes in this probability',
@@ -106,9 +125,11 @@ export default function SummonHeroPoolField({
           allRarities: 'All rarities',
           addFiltered: 'Add matching heroes',
           willAdd: 'Will add',
+          fiveStarsOnly: 'Only 5★ heroes are available for the featured pool.',
         };
 
   const addHero = (heroId: number) => {
+    if (maxSelected !== undefined && selectedIds.length >= maxSelected) return;
     onChange([...selectedIds, heroId]);
     setSearch('');
   };
@@ -119,7 +140,10 @@ export default function SummonHeroPoolField({
 
   const addFilteredHeroes = () => {
     if (bulkHeroes.length === 0) return;
-    onChange([...selectedIds, ...bulkHeroes.map((hero) => hero.id)]);
+    const availableSlots = maxSelected === undefined
+      ? bulkHeroes.length
+      : Math.max(maxSelected - selectedIds.length, 0);
+    onChange([...selectedIds, ...bulkHeroes.slice(0, availableSlots).map((hero) => hero.id)]);
   };
 
   return (
@@ -128,8 +152,15 @@ export default function SummonHeroPoolField({
         <span className="text-sm font-medium text-[var(--foreground-soft)]">{text.label}</span>
         <span className="text-xs text-[var(--foreground-muted)]">
           {text.selected}: {selectedIds.length}
+          {maxSelected !== undefined ? ` / ${maxSelected}` : ''}
         </span>
       </div>
+
+      {allowedRarityStars === 5 ? (
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200">
+          {text.fiveStarsOnly}
+        </div>
+      ) : null}
 
       <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{text.bulkTitle}</div>
@@ -167,11 +198,13 @@ export default function SummonHeroPoolField({
               className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
             >
               <option value="">{text.allRarities}</option>
-              {rarities.map((rarity) => (
+              {rarities
+                .filter((rarity) => allowedRarityStars === undefined || rarity.stars === allowedRarityStars)
+                .map((rarity) => (
                 <option key={rarity.id} value={rarity.id}>
                   {rarity.stars}★ · {heroName({ id: rarity.id, slug: '', nameJson: rarity.nameJson, status: 'READY' }, locale)}
                 </option>
-              ))}
+                ))}
             </select>
           </label>
         </div>
@@ -182,7 +215,12 @@ export default function SummonHeroPoolField({
           <button
             type="button"
             onClick={addFilteredHeroes}
-            disabled={disabled || (!familyId && !rarityId) || bulkHeroes.length === 0}
+            disabled={
+              disabled
+              || (!familyId && !rarityId)
+              || bulkHeroes.length === 0
+              || (maxSelected !== undefined && selectedIds.length >= maxSelected)
+            }
             className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {text.addFiltered}

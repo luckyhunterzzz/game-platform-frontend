@@ -1,6 +1,16 @@
 'use client';
 
-import { CalendarClock, ImageIcon, Pencil, Plus, RefreshCw } from 'lucide-react';
+import {
+  CalendarClock,
+  CalendarPlus,
+  ChevronDown,
+  ChevronUp,
+  History,
+  ImageIcon,
+  Pencil,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -8,10 +18,12 @@ import type {
   SummonAdminDetails,
   SummonAdminSummary,
   SummonVariant,
+  SummonVariantPageResponse,
 } from '@/lib/types/summon';
 import { ApiError, useApi } from '@/lib/use-api';
 
 import CreateSummonModal from './CreateSummonModal';
+import ScheduledVariantModal from './ScheduledVariantModal';
 
 const ADMIN_SUMMONS_API = '/api/v1/admin/summons';
 
@@ -37,7 +49,13 @@ export default function SummonsWorkspace() {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingSummon, setEditingSummon] = useState<SummonAdminDetails | null>(null);
+  const [variantModalOpen, setVariantModalOpen] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<SummonVariant | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [variantHistory, setVariantHistory] = useState<SummonVariantPageResponse | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const text = useMemo(
     () =>
@@ -60,8 +78,18 @@ export default function SummonsWorkspace() {
             backgroundImage: 'Фоновое изображение',
             noImage: 'Изображение не загружено',
             defaultVariant: 'Основной вариант',
-            scheduledVariants: 'Запланированные варианты',
-            noScheduledVariants: 'Запланированных вариантов пока нет.',
+            scheduledVariants: 'Текущие и будущие версии',
+            noScheduledVariants: 'Текущих и будущих версий пока нет.',
+            addScheduledVariant: 'Добавить календарную версию',
+            editScheduledVariant: 'Изменить календарную версию',
+            calendarVariant: 'Календарная версия',
+            variantCreated: 'Календарная версия создана.',
+            variantUpdated: 'Календарная версия сохранена.',
+            pastVariants: 'Прошедшие версии',
+            pastVariantsHint: 'Скрыты по умолчанию и отсортированы от новых к старым.',
+            noPastVariants: 'Прошедших версий пока нет.',
+            historyLoadError: 'Не удалось загрузить прошедшие версии.',
+            loadMore: 'Показать ещё',
             probabilities: 'Вероятности',
             bonusRules: 'Бонусные правила',
             heroes: 'героев',
@@ -88,8 +116,18 @@ export default function SummonsWorkspace() {
             backgroundImage: 'Background image',
             noImage: 'No image uploaded',
             defaultVariant: 'Default variant',
-            scheduledVariants: 'Scheduled variants',
-            noScheduledVariants: 'No scheduled variants yet.',
+            scheduledVariants: 'Current and upcoming versions',
+            noScheduledVariants: 'No current or upcoming versions yet.',
+            addScheduledVariant: 'Add calendar version',
+            editScheduledVariant: 'Edit calendar version',
+            calendarVariant: 'Calendar version',
+            variantCreated: 'Calendar version created.',
+            variantUpdated: 'Calendar version saved.',
+            pastVariants: 'Past versions',
+            pastVariantsHint: 'Hidden by default and sorted from newest to oldest.',
+            noPastVariants: 'No past versions yet.',
+            historyLoadError: 'Failed to load past versions.',
+            loadMore: 'Load more',
             probabilities: 'Probabilities',
             bonusRules: 'Bonus rules',
             heroes: 'heroes',
@@ -148,12 +186,55 @@ export default function SummonsWorkspace() {
     void loadCatalog();
   }, [loadCatalog]);
 
+  const loadVariantHistory = useCallback(async (summonId: string, page: number, append = false) => {
+    try {
+      setLoadingHistory(true);
+      setHistoryError(null);
+      const response = await apiJson<SummonVariantPageResponse>(
+        `${ADMIN_SUMMONS_API}/${summonId}/variants/history?page=${page}`,
+      );
+      setVariantHistory((current) => append && current
+        ? { ...response, items: [...current.items, ...response.items] }
+        : response);
+    } catch (error) {
+      setHistoryError(error instanceof ApiError || error instanceof Error ? error.message : text.historyLoadError);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [apiJson, text.historyLoadError]);
+
   const handleSaved = (saved: SummonAdminDetails) => {
     setSuccessMessage(editingSummon ? text.updatedSuccessfully : text.created);
     setDetails(saved);
     setSelectedId(saved.id);
     void loadCatalog(saved.id);
   };
+
+  const handleVariantSaved = (saved: SummonVariant) => {
+    setSuccessMessage(editingVariant ? text.variantUpdated : text.variantCreated);
+    const savedEnd = saved.endsAt ? new Date(saved.endsAt).getTime() : Number.NEGATIVE_INFINITY;
+    const savedIsPast = Number.isNaN(savedEnd) || savedEnd <= Date.now();
+    setDetails((current) => {
+      if (!current) return current;
+      const remaining = current.scheduledVariants.filter((item) => item.id !== saved.id);
+      return {
+        ...current,
+        scheduledVariants: (savedIsPast ? remaining : [...remaining, saved])
+          .sort((left, right) => (left.startsAt ?? '').localeCompare(right.startsAt ?? '')),
+      };
+    });
+    if (historyOpen && selectedId) {
+      void loadVariantHistory(selectedId, 0);
+    } else if (savedIsPast) {
+      setVariantHistory(null);
+    }
+  };
+
+  useEffect(() => {
+    setHistoryOpen(false);
+    setVariantHistory(null);
+    setHistoryError(null);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -209,6 +290,20 @@ export default function SummonsWorkspace() {
           {variant.status}
         </span>
       </div>
+
+      {variant.variantType === 'SCHEDULED' ? (
+        <button
+          type="button"
+          onClick={() => {
+            setEditingVariant(variant);
+            setVariantModalOpen(true);
+          }}
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/15"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          {text.editScheduledVariant}
+        </button>
+      ) : null}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <div>
@@ -429,11 +524,24 @@ export default function SummonsWorkspace() {
               {renderVariant(details.defaultVariant, text.defaultVariant)}
 
               <div>
-                <h3 className="mb-3 text-xl font-bold text-[var(--foreground)]">{text.scheduledVariants}</h3>
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-xl font-bold text-[var(--foreground)]">{text.scheduledVariants}</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingVariant(null);
+                      setVariantModalOpen(true);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-fuchsia-400/30 bg-fuchsia-400/10 px-4 py-2 text-sm font-semibold text-fuchsia-300 transition hover:bg-fuchsia-400/15"
+                  >
+                    <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+                    {text.addScheduledVariant}
+                  </button>
+                </div>
                 {details.scheduledVariants?.length ? (
                   <div className="space-y-4">
                     {details.scheduledVariants.map((variant, index) =>
-                      renderVariant(variant, `${text.scheduledVariants} #${index + 1}`),
+                      renderVariant(variant, `${text.calendarVariant} #${index + 1}`),
                     )}
                   </div>
                 ) : (
@@ -441,6 +549,91 @@ export default function SummonsWorkspace() {
                     {text.noScheduledVariants}
                   </div>
                 )}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (historyOpen) {
+                      setHistoryOpen(false);
+                      return;
+                    }
+                    setHistoryOpen(true);
+                    if (!variantHistory) {
+                      void loadVariantHistory(details.id, 0);
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 p-5 text-left transition hover:bg-[var(--surface-hover)]"
+                  aria-expanded={historyOpen}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-fuchsia-300">
+                    <History className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 text-base font-bold text-[var(--foreground)]">
+                      {text.pastVariants}
+                      {variantHistory ? (
+                        <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground-soft)]">
+                          {variantHistory.totalElements}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {text.pastVariantsHint}
+                    </span>
+                  </span>
+                  {historyOpen
+                    ? <ChevronUp className="h-5 w-5 shrink-0 text-[var(--foreground-muted)]" aria-hidden="true" />
+                    : <ChevronDown className="h-5 w-5 shrink-0 text-[var(--foreground-muted)]" aria-hidden="true" />}
+                </button>
+
+                {historyOpen ? (
+                  <div className="space-y-4 border-t border-[var(--border)] p-5">
+                    {historyError ? (
+                      <div className="flex flex-col gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300 sm:flex-row sm:items-center sm:justify-between">
+                        <span>{historyError}</span>
+                        <button
+                          type="button"
+                          onClick={() => void loadVariantHistory(details.id, variantHistory?.page ?? 0)}
+                          className="inline-flex items-center gap-2 font-semibold"
+                        >
+                          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                          {text.retry}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {historyError && !variantHistory ? null : loadingHistory && !variantHistory ? (
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--foreground-soft)]">
+                        {text.loading}
+                      </div>
+                    ) : variantHistory?.items.length ? (
+                      <>
+                        <div className="space-y-4">
+                          {variantHistory.items.map((variant, index) =>
+                            renderVariant(variant, `${text.pastVariants} #${index + 1}`),
+                          )}
+                        </div>
+                        {variantHistory.hasNext ? (
+                          <button
+                            type="button"
+                            onClick={() => void loadVariantHistory(details.id, variantHistory.page + 1, true)}
+                            disabled={loadingHistory}
+                            className="mx-auto flex items-center gap-2 rounded-xl border border-fuchsia-400/30 bg-fuchsia-400/10 px-5 py-2.5 text-sm font-semibold text-fuchsia-300 transition hover:bg-fuchsia-400/15 disabled:opacity-50"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} aria-hidden="true" />
+                            {text.loadMore}
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--foreground-soft)]">
+                        {text.noPastVariants}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
@@ -456,6 +649,20 @@ export default function SummonsWorkspace() {
         }}
         onSaved={handleSaved}
       />
+
+      {details ? (
+        <ScheduledVariantModal
+          open={variantModalOpen}
+          summonId={details.id}
+          variants={[details.defaultVariant, ...details.scheduledVariants]}
+          variant={editingVariant}
+          onClose={() => {
+            setVariantModalOpen(false);
+            setEditingVariant(null);
+          }}
+          onSaved={handleVariantSaved}
+        />
+      ) : null}
     </section>
   );
 }

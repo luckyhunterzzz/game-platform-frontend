@@ -52,6 +52,8 @@ type ProbabilityFormItem = {
   kind: SummonProbabilityKind;
   valuePercent: string;
   heroIds: number[];
+  userSelectionEnabled: boolean;
+  defaultSelectedHeroCount: string;
 };
 
 type SummonFormState = {
@@ -135,6 +137,8 @@ function createFormFromSummon(summon: SummonAdminDetails): SummonFormState {
       kind: probability.kind as SummonProbabilityKind,
       valuePercent: String(probability.valuePercent),
       heroIds: probability.heroIds,
+      userSelectionEnabled: probability.userSelectionEnabled,
+      defaultSelectedHeroCount: String(probability.defaultSelectedHeroCount ?? 2),
     })),
     bonusRules: summon.defaultVariant.bonusRules.map((rule) => ({
       key: rule.id,
@@ -234,9 +238,13 @@ export default function CreateSummonModal({
             newDefinition: 'Создать новое определение',
             kind: 'Тип вероятности',
             main: 'Основная',
-            independent: 'Независимая бонусная',
-            conditional: 'Условная бонусная',
+            bonus: 'Бонусный пул',
             percent: 'Вероятность, %',
+            userSelection: 'Это пул рекомендованных героев',
+            userSelectionHint:
+              'Если пул пуст, в будущем пользователь должен будет выбрать героев самостоятельно.',
+            defaultSelectedHeroCount: 'Количество героев по умолчанию',
+            recommendedLimit: 'Только герои 5★, максимум 10.',
             mainTotal: 'Сумма основных вероятностей',
             remaining: 'Осталось до 100%',
             emptyProbabilities: 'Вероятности ещё не добавлены. Черновик можно сохранить без них.',
@@ -253,6 +261,9 @@ export default function CreateSummonModal({
             incompleteProbability: 'Заполните определение и корректный процент у каждой вероятности.',
             percentagePrecision: 'Процент может содержать не более двух знаков после запятой.',
             duplicateDefinition: 'Одно определение вероятности нельзя добавить дважды.',
+            invalidRecommendedPool:
+              'Для рекомендованного пула укажите от 1 до 10 героев по умолчанию и используйте только героев 5★.',
+            duplicateRecommendedPool: 'В одном варианте может быть только один пул рекомендованных героев.',
             readyTotal: 'Для статуса READY сумма основных вероятностей должна быть ровно 100%.',
             incompleteBonus: 'Полностью настройте название, условия и шаги каждого бонусного правила.',
             definitionNamesRequired: 'Заполните название определения на русском и английском языках.',
@@ -285,9 +296,13 @@ export default function CreateSummonModal({
             newDefinition: 'Create new definition',
             kind: 'Probability type',
             main: 'Main',
-            independent: 'Independent bonus',
-            conditional: 'Conditional bonus',
+            bonus: 'Bonus pool',
             percent: 'Probability, %',
+            userSelection: 'This is the featured hero pool',
+            userSelectionHint:
+              'When the pool is empty, the user will have to select heroes later.',
+            defaultSelectedHeroCount: 'Default hero count',
+            recommendedLimit: 'Only 5★ heroes, maximum 10.',
             mainTotal: 'Main probability total',
             remaining: 'Remaining to 100%',
             emptyProbabilities: 'No probabilities added yet. A draft can be saved without them.',
@@ -304,6 +319,9 @@ export default function CreateSummonModal({
             incompleteProbability: 'Select a definition and enter a valid percentage for every probability.',
             percentagePrecision: 'A percentage may contain no more than two decimal places.',
             duplicateDefinition: 'A probability definition cannot be added twice.',
+            invalidRecommendedPool:
+              'Use a default count from 1 to 10 and only 5★ heroes for the featured pool.',
+            duplicateRecommendedPool: 'A variant can contain only one featured hero pool.',
             readyTotal: 'MAIN probabilities must total exactly 100% for READY status.',
             incompleteBonus: 'Complete the name, conditions, and steps of every bonus rule.',
             definitionNamesRequired: 'Enter the Russian and English definition names.',
@@ -318,6 +336,11 @@ export default function CreateSummonModal({
         .filter((item) => item.kind === 'MAIN')
         .reduce((total, item) => total + (percentageToHundredths(item.valuePercent) ?? 0), 0),
     [form.probabilities],
+  );
+
+  const fiveStarRarityIds = useMemo(
+    () => new Set(rarities.filter((rarity) => rarity.stars === 5).map((rarity) => rarity.id)),
+    [rarities],
   );
 
   useEffect(() => {
@@ -382,7 +405,15 @@ export default function CreateSummonModal({
     setForm((previous) => ({
       ...previous,
       probabilities: [
-        { key, definitionId: '', kind: 'MAIN', valuePercent: '', heroIds: [] },
+        {
+          key,
+          definitionId: '',
+          kind: 'MAIN',
+          valuePercent: '',
+          heroIds: [],
+          userSelectionEnabled: false,
+          defaultSelectedHeroCount: '2',
+        },
         ...previous.probabilities,
       ],
     }));
@@ -462,6 +493,7 @@ export default function CreateSummonModal({
     if (!/^[a-z0-9-]+$/.test(form.slug.trim())) return text.invalidSlug;
 
     const definitionIds = new Set<string>();
+    let recommendedPools = 0;
     for (const probability of form.probabilities) {
       if (!probability.definitionId || probability.valuePercent === '') {
         return text.incompleteProbability;
@@ -473,7 +505,26 @@ export default function CreateSummonModal({
       }
       if (definitionIds.has(probability.definitionId)) return text.duplicateDefinition;
       definitionIds.add(probability.definitionId);
+
+      if (probability.userSelectionEnabled) {
+        recommendedPools += 1;
+        const defaultCount = Number(probability.defaultSelectedHeroCount);
+        const selectedHeroes = probability.heroIds
+          .map((heroId) => heroes.find((hero) => hero.id === heroId))
+          .filter((hero): hero is SummonHeroOption => Boolean(hero));
+        if (
+          probability.kind !== 'MAIN'
+          || !Number.isInteger(defaultCount)
+          || defaultCount < 1
+          || defaultCount > 10
+          || probability.heroIds.length > 10
+          || selectedHeroes.some((hero) => !hero.rarityId || !fiveStarRarityIds.has(hero.rarityId))
+        ) {
+          return text.invalidRecommendedPool;
+        }
+      }
     }
+    if (recommendedPools > 1) return text.duplicateRecommendedPool;
 
     const configuredDefinitionIds = new Set(form.probabilities.map((probability) => probability.definitionId));
     const conditionIsValid = (condition: BonusConditionForm) => {
@@ -543,6 +594,10 @@ export default function CreateSummonModal({
         valuePercent: Number(item.valuePercent),
         position: index + 1,
         heroIds: item.heroIds,
+        userSelectionEnabled: item.userSelectionEnabled,
+        defaultSelectedHeroCount: item.userSelectionEnabled
+          ? Number(item.defaultSelectedHeroCount)
+          : null,
       })),
       bonusRules: form.bonusRules.map((rule) => ({
         definitionId: rule.definitionId,
@@ -774,13 +829,18 @@ export default function CreateSummonModal({
                       <span className="text-sm font-medium text-[var(--foreground-soft)]">{text.kind}</span>
                       <select
                         value={probability.kind}
-                        onChange={(event) => updateProbability(probability.key, { kind: event.target.value as SummonProbabilityKind })}
+                        onChange={(event) => {
+                          const kind = event.target.value as SummonProbabilityKind;
+                          updateProbability(probability.key, {
+                            kind,
+                            userSelectionEnabled: kind === 'MAIN' && probability.userSelectionEnabled,
+                          });
+                        }}
                         disabled={saving}
                         className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
                       >
                         <option value="MAIN">{text.main}</option>
-                        <option value="INDEPENDENT_BONUS">{text.independent}</option>
-                        <option value="CONDITIONAL_BONUS">{text.conditional}</option>
+                        <option value="BONUS">{text.bonus}</option>
                       </select>
                     </label>
 
@@ -829,6 +889,55 @@ export default function CreateSummonModal({
                     </div>
                   ) : null}
 
+                  <div className="space-y-3 rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/5 p-4">
+                    <label className="flex items-start gap-3 text-sm text-[var(--foreground-soft)]">
+                      <input
+                        type="checkbox"
+                        checked={probability.userSelectionEnabled}
+                        onChange={(event) => {
+                          const enabled = event.target.checked;
+                          updateProbability(probability.key, {
+                            userSelectionEnabled: enabled,
+                            kind: enabled ? 'MAIN' : probability.kind,
+                            heroIds: enabled
+                              ? probability.heroIds.filter((heroId) => {
+                                  const hero = heroes.find((item) => item.id === heroId);
+                                  return Boolean(hero?.rarityId && fiveStarRarityIds.has(hero.rarityId));
+                                }).slice(0, 10)
+                              : probability.heroIds,
+                          });
+                        }}
+                        disabled={saving}
+                        className="mt-0.5 h-4 w-4 shrink-0"
+                      />
+                      <span>
+                        <span className="block font-semibold text-[var(--foreground)]">{text.userSelection}</span>
+                        <span className="mt-1 block text-xs leading-5">{text.userSelectionHint}</span>
+                      </span>
+                    </label>
+
+                    {probability.userSelectionEnabled ? (
+                      <label className="flex max-w-xs flex-col gap-2">
+                        <span className="text-xs font-medium text-[var(--foreground-soft)]">
+                          {text.defaultSelectedHeroCount}
+                        </span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          step="1"
+                          value={probability.defaultSelectedHeroCount}
+                          onChange={(event) => updateProbability(probability.key, {
+                            defaultSelectedHeroCount: event.target.value,
+                          })}
+                          disabled={saving}
+                          className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
+                        />
+                        <span className="text-xs text-[var(--foreground-muted)]">{text.recommendedLimit}</span>
+                      </label>
+                    ) : null}
+                  </div>
+
                   <SummonHeroPoolField
                     locale={locale}
                     heroes={heroes}
@@ -837,6 +946,8 @@ export default function CreateSummonModal({
                     selectedIds={probability.heroIds}
                     onChange={(heroIds) => updateProbability(probability.key, { heroIds })}
                     disabled={saving}
+                    allowedRarityStars={probability.userSelectionEnabled ? 5 : undefined}
+                    maxSelected={probability.userSelectionEnabled ? 10 : undefined}
                   />
                 </article>
               ))}
