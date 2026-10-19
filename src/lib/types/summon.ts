@@ -1,0 +1,153 @@
+import type { LocalizedText } from './hero';
+
+export type SummonContentStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
+export type SummonProbabilityKind = 'MAIN' | 'INDEPENDENT_BONUS' | 'CONDITIONAL_BONUS';
+export type SummonBonusKind = 'INDEPENDENT' | 'CONDITIONAL';
+export type BonusResultConditionType = 'ANY_RESULT' | 'RARITY' | 'PROBABILITY';
+export type BonusRewardMode = 'MAIN_ROLL' | 'SPECIFIC_PROBABILITY';
+
+export interface SummonAdminSummary {
+  id: string;
+  slug: string;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  status: SummonContentStatus;
+  imageUrl?: string | null;
+  backgroundImageUrl?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface SummonProbabilityDefinition {
+  id: string;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+}
+
+export interface SummonProbability {
+  id: string;
+  definition: SummonProbabilityDefinition;
+  kind: string;
+  valuePercent: number;
+  position: number;
+  heroIds: number[];
+}
+
+export interface SummonBonusCondition {
+  type: BonusResultConditionType;
+  rarityId?: number | null;
+  probabilityId?: string | null;
+}
+
+export interface SummonBonusStep {
+  id: string;
+  position: number;
+  activationChancePercent: number;
+  rewardMode: BonusRewardMode;
+  rewardProbabilityId?: string | null;
+}
+
+export interface SummonBonusRule {
+  id: string;
+  definition: SummonProbabilityDefinition;
+  kind: SummonBonusKind;
+  userSelectable: boolean;
+  triggerCondition?: SummonBonusCondition | null;
+  continuationCondition?: SummonBonusCondition | null;
+  steps: SummonBonusStep[];
+}
+
+export interface SummonVariant {
+  id: string;
+  version: number;
+  variantType: 'DEFAULT' | 'SCHEDULED';
+  startsAt?: string | null;
+  endsAt?: string | null;
+  status: SummonContentStatus;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  probabilities: SummonProbability[];
+  bonusRules: SummonBonusRule[];
+}
+
+export interface SummonAdminDetails extends SummonAdminSummary {
+  version: number;
+  imageBucket?: string | null;
+  imageObjectKey?: string | null;
+  backgroundImageBucket?: string | null;
+  backgroundImageObjectKey?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdAt?: string | null;
+  defaultVariant: SummonVariant;
+  scheduledVariants: SummonVariant[];
+}
+
+export interface SummonHeroOption {
+  id: number;
+  slug: string;
+  nameJson: LocalizedText;
+  status: SummonContentStatus;
+  familyId?: number | null;
+  rarityId?: number | null;
+}
+
+export interface SummonFamilyOption {
+  id: number;
+  nameJson: LocalizedText;
+}
+
+export interface SummonRarityOption {
+  id: number;
+  nameJson: LocalizedText;
+  stars: number;
+}
+
+export interface SummonProbabilityCreateRequest {
+  definitionId: string;
+  kind: SummonProbabilityKind;
+  valuePercent: number;
+  position: number;
+  heroIds: number[];
+}
+
+export interface SummonBonusConditionRequest {
+  type: BonusResultConditionType;
+  rarityId?: number | null;
+  probabilityDefinitionId?: string | null;
+}
+
+export interface SummonBonusStepCreateRequest {
+  position: number;
+  activationChancePercent: number;
+  rewardMode: BonusRewardMode;
+  rewardProbabilityDefinitionId?: string | null;
+}
+
+export interface SummonBonusRuleCreateRequest {
+  definitionId: string;
+  kind: SummonBonusKind;
+  userSelectable: boolean;
+  triggerCondition?: SummonBonusConditionRequest | null;
+  continuationCondition?: SummonBonusConditionRequest | null;
+  steps: SummonBonusStepCreateRequest[];
+}
+
+export interface SummonCreateRequest {
+  slug: string;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  status: Exclude<SummonContentStatus, 'HIDDEN'>;
+  imageBucket?: string | null;
+  imageObjectKey?: string | null;
+  backgroundImageBucket?: string | null;
+  backgroundImageObjectKey?: string | null;
+  probabilities: SummonProbabilityCreateRequest[];
+  bonusRules: SummonBonusRuleCreateRequest[];
+}
+
+export interface SummonProbabilityDefinitionCreateRequest {
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+}

@@ -10,6 +10,7 @@ type DictionaryModalProps = {
   closeLabel?: string;
   closeOnBackdropClick?: boolean;
   headerActions?: ReactNode;
+  maxWidthClassName?: string;
 };
 
 export default function DictionaryModal({
@@ -20,6 +21,7 @@ export default function DictionaryModal({
   closeLabel = 'Close',
   closeOnBackdropClick = true,
   headerActions,
+  maxWidthClassName = 'md:max-w-3xl',
 }: DictionaryModalProps) {
   useEffect(() => {
     if (!open) {
@@ -52,7 +54,7 @@ export default function DictionaryModal({
     >
       <div className="flex min-h-[100dvh] items-center justify-center md:p-4">
         <div
-          className="flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[var(--surface)] shadow-2xl md:h-auto md:min-h-0 md:max-h-[calc(100dvh-2rem)] md:max-w-3xl md:rounded-3xl md:border md:border-[var(--border)]"
+          className={`flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-[var(--surface)] shadow-2xl md:h-auto md:min-h-0 md:max-h-[calc(100dvh-2rem)] md:rounded-3xl md:border md:border-[var(--border)] ${maxWidthClassName}`}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
