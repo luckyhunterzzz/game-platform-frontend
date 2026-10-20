@@ -53,6 +53,11 @@ export default function PageQuickLinksToolbar({
         href: '/alliance',
         imageSrc: '/home-quick-links/alliance.webp',
       },
+      {
+        label: locale === 'ru' ? 'Призывы' : 'Summons',
+        href: '/summons',
+        imageSrc: '/home-quick-links/lottery.webp',
+      },
     ],
     [
       locale,
