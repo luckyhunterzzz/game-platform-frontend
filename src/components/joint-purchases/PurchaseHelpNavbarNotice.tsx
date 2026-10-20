@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, MessageCircle, X } from 'lucide-react';
+import { BadgeCheck, ExternalLink, Gem, MessageCircle, ShieldCheck, Sparkles, X } from 'lucide-react';
 
 import { useI18n } from '@/lib/i18n/i18n-context';
 
@@ -111,6 +111,34 @@ const purchaseHelpSteps: PurchaseHelpStep[] = [
   },
 ];
 
+const purchaseHelpStepStyles = [
+  {
+    border: 'border-fuchsia-400/20',
+    badge: 'border-fuchsia-300/30 bg-fuchsia-400/15 text-fuchsia-100',
+    glow: 'bg-fuchsia-500/15',
+  },
+  {
+    border: 'border-blue-400/20',
+    badge: 'border-blue-300/30 bg-blue-400/15 text-blue-100',
+    glow: 'bg-blue-500/15',
+  },
+  {
+    border: 'border-violet-400/20',
+    badge: 'border-violet-300/30 bg-violet-400/15 text-violet-100',
+    glow: 'bg-violet-500/15',
+  },
+  {
+    border: 'border-cyan-400/20',
+    badge: 'border-cyan-300/30 bg-cyan-400/15 text-cyan-100',
+    glow: 'bg-cyan-500/15',
+  },
+  {
+    border: 'border-emerald-400/20',
+    badge: 'border-emerald-300/30 bg-emerald-400/15 text-emerald-100',
+    glow: 'bg-emerald-500/15',
+  },
+];
+
 export default function PurchaseHelpNavbarNotice() {
   const { locale } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -143,96 +171,175 @@ export default function PurchaseHelpNavbarNotice() {
   const modal = isOpen
     ? createPortal(
         <div
-          className="fixed inset-0 z-[140] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[140] overflow-y-auto bg-slate-950/85 p-2 backdrop-blur-md sm:p-5"
           onClick={() => setIsOpen(false)}
         >
-          <div className="flex min-h-full items-start justify-center py-4">
-            <div
-              className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-full max-w-5xl flex-col overflow-y-auto overscroll-contain rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl [webkit-overflow-scrolling:touch]"
+          <div className="flex min-h-full items-start justify-center py-1 sm:py-3">
+            <section
+              className="relative flex max-h-[calc(100dvh-1rem)] min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-fuchsia-400/20 bg-[var(--surface-strong)] shadow-[0_32px_100px_rgba(0,0,0,0.55)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[2.25rem]"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5 sm:px-6">
-                <div className="max-w-3xl">
-                  <h3 className="text-xl font-black leading-tight text-[var(--foreground)] sm:text-2xl">
-                    {copy.modalTitle}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">{copy.intro1}</p>
-                  <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">{copy.intro2}</p>
-                  <p className="mt-3 text-sm leading-7 text-[var(--foreground-soft)]">{copy.intro3}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-4">
-                    <span className="text-sm text-[var(--foreground)]">{copy.contact}</span>
-                    <button
-                      type="button"
-                      onClick={handleTelegramClick}
-                      className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/25 bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-[var(--surface-hover)]"
-                    >
-                      @{TELEGRAM_HANDLE}
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label="Закрыть"
+                className="absolute right-3 top-3 z-20 rounded-2xl border border-white/10 bg-slate-950/55 p-2.5 text-white/70 shadow-lg backdrop-blur-md transition hover:border-fuchsia-300/30 hover:bg-slate-900 hover:text-white sm:right-5 sm:top-5"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [webkit-overflow-scrolling:touch]">
+                <header className="relative overflow-hidden border-b border-fuchsia-400/15 px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(217,70,239,0.2),transparent_30%),radial-gradient(circle_at_86%_12%,rgba(59,130,246,0.18),transparent_33%),linear-gradient(135deg,rgba(15,23,42,0.74),rgba(24,24,47,0.34))]" />
+                  <div className="pointer-events-none absolute -left-16 top-8 h-48 w-48 rounded-full bg-fuchsia-500/10 blur-3xl" />
+                  <div className="pointer-events-none absolute -right-20 bottom-0 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+
+                  <div className="relative grid gap-6 pr-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8 lg:pr-0">
+                    <div className="max-w-3xl">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-fuchsia-100 sm:text-xs">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {copy.pillSubtitle}
+                      </div>
+
+                      <div className="mt-5 flex items-start gap-4">
+                        <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-fuchsia-300/25 bg-[linear-gradient(145deg,rgba(217,70,239,0.24),rgba(59,130,246,0.18))] text-fuchsia-100 shadow-[0_16px_38px_rgba(168,85,247,0.2)] sm:flex">
+                          <Gem className="h-5 w-5" />
+                        </div>
+                        <h3 className="text-2xl font-black leading-[1.15] tracking-[-0.025em] text-[var(--foreground)] sm:text-3xl lg:text-[2.15rem]">
+                          {copy.modalTitle}
+                        </h3>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 text-sm leading-7 text-[var(--foreground-soft)] sm:grid-cols-2">
+                        <p className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-4 py-3.5">
+                          {copy.intro1}
+                        </p>
+                        <p className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-4 py-3.5">
+                          {copy.intro2}
+                        </p>
+                      </div>
+                    </div>
+
+                    <aside className="rounded-[1.6rem] border border-cyan-300/20 bg-[linear-gradient(145deg,rgba(34,211,238,0.11),rgba(59,130,246,0.07))] p-4 shadow-[0_18px_50px_rgba(8,145,178,0.12)] sm:p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
+                          <MessageCircle className="h-4 w-4" />
+                        </div>
+                        <p className="pt-0.5 text-sm leading-6 text-[var(--foreground)]">{copy.contact}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTelegramClick}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-300/15 px-4 py-3 text-sm font-black text-cyan-100 shadow-[0_12px_30px_rgba(6,182,212,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-200/40 hover:bg-cyan-300/20"
+                      >
+                        @{TELEGRAM_HANDLE}
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
+                    </aside>
+                  </div>
+                </header>
+
+                <div className="px-4 py-5 sm:px-8 sm:py-7 lg:px-10">
+                  <div className="mb-5 flex items-start gap-3 rounded-[1.4rem] border border-violet-300/15 bg-violet-400/[0.07] px-4 py-3.5 sm:px-5">
+                    <BadgeCheck className="mt-1 h-4 w-4 shrink-0 text-violet-200" />
+                    <p className="text-sm leading-7 text-[var(--foreground-soft)]">{copy.intro3}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {purchaseHelpSteps.map((step, index) => {
+                      const stepStyle = purchaseHelpStepStyles[index % purchaseHelpStepStyles.length];
+
+                      return (
+                        <section
+                          key={step.title}
+                          className={`group relative overflow-hidden rounded-[1.65rem] border bg-[var(--surface)] p-4 shadow-[0_16px_42px_rgba(0,0,0,0.12)] sm:p-5 lg:p-6 ${stepStyle.border}`}
+                        >
+                          <div
+                            className={`pointer-events-none absolute -right-14 -top-16 h-40 w-40 rounded-full blur-3xl transition duration-500 group-hover:scale-110 ${stepStyle.glow}`}
+                          />
+
+                          <div
+                            className={`relative grid gap-5 lg:items-start lg:gap-7 ${
+                              step.images.length > 0
+                                ? 'lg:grid-cols-[minmax(14rem,0.7fr)_minmax(0,1.3fr)]'
+                                : ''
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={`flex h-10 min-w-10 items-center justify-center rounded-2xl border px-3 text-sm font-black shadow-lg ${stepStyle.badge}`}
+                                >
+                                  {String(index + 1).padStart(2, '0')}
+                                </span>
+                                <h4 className="text-lg font-black tracking-[-0.01em] text-[var(--foreground)]">
+                                  {step.title}
+                                </h4>
+                              </div>
+
+                              <p className="mt-4 text-sm leading-7 text-[var(--foreground-soft)]">
+                                {step.description}
+                              </p>
+
+                              {step.extraContent === 'store-link' ? (
+                                <a
+                                  href={STORE_URL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-2.5 text-sm font-black text-cyan-200 transition hover:-translate-y-0.5 hover:border-cyan-200/40 hover:bg-cyan-300/15"
+                                >
+                                  {copy.storeLabel}
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              ) : null}
+                            </div>
+
+                            {step.images.length > 0 ? (
+                              <div className={`grid gap-3 ${step.images.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+                                {step.images.map((image) => (
+                                  <a
+                                    key={image.src}
+                                    href={image.src}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group/image relative flex min-h-48 items-center justify-center overflow-hidden rounded-[1.35rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_58%),rgba(2,6,23,0.32)] p-2 sm:min-h-56"
+                                  >
+                                    <Image
+                                      src={image.src}
+                                      alt={image.alt}
+                                      width={image.width}
+                                      height={image.height}
+                                      className={`h-auto rounded-xl object-contain shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition duration-500 group-hover/image:scale-[1.02] ${
+                                        image.height > image.width ? 'max-h-[28rem] w-auto max-w-full' : 'max-h-72 w-full'
+                                      }`}
+                                    />
+                                    <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-slate-950/65 text-white/70 opacity-0 shadow-lg backdrop-blur transition group-hover/image:opacity-100">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        </section>
+                      );
+                    })}
+
+                    <section className="relative overflow-hidden rounded-[1.75rem] border border-emerald-300/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.13),rgba(6,182,212,0.07))] p-5 sm:p-6">
+                      <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
+                      <div className="relative flex items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-200">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <p className="pt-0.5 text-sm font-semibold leading-7 text-[var(--foreground)]">
+                          {copy.footer}
+                        </p>
+                      </div>
+                    </section>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
-
-              <div className="px-5 py-5 sm:px-6 sm:py-6">
-                <div className="space-y-5">
-                  {purchaseHelpSteps.map((step) => (
-                    <section
-                      key={step.title}
-                      className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5"
-                    >
-                      <h4 className="text-base font-black text-[var(--foreground)]">{step.title}</h4>
-                      <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
-                        {step.description}
-                      </p>
-
-                      {step.extraContent === 'store-link' ? (
-                        <a
-                          href={STORE_URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/15"
-                        >
-                          {copy.storeLabel}
-                        </a>
-                      ) : null}
-
-                      {step.images.length > 0 ? (
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                          {step.images.map((image) => (
-                            <a
-                              key={image.src}
-                              href={image.src}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]"
-                            >
-                              <Image
-                                src={image.src}
-                                alt={image.alt}
-                                width={image.width}
-                                height={image.height}
-                                className="h-auto w-full object-contain"
-                              />
-                            </a>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
-                  ))}
-                  <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
-                    <p className="text-sm font-semibold leading-7 text-[var(--foreground)]">{copy.footer}</p>
-                  </section>
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
         </div>,
         document.body,

@@ -17,6 +17,7 @@ const staticRoutes = [
   '/heroes',
   '/joint-purchases',
   '/privacy',
+  '/summons',
   '/terms',
   '/troops',
 ];
