@@ -25,7 +25,6 @@ export function resolveRuntimeConfigByHost(host: string): RuntimeConfig {
     return {
       frontendUrl: 'http://localhost:3000',
       apiBaseUrl: 'http://localhost:8081',
-      authUrl: 'http://localhost:8080',
       mediaUrl: 'http://localhost:9000',
     };
   }
@@ -34,7 +33,6 @@ export function resolveRuntimeConfigByHost(host: string): RuntimeConfig {
     return {
       frontendUrl: 'https://ru.gameops-platform.dev',
       apiBaseUrl: 'https://ru-api.gameops-platform.dev',
-      authUrl: 'https://ru-auth.gameops-platform.dev',
       mediaUrl: 'https://ru-media.gameops-platform.dev',
     };
   }
@@ -42,7 +40,6 @@ export function resolveRuntimeConfigByHost(host: string): RuntimeConfig {
   return {
     frontendUrl: 'https://gameops-platform.dev',
     apiBaseUrl: 'https://api.gameops-platform.dev',
-    authUrl: 'https://auth.gameops-platform.dev',
     mediaUrl: 'https://media.gameops-platform.dev',
   };
 }
