@@ -15,6 +15,9 @@ export type ApiFetchResult = {
   body: string;
 };
 
+const AUTH_REFRESH_PENDING_HEADER = 'X-Auth-Refresh-Pending';
+const AUTH_REFRESH_RETRY_DELAY_MS = 1000;
+
 export class ApiError extends Error {
   status: number;
   payload?: ErrorResponse | unknown;
@@ -54,14 +57,26 @@ export function useApi() {
         }
       }
 
+      const performRequest = () => fetch(url, {
+        ...init,
+        headers,
+        credentials: init.credentials ?? (isGatewayRequest ? 'include' : undefined),
+      });
+
       let res: Response;
 
       try {
-        res = await fetch(url, {
-          ...init,
-          headers,
-          credentials: init.credentials ?? (isGatewayRequest ? 'include' : undefined),
-        });
+        res = await performRequest();
+
+        if (
+          isGatewayRequest &&
+          res.status === 503 &&
+          res.headers.get(AUTH_REFRESH_PENDING_HEADER) === 'true'
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, AUTH_REFRESH_RETRY_DELAY_MS));
+          headers.set('X-Request-Id', crypto.randomUUID());
+          res = await performRequest();
+        }
       } catch (error) {
         const apiHost = (() => {
           try {
