@@ -1,19 +1,20 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import Keycloak, { KeycloakInitOptions } from 'keycloak-js';
-import { KeycloakTokenParsed } from 'keycloak-js';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+
+import {
+  AUTH_REQUIRED_EVENT,
+  clearCsrfToken,
+  fetchBffSession,
+  gatewayUrl,
+  getCsrfToken,
+  type BffSession,
+} from '@/lib/bff-auth';
 import { useRuntimeConfig } from '@/lib/runtime-config/context';
 
-const AUTH_INIT_TIMEOUT_MS = 10_000;
-const AUTH_SESSION_STORAGE_KEY = 'gameops.auth.session';
-const AUTH_REMEMBERED_LOGIN_STORAGE_KEY = 'gameops.auth.remembered-login';
-
 type AuthContextValue = {
-  keycloak: Keycloak | null;
   loading: boolean;
   authenticated: boolean;
-  canResumeLogin: boolean;
   error: string | null;
   userId: string | null;
   userEmail: string | null;
@@ -21,255 +22,153 @@ type AuthContextValue = {
   roles: string[];
   login: () => void;
   logout: () => void;
+  refreshSession: () => Promise<void>;
+};
+
+const ANONYMOUS_SESSION: BffSession = {
+  authenticated: false,
+  user: null,
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function withRolePrefix(roles: string[]): string[] {
-  return (roles ?? []).map((r) => (r.startsWith('ROLE_') ? r : `ROLE_${r}`));
-}
-
-function hasAuthCallbackParams() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-
-  return ['code', 'state', 'session_state', 'error', 'error_description'].some(
-    (param) => searchParams.has(param) || hashParams.has(param),
-  );
-}
-
-function hasRememberedLogin() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.localStorage.getItem(AUTH_REMEMBERED_LOGIN_STORAGE_KEY) === '1';
+  return roles.map((role) => (role.startsWith('ROLE_') ? role : `ROLE_${role}`));
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const runtimeConfig = useRuntimeConfig();
-  const [keycloak, setKeycloak] = useState<Keycloak | null>(null);
-  const refreshTimerRef = useRef<number | null>(null);
-  const initPromiseRef = useRef<Promise<Keycloak> | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [canResumeLogin, setCanResumeLogin] = useState(hasRememberedLogin);
+  const { apiBaseUrl } = useRuntimeConfig();
+  const [session, setSession] = useState<BffSession>(ANONYMOUS_SESSION);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const clearRefreshTimer = useCallback(() => {
-    if (refreshTimerRef.current) {
-      window.clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleRefresh = useCallback((kc: Keycloak) => {
-    clearRefreshTimer();
-
-    refreshTimerRef.current = window.setInterval(async () => {
-      if (!kc.authenticated) {
-        return;
-      }
-
-      try {
-        const refreshed = await kc.updateToken(90);
-        if (refreshed) {
-          setAuthenticated(true);
-        }
-      } catch {
-        setAuthenticated(false);
-      }
-    }, 60_000);
-  }, [clearRefreshTimer]);
-
-  const createKeycloak = useCallback(() => {
-    return new Keycloak({
-      url: runtimeConfig.authUrl,
-      realm: process.env.NEXT_PUBLIC_KEYCLOAK_REALM ?? 'game-realm',
-      clientId: process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? 'game-frontend',
-    });
-  }, [runtimeConfig.authUrl]);
-
-  const initializeKeycloak = useCallback(async (mode: 'callback' | 'resume' | 'login') => {
-    if (initPromiseRef.current) {
-      return initPromiseRef.current;
-    }
-
-    const kc = createKeycloak();
-    const initOptions: KeycloakInitOptions = {
-      pkceMethod: 'S256',
-      checkLoginIframe: false,
-    };
-
-    if (mode === 'resume') {
-      initOptions.onLoad = 'check-sso';
-    }
-
-    clearRefreshTimer();
-    setLoading(true);
-    setError(null);
-
-    const initPromise = (async () => {
-      let initTimeout: number | null = null;
-
-      try {
-        const auth = await Promise.race([
-          kc.init(initOptions),
-          new Promise<never>((_, reject) => {
-            initTimeout = window.setTimeout(() => {
-              reject(new Error('Keycloak initialization timed out'));
-            }, AUTH_INIT_TIMEOUT_MS);
-          }),
-        ]);
-
-        if (initTimeout) {
-          window.clearTimeout(initTimeout);
-        }
-
-        setKeycloak(kc);
-        setAuthenticated(Boolean(auth));
-        setLoading(false);
-
-        if (auth) {
-          window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, '1');
-          window.localStorage.setItem(AUTH_REMEMBERED_LOGIN_STORAGE_KEY, '1');
-          setCanResumeLogin(true);
-          scheduleRefresh(kc);
-        } else if (mode !== 'login') {
-          window.sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-          window.localStorage.removeItem(AUTH_REMEMBERED_LOGIN_STORAGE_KEY);
-          setCanResumeLogin(false);
-          clearRefreshTimer();
-        }
-
-        return kc;
-      } catch (initError: unknown) {
-        if (initTimeout) {
-          window.clearTimeout(initTimeout);
-        }
-
-        setKeycloak(kc);
-        setAuthenticated(false);
-        setLoading(false);
-        setError(
-          initError instanceof Error
-            ? initError.message
-            : 'Authentication is temporarily unavailable',
-        );
-
-        if (mode !== 'login') {
-          window.sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-        }
-
-        clearRefreshTimer();
-        throw initError;
-      } finally {
-        initPromiseRef.current = null;
-      }
-    })();
-
-    initPromiseRef.current = initPromise;
-    return initPromise;
-  }, [clearRefreshTimer, createKeycloak, scheduleRefresh]);
-
-  useEffect(() => {
-    if (!hasAuthCallbackParams()) {
+  const refreshSession = useCallback(async () => {
+    if (!apiBaseUrl) {
+      setError('API configuration is unavailable');
       setLoading(false);
       return;
     }
 
-    void initializeKeycloak('callback').catch(() => {
-      // The UI falls back to guest mode and exposes the error banner.
-    });
-
-    return () => {
-      initPromiseRef.current = null;
-    };
-  }, [initializeKeycloak]);
+    try {
+      const nextSession = await fetchBffSession(apiBaseUrl);
+      setSession(nextSession);
+      setError(null);
+    } catch (sessionError: unknown) {
+      setError(
+        sessionError instanceof Error
+          ? sessionError.message
+          : 'Authentication is temporarily unavailable',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [apiBaseUrl]);
 
   useEffect(() => {
-    return () => {
-      clearRefreshTimer();
+    const abortController = new AbortController();
+
+    void fetchBffSession(apiBaseUrl, abortController.signal)
+      .then((nextSession) => {
+        setSession(nextSession);
+        setError(null);
+      })
+      .catch((sessionError: unknown) => {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        setError(
+          sessionError instanceof Error
+            ? sessionError.message
+            : 'Authentication is temporarily unavailable',
+        );
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => abortController.abort();
+  }, [apiBaseUrl]);
+
+  useEffect(() => {
+    const handleAuthenticationRequired = () => {
+      clearCsrfToken(apiBaseUrl);
+      setSession(ANONYMOUS_SESSION);
+      setError(null);
+      setLoading(false);
     };
-  }, [clearRefreshTimer]);
+
+    window.addEventListener(AUTH_REQUIRED_EVENT, handleAuthenticationRequired);
+    return () => window.removeEventListener(AUTH_REQUIRED_EVENT, handleAuthenticationRequired);
+  }, [apiBaseUrl]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refreshSession]);
 
   const value = useMemo<AuthContextValue>(() => {
-    const tokenParsed = ((keycloak?.tokenParsed as KeycloakTokenParsed & {
-      email?: string;
-      preferred_username?: string;
-      name?: string;
-    }) ?? null);
-    const rawRoles: string[] = tokenParsed?.realm_access?.roles ?? [];
-    const userEmail = tokenParsed?.email ?? null;
-    const displayName =
-      tokenParsed?.preferred_username ??
-      tokenParsed?.name ??
-      tokenParsed?.email ??
-      tokenParsed?.sub ??
-      null;
+    const user = session.authenticated ? session.user : null;
 
     return {
-      keycloak,
       loading,
-      authenticated,
-      canResumeLogin,
+      authenticated: Boolean(user),
       error,
-      userId: tokenParsed?.sub ?? null,
-      userEmail,
-      displayName,
-      roles: withRolePrefix(rawRoles),
+      userId: user?.id ?? null,
+      userEmail: user?.email ?? null,
+      displayName: user?.username ?? user?.email ?? user?.id ?? null,
+      roles: withRolePrefix(user?.roles ?? []),
       login: () => {
-        if (loading) {
-          return;
-        }
-
-        window.sessionStorage.setItem(AUTH_SESSION_STORAGE_KEY, '1');
-
-        void (async () => {
-          try {
-            const kc = authenticated && keycloak
-              ? keycloak
-              : await initializeKeycloak('login');
-            await kc.login({
-              redirectUri: window.location.href,
-            });
-          } catch (loginError: unknown) {
-            window.sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-            setError(
-              loginError instanceof Error
-                ? loginError.message
-                : 'Authentication is temporarily unavailable',
-            );
-          }
-        })();
+        window.location.assign(gatewayUrl(apiBaseUrl, '/oauth2/authorization/keycloak'));
       },
       logout: () => {
-        window.sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-        window.localStorage.removeItem(AUTH_REMEMBERED_LOGIN_STORAGE_KEY);
-        setCanResumeLogin(false);
-        clearRefreshTimer();
+        clearCsrfToken(apiBaseUrl);
+        void getCsrfToken(apiBaseUrl)
+          .then((csrfToken) => {
+            const form = document.createElement('form');
+            const csrfInput = document.createElement('input');
 
-        if (!keycloak) {
-          setAuthenticated(false);
-          return;
-        }
+            form.method = 'POST';
+            form.action = gatewayUrl(apiBaseUrl, '/api/logout');
+            form.hidden = true;
 
-        void keycloak.logout({
-          redirectUri: window.location.origin,
-        });
+            csrfInput.type = 'hidden';
+            csrfInput.name = csrfToken.parameterName;
+            csrfInput.value = csrfToken.token;
+
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+          })
+          .catch((logoutError: unknown) => {
+            setError(
+              logoutError instanceof Error
+                ? logoutError.message
+                : 'Logout is temporarily unavailable',
+            );
+          });
       },
+      refreshSession,
     };
-  }, [authenticated, canResumeLogin, clearRefreshTimer, error, initializeKeycloak, keycloak, loading]);
+  }, [apiBaseUrl, error, loading, refreshSession, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+
+  return context;
 }
