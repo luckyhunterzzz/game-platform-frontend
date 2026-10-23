@@ -1,7 +1,12 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import {
+  clearCsrfToken,
+  getCsrfToken,
+  isUnsafeMethod,
+  notifyAuthenticationRequired,
+} from '@/lib/bff-auth';
 import { useRuntimeConfig } from '@/lib/runtime-config/context';
 import type { ErrorResponse } from '@/lib/types/publication';
 
@@ -23,7 +28,6 @@ export class ApiError extends Error {
 }
 
 export function useApi() {
-  const { keycloak } = useAuth();
   const { apiBaseUrl } = useRuntimeConfig();
 
   const apiFetch = useCallback(
@@ -37,9 +41,17 @@ export function useApi() {
       const headers = new Headers(init.headers);
       headers.set('X-Request-Id', crypto.randomUUID());
 
-      const token = keycloak?.token;
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+      const requestUrl = new URL(url, window.location.origin);
+      const gatewayOrigin = new URL(apiBaseUrl, window.location.origin).origin;
+      const isGatewayRequest = requestUrl.origin === gatewayOrigin;
+
+      if (isGatewayRequest) {
+        headers.delete('Authorization');
+
+        if (isUnsafeMethod(init.method) && !headers.has('X-XSRF-TOKEN')) {
+          const csrfToken = await getCsrfToken(apiBaseUrl);
+          headers.set(csrfToken.headerName, csrfToken.token);
+        }
       }
 
       let res: Response;
@@ -48,6 +60,7 @@ export function useApi() {
         res = await fetch(url, {
           ...init,
           headers,
+          credentials: init.credentials ?? (isGatewayRequest ? 'include' : undefined),
         });
       } catch (error) {
         const apiHost = (() => {
@@ -67,12 +80,20 @@ export function useApi() {
 
       const body = await res.text();
 
+      if (isGatewayRequest && (res.status === 401 || res.status === 403)) {
+        clearCsrfToken(apiBaseUrl);
+      }
+
+      if (isGatewayRequest && res.status === 401) {
+        notifyAuthenticationRequired();
+      }
+
       return {
         status: res.status,
         body,
       };
     },
-    [apiBaseUrl, keycloak?.token],
+    [apiBaseUrl],
   );
 
   const apiJson = useCallback(
@@ -112,11 +133,15 @@ export function useApi() {
           );
         }
 
-        throw new ApiError(
-          `Request failed with status ${response.status}`,
-          response.status,
-          parsedBody,
-        );
+        const fallbackMessage = response.status === 401
+          ? 'Authentication is required or the session has expired'
+          : response.status === 403
+            ? 'You do not have permission to perform this action'
+            : response.status === 503
+              ? 'Authentication service is temporarily unavailable. Your session was not deleted'
+              : `Request failed with status ${response.status}`;
+
+        throw new ApiError(fallbackMessage, response.status, parsedBody);
       }
 
       return parsedBody as TResponse;
@@ -210,11 +235,15 @@ export function useApi() {
           );
         }
 
-        throw new ApiError(
-          `Request failed with status ${response.status}`,
-          response.status,
-          parsedBody,
-        );
+        const fallbackMessage = response.status === 401
+          ? 'Authentication is required or the session has expired'
+          : response.status === 403
+            ? 'You do not have permission to perform this action'
+            : response.status === 503
+              ? 'Authentication service is temporarily unavailable. Your session was not deleted'
+              : `Request failed with status ${response.status}`;
+
+        throw new ApiError(fallbackMessage, response.status, parsedBody);
       }
     },
     [apiFetch],

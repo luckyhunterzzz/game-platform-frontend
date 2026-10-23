@@ -28,7 +28,7 @@ export const Navbar = ({
   onMenuClick: () => void;
   onHomeClick?: () => void;
 }) => {
-  const { authenticated, canResumeLogin, error: authError, loading: authLoading, login, logout } = useAuth();
+  const { authenticated, error: authError, loading: authLoading, login, logout } = useAuth();
   const { locale, setLocale, messages } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -97,7 +97,7 @@ export const Navbar = ({
       : 'Authentication is temporarily unavailable. The site is running in guest mode.';
 
   const ThemeIcon = theme === 'light' ? Sun : Moon;
-  const loginLabel = canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login;
+  const loginLabel = messages.navbar.login;
   const authStatusMessage =
     locale === 'ru'
       ? '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430. \u0421\u0430\u0439\u0442 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0435\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0432 \u0433\u043e\u0441\u0442\u0435\u0432\u043e\u043c \u0440\u0435\u0436\u0438\u043c\u0435.'

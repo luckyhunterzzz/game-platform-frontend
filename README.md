@@ -1,45 +1,46 @@
 # GameOps Platform - Frontend
 
-This is the frontend part of the **GameOps Platform** MVP. It is built with **Next.js 15** and integrated with **Keycloak** for authentication.
+Next.js frontend for the public site and admin workspace.
 
-## Features
-* **OIDC Authentication**: Secure login via Keycloak (Authorization Code Flow with PKCE).
-* **Role-based Access**: Custom React context to manage user roles (e.g., `ROLE_admin`).
-* **API Integration**: Custom hook for authorized requests to the API Gateway.
-* **Dockerized**: Ready to run in a containerized environment.
+## Authentication
 
-## Tech Stack
-* **Framework**: Next.js (App Router)
-* **Language**: TypeScript
-* **Auth**: Keycloak-js
-* **Styling**: Tailwind CSS
+Authentication uses the API Gateway as a Backend for Frontend (BFF):
 
-## How to Run Locally
+- login starts at `GET /oauth2/authorization/keycloak` on the Gateway;
+- the browser stores only the Gateway session cookie;
+- `GET /api/session` returns the current user and roles;
+- unsafe API requests obtain a CSRF token from `GET /api/session/csrf`;
+- logout sends `POST /api/logout` and continues through the Keycloak end-session flow;
+- OAuth access and refresh tokens are never stored in frontend JavaScript storage.
 
-### 1. Prerequisites
-Make sure you have the [Infrastructure Repository](https://github.com/your-username/game-platform-infra) running.
+The frontend keeps the existing `ROLE_*` checks. Roles returned by `/api/session` are normalized in `src/lib/auth-context.tsx`.
 
-### 2. Environment Variables
-Create a `.env.local` file in the root directory:
+## Local development
+
+Start the dev infrastructure and create `.env.local`:
+
 ```env
-NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
-NEXT_PUBLIC_KEYCLOAK_REALM=game-realm
-NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=game-frontend
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8081
 ```
-### 3. Development Mode
-```Bash
+
+Then run:
+
+```bash
 npm install
 npm run dev
 ```
-Open http://localhost:3000 to see the result.
 
-### 4. Docker Build
-```Bash
-docker build -t game-frontend .
+Open `http://localhost:3000`.
+
+## Verification
+
+```bash
+npm run lint
+npm run build
 ```
 
-## Project Structure
-* src/lib/auth-context.tsx: Keycloak initialization and auth state.
-* src/lib/use-api.ts: API fetcher with automatic Bearer token injection.
-* src/app/page.tsx: Diagnostic dashboard for testing endpoints.
+## Main authentication files
+
+- `src/lib/auth-context.tsx` loads and exposes the Gateway session.
+- `src/lib/bff-auth.ts` contains the session and CSRF client.
+- `src/lib/use-api.ts` sends cookies and CSRF headers to the Gateway.

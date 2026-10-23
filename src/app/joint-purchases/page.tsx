@@ -15,8 +15,8 @@ export default function JointPurchasesPage() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const { messages } = useI18n();
-  const { authenticated, canResumeLogin, loading, login } = useAuth();
-  const loginLabel = canResumeLogin ? messages.navbar.continueLogin : messages.navbar.login;
+  const { authenticated, loading, login } = useAuth();
+  const loginLabel = messages.navbar.login;
 
   const navigateHome = () => {
     setSidebarOpen(false);
