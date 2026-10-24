@@ -4,7 +4,7 @@ export type SummonContentStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
 export type SummonProbabilityKind = 'MAIN' | 'BONUS';
 export type SummonBonusKind = 'INDEPENDENT' | 'CONDITIONAL';
 export type BonusResultConditionType = 'ANY_RESULT' | 'RARITY' | 'PROBABILITY';
-export type BonusRewardMode = 'MAIN_ROLL' | 'SPECIFIC_PROBABILITY';
+export type BonusRewardMode = 'MAIN_ROLL' | 'CUSTOM_DISTRIBUTION';
 
 export interface SummonAdminSummary {
   id: string;
@@ -45,7 +45,13 @@ export interface SummonBonusStep {
   position: number;
   activationChancePercent: number;
   rewardMode: BonusRewardMode;
-  rewardProbabilityId?: string | null;
+  rewardProbabilities: SummonBonusStepProbability[];
+}
+
+export interface SummonBonusStepProbability {
+  probabilityId: string;
+  valuePercent: number;
+  position: number;
 }
 
 export interface SummonBonusRule {
@@ -126,7 +132,13 @@ export interface SummonBonusStepCreateRequest {
   position: number;
   activationChancePercent: number;
   rewardMode: BonusRewardMode;
-  rewardProbabilityDefinitionId?: string | null;
+  rewardProbabilities: SummonBonusStepProbabilityCreateRequest[];
+}
+
+export interface SummonBonusStepProbabilityCreateRequest {
+  probabilityDefinitionId: string;
+  valuePercent: number;
+  position: number;
 }
 
 export interface SummonBonusRuleCreateRequest {
