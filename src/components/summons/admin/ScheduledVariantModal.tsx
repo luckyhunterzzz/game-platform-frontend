@@ -98,7 +98,7 @@ function probabilityForms(variant: SummonVariant): ProbabilityFormItem[] {
   return variant.probabilities.map((probability) => ({
     key: probability.id,
     definitionId: probability.definition.id,
-    kind: probability.kind,
+    kind: 'MAIN',
     valuePercent: String(probability.valuePercent),
     heroIds: probability.heroIds,
     userSelectionEnabled: probability.userSelectionEnabled,
@@ -126,6 +126,8 @@ function bonusRuleForms(variant: SummonVariant): BonusRuleForm[] {
         probabilityDefinitionId: probabilityDefinitionById.get(reward.probabilityId) ?? '',
         valuePercent: String(reward.valuePercent),
       })),
+      userHeroSelectionEnabled: step.userHeroSelectionEnabled,
+      rewardHeroIds: step.rewardHeroIds,
     })),
   }));
 }
@@ -206,9 +208,6 @@ export default function ScheduledVariantModal({
         definitionNameRequired: 'Заполните название определения на русском и английском языках.',
         createDefinition: 'Создать определение',
         cancel: 'Отмена',
-        kind: 'Тип',
-        main: 'Основная',
-        bonus: 'Бонусный пул',
         percent: 'Вероятность, %',
         mainTotal: 'Сумма основных вероятностей',
         remaining: 'Осталось до 100%',
@@ -248,9 +247,6 @@ export default function ScheduledVariantModal({
         definitionNameRequired: 'Enter the Russian and English definition names.',
         createDefinition: 'Create definition',
         cancel: 'Cancel',
-        kind: 'Type',
-        main: 'Main',
-        bonus: 'Bonus pool',
         percent: 'Probability, %',
         mainTotal: 'Main probability total',
         remaining: 'Remaining to 100%',
@@ -458,6 +454,19 @@ export default function ScheduledVariantModal({
           }
           if (rewardTotal !== 10_000) return false;
         } else if (step.rewardProbabilities.length > 0) return false;
+        if (step.rewardMode === 'SPECIFIC_HERO_POOL') {
+          if (
+            (step.userHeroSelectionEnabled && step.rewardHeroIds.length > 0)
+            || (!step.userHeroSelectionEnabled && step.rewardHeroIds.length !== 1)
+          ) return false;
+          const rewardHeroes = step.rewardHeroIds
+            .map((heroId) => heroes.find((hero) => hero.id === heroId))
+            .filter((hero): hero is SummonHeroOption => Boolean(hero));
+          if (
+            rewardHeroes.length !== step.rewardHeroIds.length
+            || rewardHeroes.some((hero) => !hero.rarityId || !fiveStarRarityIds.has(hero.rarityId))
+          ) return false;
+        } else if (step.userHeroSelectionEnabled || step.rewardHeroIds.length > 0) return false;
       }
     }
     return true;
@@ -465,7 +474,7 @@ export default function ScheduledVariantModal({
 
   const probabilityRequests = (): SummonProbabilityCreateRequest[] => probabilities.map((item, index) => ({
     definitionId: item.definitionId,
-    kind: item.kind,
+    kind: 'MAIN',
     valuePercent: Number(item.valuePercent),
     position: index + 1,
     heroIds: item.heroIds,
@@ -489,6 +498,11 @@ export default function ScheduledVariantModal({
             valuePercent: Number(reward.valuePercent),
             position: rewardIndex + 1,
           }))
+        : [],
+      userHeroSelectionEnabled: step.rewardMode === 'SPECIFIC_HERO_POOL'
+        && step.userHeroSelectionEnabled,
+      rewardHeroIds: step.rewardMode === 'SPECIFIC_HERO_POOL'
+        ? step.rewardHeroIds
         : [],
     })),
   }));
@@ -732,7 +746,7 @@ export default function ScheduledVariantModal({
                           </button>
                         </div>
                       </div>
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
                         <label className="flex flex-col gap-2">
                           <span className="text-sm text-[var(--foreground-soft)]">{text.definition}</span>
                           <select
@@ -758,24 +772,6 @@ export default function ScheduledVariantModal({
                           </button>
                         </label>
                         <label className="flex flex-col gap-2">
-                          <span className="text-sm text-[var(--foreground-soft)]">{text.kind}</span>
-                          <select
-                            value={probability.kind}
-                            onChange={(event) => {
-                              const kind = event.target.value as SummonProbabilityKind;
-                              updateProbability(probability.key, {
-                                kind,
-                                userSelectionEnabled: kind === 'MAIN' && probability.userSelectionEnabled,
-                              });
-                            }}
-                            disabled={saving}
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)]"
-                          >
-                            <option value="MAIN">{text.main}</option>
-                            <option value="BONUS">{text.bonus}</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2">
                           <span className="text-sm text-[var(--foreground-soft)]">{text.percent}</span>
                           <input
                             type="number"
@@ -799,7 +795,6 @@ export default function ScheduledVariantModal({
                               const enabled = event.target.checked;
                               updateProbability(probability.key, {
                                 userSelectionEnabled: enabled,
-                                kind: enabled ? 'MAIN' : probability.kind,
                                 heroIds: enabled
                                   ? probability.heroIds.filter((heroId) => {
                                       const hero = heroes.find((item) => item.id === heroId);
@@ -856,6 +851,8 @@ export default function ScheduledVariantModal({
               locale={locale}
               definitions={definitions}
               probabilityDefinitionIds={probabilities.map((probability) => probability.definitionId).filter(Boolean)}
+              heroes={heroes}
+              families={families}
               rarities={rarities}
               rules={bonusRules}
               onChange={setBonusRules}
