@@ -4,7 +4,7 @@ export type SummonContentStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
 export type SummonProbabilityKind = 'MAIN' | 'BONUS';
 export type SummonBonusKind = 'INDEPENDENT' | 'CONDITIONAL';
 export type BonusResultConditionType = 'ANY_RESULT' | 'RARITY' | 'PROBABILITY';
-export type BonusRewardMode = 'MAIN_ROLL' | 'CUSTOM_DISTRIBUTION';
+export type BonusRewardMode = 'MAIN_ROLL' | 'CUSTOM_DISTRIBUTION' | 'SPECIFIC_HERO_POOL';
 
 export interface SummonAdminSummary {
   id: string;
@@ -46,6 +46,8 @@ export interface SummonBonusStep {
   activationChancePercent: number;
   rewardMode: BonusRewardMode;
   rewardProbabilities: SummonBonusStepProbability[];
+  userHeroSelectionEnabled: boolean;
+  rewardHeroIds: number[];
 }
 
 export interface SummonBonusStepProbability {
@@ -133,6 +135,8 @@ export interface SummonBonusStepCreateRequest {
   activationChancePercent: number;
   rewardMode: BonusRewardMode;
   rewardProbabilities: SummonBonusStepProbabilityCreateRequest[];
+  userHeroSelectionEnabled: boolean;
+  rewardHeroIds: number[];
 }
 
 export interface SummonBonusStepProbabilityCreateRequest {

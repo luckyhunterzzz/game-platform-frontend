@@ -134,7 +134,7 @@ function createFormFromSummon(summon: SummonAdminDetails): SummonFormState {
     probabilities: summon.defaultVariant.probabilities.map((probability) => ({
       key: probability.id,
       definitionId: probability.definition.id,
-      kind: probability.kind as SummonProbabilityKind,
+      kind: 'MAIN',
       valuePercent: String(probability.valuePercent),
       heroIds: probability.heroIds,
       userSelectionEnabled: probability.userSelectionEnabled,
@@ -156,6 +156,8 @@ function createFormFromSummon(summon: SummonAdminDetails): SummonFormState {
           probabilityDefinitionId: probabilityDefinitionById.get(reward.probabilityId) ?? '',
           valuePercent: String(reward.valuePercent),
         })),
+        userHeroSelectionEnabled: step.userHeroSelectionEnabled,
+        rewardHeroIds: step.rewardHeroIds,
       })),
     })),
   };
@@ -239,9 +241,6 @@ export default function CreateSummonModal({
             definition: 'Название вероятности',
             selectDefinition: 'Выберите существующее определение',
             newDefinition: 'Создать новое определение',
-            kind: 'Тип вероятности',
-            main: 'Основная',
-            bonus: 'Бонусный пул',
             percent: 'Вероятность, %',
             userSelection: 'Это пул рекомендованных героев',
             userSelectionHint:
@@ -298,9 +297,6 @@ export default function CreateSummonModal({
             definition: 'Probability name',
             selectDefinition: 'Select an existing definition',
             newDefinition: 'Create new definition',
-            kind: 'Probability type',
-            main: 'Main',
-            bonus: 'Bonus pool',
             percent: 'Probability, %',
             userSelection: 'This is the featured hero pool',
             userSelectionHint:
@@ -603,6 +599,23 @@ export default function CreateSummonModal({
         } else if (step.rewardProbabilities.length > 0) {
           return text.incompleteBonus;
         }
+        if (step.rewardMode === 'SPECIFIC_HERO_POOL') {
+          if (
+            (step.userHeroSelectionEnabled && step.rewardHeroIds.length > 0)
+            || (!step.userHeroSelectionEnabled && step.rewardHeroIds.length !== 1)
+          ) return text.incompleteBonus;
+          const rewardHeroes = step.rewardHeroIds
+            .map((heroId) => heroes.find((hero) => hero.id === heroId))
+            .filter((hero): hero is SummonHeroOption => Boolean(hero));
+          if (
+            rewardHeroes.length !== step.rewardHeroIds.length
+            || rewardHeroes.some((hero) => !hero.rarityId || !fiveStarRarityIds.has(hero.rarityId))
+          ) {
+            return text.incompleteBonus;
+          }
+        } else if (step.userHeroSelectionEnabled || step.rewardHeroIds.length > 0) {
+          return text.incompleteBonus;
+        }
       }
     }
 
@@ -639,7 +652,7 @@ export default function CreateSummonModal({
       backgroundImageObjectKey: form.backgroundImage.objectKey ?? null,
       probabilities: form.probabilities.map((item, index) => ({
         definitionId: item.definitionId,
-        kind: item.kind,
+        kind: 'MAIN',
         valuePercent: Number(item.valuePercent),
         position: index + 1,
         heroIds: item.heroIds,
@@ -668,6 +681,11 @@ export default function CreateSummonModal({
                 valuePercent: Number(reward.valuePercent),
                 position: rewardIndex + 1,
               }))
+            : [],
+          userHeroSelectionEnabled: step.rewardMode === 'SPECIFIC_HERO_POOL'
+            && step.userHeroSelectionEnabled,
+          rewardHeroIds: step.rewardMode === 'SPECIFIC_HERO_POOL'
+            ? step.rewardHeroIds
             : [],
         })),
       })),
@@ -864,7 +882,7 @@ export default function CreateSummonModal({
                     </div>
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
                     <label className="flex flex-col gap-2">
                       <span className="text-sm font-medium text-[var(--foreground-soft)]">{text.definition}</span>
                       <select
@@ -888,25 +906,6 @@ export default function CreateSummonModal({
                       >
                         + {text.newDefinition}
                       </button>
-                    </label>
-
-                    <label className="flex flex-col gap-2">
-                      <span className="text-sm font-medium text-[var(--foreground-soft)]">{text.kind}</span>
-                      <select
-                        value={probability.kind}
-                        onChange={(event) => {
-                          const kind = event.target.value as SummonProbabilityKind;
-                          updateProbability(probability.key, {
-                            kind,
-                            userSelectionEnabled: kind === 'MAIN' && probability.userSelectionEnabled,
-                          });
-                        }}
-                        disabled={saving}
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-[var(--foreground)] outline-none"
-                      >
-                        <option value="MAIN">{text.main}</option>
-                        <option value="BONUS">{text.bonus}</option>
-                      </select>
                     </label>
 
                     <label className="flex flex-col gap-2">
@@ -963,7 +962,6 @@ export default function CreateSummonModal({
                           const enabled = event.target.checked;
                           updateProbability(probability.key, {
                             userSelectionEnabled: enabled,
-                            kind: enabled ? 'MAIN' : probability.kind,
                             heroIds: enabled
                               ? probability.heroIds.filter((heroId) => {
                                   const hero = heroes.find((item) => item.id === heroId);
@@ -1024,6 +1022,8 @@ export default function CreateSummonModal({
           locale={locale}
           definitions={definitions}
           probabilityDefinitionIds={form.probabilities.map((probability) => probability.definitionId).filter(Boolean)}
+          heroes={heroes}
+          families={families}
           rarities={rarities}
           rules={form.bonusRules}
           onChange={(bonusRules) => setForm((previous) => ({ ...previous, bonusRules }))}
