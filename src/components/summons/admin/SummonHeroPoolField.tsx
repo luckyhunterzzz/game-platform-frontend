@@ -1,7 +1,7 @@
 'use client';
 
-import { Search, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   SummonFamilyOption,
@@ -13,6 +13,12 @@ function heroName(hero: SummonHeroOption, locale: 'ru' | 'en') {
   const primary = locale === 'ru' ? hero.nameJson?.ru : hero.nameJson?.en;
   const secondary = locale === 'ru' ? hero.nameJson?.en : hero.nameJson?.ru;
   return primary?.trim() || secondary?.trim() || hero.slug;
+}
+
+function familyName(family: SummonFamilyOption, locale: 'ru' | 'en') {
+  const primary = locale === 'ru' ? family.nameJson?.ru : family.nameJson?.en;
+  const secondary = locale === 'ru' ? family.nameJson?.en : family.nameJson?.ru;
+  return primary?.trim() || secondary?.trim() || `#${family.id}`;
 }
 
 export default function SummonHeroPoolField({
@@ -39,7 +45,10 @@ export default function SummonHeroPoolField({
   const [search, setSearch] = useState('');
   const [familySearch, setFamilySearch] = useState('');
   const [familyId, setFamilyId] = useState('');
+  const [familyDropdownOpen, setFamilyDropdownOpen] = useState(false);
   const [rarityId, setRarityId] = useState('');
+  const familyDropdownRef = useRef<HTMLDivElement>(null);
+  const familySearchInputRef = useRef<HTMLInputElement>(null);
   const allowedRarityIds = useMemo(
     () => new Set(
       rarities
@@ -79,17 +88,48 @@ export default function SummonHeroPoolField({
         (!rarityId || hero.rarityId === Number(rarityId)),
     );
   }, [eligibleHeroes, familyId, rarityId, selectedSet]);
+  const selectedFamily = useMemo(
+    () => families.find((family) => family.id === Number(familyId)) ?? null,
+    [families, familyId],
+  );
   const filteredFamilies = useMemo(() => {
     const normalized = familySearch.trim().toLocaleLowerCase();
-    if (!normalized) return families;
-    return families.filter(
+    const sorted = [...families].sort((left, right) =>
+      familyName(left, locale).localeCompare(familyName(right, locale), locale, { sensitivity: 'base' }),
+    );
+    if (!normalized) return sorted;
+    return sorted.filter(
       (family) =>
-        family.id === Number(familyId) ||
         `${family.nameJson?.ru ?? ''} ${family.nameJson?.en ?? ''}`
           .toLocaleLowerCase()
           .includes(normalized),
     );
-  }, [families, familyId, familySearch]);
+  }, [families, familySearch, locale]);
+
+  useEffect(() => {
+    if (!familyDropdownOpen) return;
+    familySearchInputRef.current?.focus();
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!familyDropdownRef.current?.contains(event.target as Node)) {
+        setFamilyDropdownOpen(false);
+        setFamilySearch('');
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFamilyDropdownOpen(false);
+        setFamilySearch('');
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [familyDropdownOpen]);
 
   const text =
     locale === 'ru'
@@ -104,6 +144,7 @@ export default function SummonHeroPoolField({
           family: 'Семья',
           familySearch: 'Найти семью по названию',
           allFamilies: 'Все семьи',
+          familiesNotFound: 'Семьи не найдены.',
           rarity: 'Редкость',
           allRarities: 'Все редкости',
           addFiltered: 'Добавить найденных',
@@ -121,6 +162,7 @@ export default function SummonHeroPoolField({
           family: 'Family',
           familySearch: 'Find family by name',
           allFamilies: 'All families',
+          familiesNotFound: 'No families found.',
           rarity: 'Rarity',
           allRarities: 'All rarities',
           addFiltered: 'Add matching heroes',
@@ -165,30 +207,89 @@ export default function SummonHeroPoolField({
       <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
         <div className="text-sm font-semibold text-[var(--foreground)]">{text.bulkTitle}</div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2">
-          <label className="flex min-w-0 flex-col gap-2">
+          <div ref={familyDropdownRef} className="relative flex min-w-0 flex-col gap-2">
             <span className="text-xs font-medium text-[var(--foreground-soft)]">{text.family}</span>
-            <input
-              type="search"
-              value={familySearch}
-              onChange={(event) => setFamilySearch(event.target.value)}
+            <button
+              type="button"
+              onClick={() => setFamilyDropdownOpen((current) => !current)}
               disabled={disabled}
-              placeholder={text.familySearch}
-              className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
-            />
-            <select
-              value={familyId}
-              onChange={(event) => setFamilyId(event.target.value)}
-              disabled={disabled}
-              className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
+              aria-haspopup="listbox"
+              aria-expanded={familyDropdownOpen}
+              className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40 disabled:opacity-50"
             >
-              <option value="">{text.allFamilies}</option>
-              {filteredFamilies.map((family) => (
-                <option key={family.id} value={family.id}>
-                  {heroName({ id: family.id, slug: '', nameJson: family.nameJson, status: 'READY' }, locale)}
-                </option>
-              ))}
-            </select>
-          </label>
+              <span className="truncate">
+                {selectedFamily ? familyName(selectedFamily, locale) : text.allFamilies}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-[var(--foreground-muted)] transition ${familyDropdownOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {familyDropdownOpen ? (
+              <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl shadow-black/30">
+                <div className="border-b border-[var(--border)] p-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--foreground-muted)]" aria-hidden="true" />
+                    <input
+                      ref={familySearchInputRef}
+                      type="search"
+                      value={familySearch}
+                      onChange={(event) => setFamilySearch(event.target.value)}
+                      placeholder={text.familySearch}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2.5 pl-9 pr-3 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-400/40"
+                    />
+                  </div>
+                </div>
+
+                <div role="listbox" className="max-h-64 overflow-y-auto p-1.5">
+                  {!familySearch.trim() ? (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={!familyId}
+                      onClick={() => {
+                        setFamilyId('');
+                        setFamilyDropdownOpen(false);
+                        setFamilySearch('');
+                      }}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                    >
+                      <span>{text.allFamilies}</span>
+                      {!familyId ? <Check className="h-4 w-4 text-cyan-300" aria-hidden="true" /> : null}
+                    </button>
+                  ) : null}
+
+                  {filteredFamilies.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-[var(--foreground-soft)]">
+                      {text.familiesNotFound}
+                    </div>
+                  ) : (
+                    filteredFamilies.map((family) => {
+                      const selected = family.id === Number(familyId);
+                      return (
+                        <button
+                          key={family.id}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            setFamilyId(String(family.id));
+                            setFamilyDropdownOpen(false);
+                            setFamilySearch('');
+                          }}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]"
+                        >
+                          <span className="truncate">{familyName(family, locale)}</span>
+                          {selected ? <Check className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /> : null}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <label className="flex min-w-0 flex-col gap-2">
             <span className="text-xs font-medium text-[var(--foreground-soft)]">{text.rarity}</span>
             <select

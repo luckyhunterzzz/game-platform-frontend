@@ -6,9 +6,13 @@ import type {
   BonusResultConditionType,
   BonusRewardMode,
   SummonBonusKind,
+  SummonFamilyOption,
+  SummonHeroOption,
   SummonProbabilityDefinition,
   SummonRarityOption,
 } from '@/lib/types/summon';
+
+import SummonHeroPoolField from './SummonHeroPoolField';
 
 export type BonusConditionForm = {
   type: BonusResultConditionType;
@@ -21,6 +25,8 @@ export type BonusStepForm = {
   activationChancePercent: string;
   rewardMode: BonusRewardMode;
   rewardProbabilities: BonusRewardProbabilityForm[];
+  userHeroSelectionEnabled: boolean;
+  rewardHeroIds: number[];
 };
 
 export type BonusRewardProbabilityForm = {
@@ -49,6 +55,8 @@ export function emptyBonusStep(): BonusStepForm {
     activationChancePercent: '',
     rewardMode: 'MAIN_ROLL',
     rewardProbabilities: [],
+    userHeroSelectionEnabled: false,
+    rewardHeroIds: [],
   };
 }
 
@@ -68,6 +76,7 @@ function duplicateBonusStep(step: BonusStepForm): BonusStepForm {
       ...reward,
       key: crypto.randomUUID(),
     })),
+    rewardHeroIds: [...step.rewardHeroIds],
   };
 }
 
@@ -199,6 +208,8 @@ export default function SummonBonusRulesEditor({
   locale,
   definitions,
   probabilityDefinitionIds,
+  heroes,
+  families,
   rarities,
   rules,
   onChange,
@@ -208,6 +219,8 @@ export default function SummonBonusRulesEditor({
   locale: 'ru' | 'en';
   definitions: SummonProbabilityDefinition[];
   probabilityDefinitionIds: string[];
+  heroes: SummonHeroOption[];
+  families: SummonFamilyOption[];
   rarities: SummonRarityOption[];
   rules: BonusRuleForm[];
   onChange: (rules: BonusRuleForm[]) => void;
@@ -235,6 +248,9 @@ export default function SummonBonusRulesEditor({
         rewardMode: 'Какие вероятности использовать',
         mainRoll: 'Обычные вероятности призыва',
         customDistribution: 'Своя сетка вероятностей',
+        specificHeroPool: 'Конкретный герой 5★',
+        userSelectsHero: 'Героя перед симуляцией выбирает пользователь',
+        fixedHeroHint: 'Выберите одного героя 5★. Если включить пользовательский выбор, поле можно оставить пустым.',
         distributionHint: 'Сумма вероятностей одной попытки должна быть ровно 100%.',
         addRewardProbability: 'Добавить исход',
         rewardProbability: 'Что может выпасть',
@@ -265,6 +281,9 @@ export default function SummonBonusRulesEditor({
         rewardMode: 'Probability source',
         mainRoll: 'Main summon distribution',
         customDistribution: 'Custom probability distribution',
+        specificHeroPool: 'Specific 5★ hero',
+        userSelectsHero: 'The user selects the hero before simulation',
+        fixedHeroHint: 'Select one 5★ hero. The field can stay empty when user selection is enabled.',
         distributionHint: 'The outcomes of one attempt must total exactly 100%.',
         addRewardProbability: 'Add outcome',
         rewardProbability: 'Possible result',
@@ -473,6 +492,8 @@ export default function SummonBonusRulesEditor({
                                         ...item,
                                         rewardMode: event.target.value as BonusRewardMode,
                                         rewardProbabilities: [],
+                                        userHeroSelectionEnabled: false,
+                                        rewardHeroIds: [],
                                       }
                                     : item,
                                 ),
@@ -483,9 +504,54 @@ export default function SummonBonusRulesEditor({
                           >
                             <option value="MAIN_ROLL">{text.mainRoll}</option>
                             <option value="CUSTOM_DISTRIBUTION">{text.customDistribution}</option>
+                            <option value="SPECIFIC_HERO_POOL">{text.specificHeroPool}</option>
                           </select>
                         </label>
                       </div>
+
+                      {step.rewardMode === 'SPECIFIC_HERO_POOL' ? (
+                        <div className="space-y-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
+                          <label className="flex items-start gap-3 text-sm text-[var(--foreground-soft)]">
+                            <input
+                              type="checkbox"
+                              checked={step.userHeroSelectionEnabled}
+                              onChange={(event) => updateRule(rule.key, {
+                                steps: rule.steps.map((item) => item.key === step.key
+                                  ? {
+                                      ...item,
+                                      userHeroSelectionEnabled: event.target.checked,
+                                      rewardHeroIds: event.target.checked ? [] : item.rewardHeroIds,
+                                    }
+                                  : item),
+                              })}
+                              disabled={disabled}
+                              className="mt-0.5 h-4 w-4 shrink-0"
+                            />
+                            <span>
+                              <span className="block font-semibold text-amber-100">{text.userSelectsHero}</span>
+                              <span className="mt-1 block text-xs leading-5">{text.fixedHeroHint}</span>
+                            </span>
+                          </label>
+
+                          {!step.userHeroSelectionEnabled ? (
+                            <SummonHeroPoolField
+                              locale={locale}
+                              heroes={heroes}
+                              families={families}
+                              rarities={rarities}
+                              selectedIds={step.rewardHeroIds}
+                              onChange={(rewardHeroIds) => updateRule(rule.key, {
+                                steps: rule.steps.map((item) => item.key === step.key
+                                  ? { ...item, rewardHeroIds }
+                                  : item),
+                              })}
+                              disabled={disabled}
+                              allowedRarityStars={5}
+                              maxSelected={1}
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       {step.rewardMode === 'CUSTOM_DISTRIBUTION' ? (
                         <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-400/5 p-3">
