@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import DictionaryModal from '@/components/heroes/admin/DictionaryModal';
@@ -121,9 +121,11 @@ function bonusRuleForms(variant: SummonVariant): BonusRuleForm[] {
       key: step.id,
       activationChancePercent: String(step.activationChancePercent),
       rewardMode: step.rewardMode,
-      rewardProbabilityDefinitionId: step.rewardProbabilityId
-        ? probabilityDefinitionById.get(step.rewardProbabilityId) ?? ''
-        : '',
+      rewardProbabilities: step.rewardProbabilities.map((reward) => ({
+        key: `${step.id}-${reward.probabilityId}`,
+        probabilityDefinitionId: probabilityDefinitionById.get(reward.probabilityId) ?? '',
+        valuePercent: String(reward.valuePercent),
+      })),
     })),
   }));
 }
@@ -197,6 +199,7 @@ export default function ScheduledVariantModal({
         probabilities: 'Вероятности',
         probabilityHint: 'Календарная версия хранит собственный снимок настроек.',
         addProbability: 'Добавить вероятность',
+        duplicateProbability: 'Дублировать вероятность',
         definition: 'Название вероятности',
         selectDefinition: 'Выберите определение',
         newDefinition: 'Создать новое определение',
@@ -238,6 +241,7 @@ export default function ScheduledVariantModal({
         probabilities: 'Probabilities',
         probabilityHint: 'A calendar version keeps its own configuration snapshot.',
         addProbability: 'Add probability',
+        duplicateProbability: 'Duplicate probability',
         definition: 'Probability name',
         selectDefinition: 'Select definition',
         newDefinition: 'Create new definition',
@@ -275,8 +279,16 @@ export default function ScheduledVariantModal({
   );
   const initialSourceVariantId = variants[0]?.id ?? '';
 
+  const initializationKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializationKeyRef.current = null;
+      return;
+    }
+    const initializationKey = variant?.id ?? `new:${summonId}`;
+    if (initializationKeyRef.current === initializationKey) return;
+    initializationKeyRef.current = initializationKey;
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     setStartsAt(toLocalInput(variant?.startsAt ?? now.toISOString()));
@@ -289,7 +301,10 @@ export default function ScheduledVariantModal({
     setDefinitionName({ ...EMPTY_LOCALIZED_TEXT });
     setDefinitionDescription({ ...EMPTY_LOCALIZED_TEXT });
     setError(null);
+  }, [initialSourceVariantId, open, summonId, variant]);
 
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     const loadOptions = async () => {
       try {
@@ -318,10 +333,30 @@ export default function ScheduledVariantModal({
     return () => {
       cancelled = true;
     };
-  }, [apiJson, initialSourceVariantId, open, text.fallbackError, variant]);
+  }, [apiJson, open, text.fallbackError]);
+
+  useEffect(() => {
+    if (open && !variant && !sourceVariantId && initialSourceVariantId) {
+      setSourceVariantId(initialSourceVariantId);
+    }
+  }, [initialSourceVariantId, open, sourceVariantId, variant]);
 
   const updateProbability = (key: string, changes: Partial<ProbabilityFormItem>) => {
     setProbabilities((current) => current.map((item) => item.key === key ? { ...item, ...changes } : item));
+  };
+
+  const duplicateProbability = (key: string) => {
+    setProbabilities((current) => {
+      const index = current.findIndex((item) => item.key === key);
+      if (index < 0) return current;
+      const source = current[index];
+      const copy: ProbabilityFormItem = {
+        ...source,
+        key: crypto.randomUUID(),
+        heroIds: [...source.heroIds],
+      };
+      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)];
+    });
   };
 
   const createDefinition = async () => {
@@ -404,10 +439,25 @@ export default function ScheduledVariantModal({
       for (const step of rule.steps) {
         const chance = percentageToHundredths(step.activationChancePercent);
         if (chance === null || chance < 0 || chance > 10_000) return false;
-        if (
-          step.rewardMode === 'SPECIFIC_PROBABILITY'
-          && (!step.rewardProbabilityDefinitionId || !definitionIds.has(step.rewardProbabilityDefinitionId))
-        ) return false;
+        if (step.rewardMode === 'CUSTOM_DISTRIBUTION') {
+          if (step.rewardProbabilities.length === 0) return false;
+          const rewardDefinitionIds = new Set<string>();
+          let rewardTotal = 0;
+          for (const reward of step.rewardProbabilities) {
+            const rewardPercent = percentageToHundredths(reward.valuePercent);
+            if (
+              !reward.probabilityDefinitionId
+              || !definitionIds.has(reward.probabilityDefinitionId)
+              || rewardDefinitionIds.has(reward.probabilityDefinitionId)
+              || rewardPercent === null
+              || rewardPercent <= 0
+              || rewardPercent > 10_000
+            ) return false;
+            rewardDefinitionIds.add(reward.probabilityDefinitionId);
+            rewardTotal += rewardPercent;
+          }
+          if (rewardTotal !== 10_000) return false;
+        } else if (step.rewardProbabilities.length > 0) return false;
       }
     }
     return true;
@@ -433,9 +483,13 @@ export default function ScheduledVariantModal({
       position: index + 1,
       activationChancePercent: Number(step.activationChancePercent),
       rewardMode: step.rewardMode,
-      rewardProbabilityDefinitionId: step.rewardMode === 'SPECIFIC_PROBABILITY'
-        ? step.rewardProbabilityDefinitionId
-        : null,
+      rewardProbabilities: step.rewardMode === 'CUSTOM_DISTRIBUTION'
+        ? step.rewardProbabilities.map((reward, rewardIndex) => ({
+            probabilityDefinitionId: reward.probabilityDefinitionId,
+            valuePercent: Number(reward.valuePercent),
+            position: rewardIndex + 1,
+          }))
+        : [],
     })),
   }));
 
@@ -655,15 +709,28 @@ export default function ScheduledVariantModal({
                     <article key={probability.key} className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                       <div className="flex items-center justify-between">
                         <strong>#{index + 1}</strong>
-                        <button
-                          type="button"
-                          onClick={() => setProbabilities((current) => current.filter((item) => item.key !== probability.key))}
-                          disabled={saving}
-                          aria-label={text.remove}
-                          className="rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => duplicateProbability(probability.key)}
+                            disabled={saving}
+                            aria-label={text.duplicateProbability}
+                            title={text.duplicateProbability}
+                            className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300 disabled:opacity-50"
+                          >
+                            <Copy className="h-4 w-4" aria-hidden="true" />
+                            {text.duplicateProbability}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setProbabilities((current) => current.filter((item) => item.key !== probability.key))}
+                            disabled={saving}
+                            aria-label={text.remove}
+                            className="rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
                       </div>
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
                         <label className="flex flex-col gap-2">
