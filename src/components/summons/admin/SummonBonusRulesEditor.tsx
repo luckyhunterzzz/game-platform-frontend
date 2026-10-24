@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 
 import type {
   BonusResultConditionType,
@@ -20,7 +20,13 @@ export type BonusStepForm = {
   key: string;
   activationChancePercent: string;
   rewardMode: BonusRewardMode;
-  rewardProbabilityDefinitionId: string;
+  rewardProbabilities: BonusRewardProbabilityForm[];
+};
+
+export type BonusRewardProbabilityForm = {
+  key: string;
+  probabilityDefinitionId: string;
+  valuePercent: string;
 };
 
 export type BonusRuleForm = {
@@ -42,7 +48,26 @@ export function emptyBonusStep(): BonusStepForm {
     key: crypto.randomUUID(),
     activationChancePercent: '',
     rewardMode: 'MAIN_ROLL',
-    rewardProbabilityDefinitionId: '',
+    rewardProbabilities: [],
+  };
+}
+
+function emptyRewardProbability(): BonusRewardProbabilityForm {
+  return {
+    key: crypto.randomUUID(),
+    probabilityDefinitionId: '',
+    valuePercent: '',
+  };
+}
+
+function duplicateBonusStep(step: BonusStepForm): BonusStepForm {
+  return {
+    ...step,
+    key: crypto.randomUUID(),
+    rewardProbabilities: step.rewardProbabilities.map((reward) => ({
+      ...reward,
+      key: crypto.randomUUID(),
+    })),
   };
 }
 
@@ -65,6 +90,13 @@ function localizedName(
   const primary = locale === 'ru' ? value?.ru : value?.en;
   const secondary = locale === 'ru' ? value?.en : value?.ru;
   return primary?.trim() || secondary?.trim() || '—';
+}
+
+function distributionTotal(rewards: BonusRewardProbabilityForm[]) {
+  return rewards.reduce((total, reward) => {
+    const value = Number(reward.valuePercent.replace(',', '.'));
+    return total + (Number.isFinite(value) ? value : 0);
+  }, 0);
 }
 
 function ConditionEditor({
@@ -202,8 +234,14 @@ export default function SummonBonusRulesEditor({
         chance: 'Шанс срабатывания, %',
         rewardMode: 'Какие вероятности использовать',
         mainRoll: 'Обычные вероятности призыва',
-        specific: 'Конкретный пул вероятности',
+        customDistribution: 'Своя сетка вероятностей',
+        distributionHint: 'Сумма вероятностей одной попытки должна быть ровно 100%.',
+        addRewardProbability: 'Добавить исход',
+        rewardProbability: 'Что может выпасть',
+        rewardPercent: 'Вероятность, %',
+        distributionTotal: 'Сумма исходов',
         selectProbability: 'Выберите вероятность',
+        duplicate: 'Дублировать',
         removeRule: 'Удалить бонусное правило',
         removeStep: 'Удалить попытку',
       }
@@ -226,8 +264,14 @@ export default function SummonBonusRulesEditor({
         chance: 'Activation chance, %',
         rewardMode: 'Probability source',
         mainRoll: 'Main summon distribution',
-        specific: 'Specific probability pool',
+        customDistribution: 'Custom probability distribution',
+        distributionHint: 'The outcomes of one attempt must total exactly 100%.',
+        addRewardProbability: 'Add outcome',
+        rewardProbability: 'Possible result',
+        rewardPercent: 'Probability, %',
+        distributionTotal: 'Outcome total',
         selectProbability: 'Select probability',
+        duplicate: 'Duplicate',
         removeRule: 'Remove bonus rule',
         removeStep: 'Remove attempt',
       };
@@ -358,86 +402,211 @@ export default function SummonBonusRulesEditor({
                   </button>
                 </div>
 
-                {rule.steps.map((step, stepIndex) => (
-                  <div key={step.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 lg:grid-cols-[80px_180px_minmax(0,1fr)_auto]">
-                    <div className="self-center text-sm font-bold text-[var(--foreground)]">#{stepIndex + 1}</div>
-                    <label className="flex min-w-0 flex-col gap-2">
-                      <span className="text-xs text-[var(--foreground-soft)]">{text.chance}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={step.activationChancePercent}
-                        onChange={(event) =>
-                          updateRule(rule.key, {
-                            steps: rule.steps.map((item) =>
-                              item.key === step.key ? { ...item, activationChancePercent: event.target.value } : item,
-                            ),
-                          })
-                        }
-                        disabled={disabled}
-                        className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
-                      />
-                    </label>
-                    <label className="flex min-w-0 flex-col gap-2">
-                      <span className="text-xs text-[var(--foreground-soft)]">{text.rewardMode}</span>
-                      <select
-                        value={step.rewardMode}
-                        onChange={(event) =>
-                          updateRule(rule.key, {
-                            steps: rule.steps.map((item) =>
-                              item.key === step.key
-                                ? {
-                                    ...item,
-                                    rewardMode: event.target.value as BonusRewardMode,
-                                    rewardProbabilityDefinitionId: '',
-                                  }
-                                : item,
-                            ),
-                          })
-                        }
-                        disabled={disabled}
-                        className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
-                      >
-                        <option value="MAIN_ROLL">{text.mainRoll}</option>
-                        <option value="SPECIFIC_PROBABILITY">{text.specific}</option>
-                      </select>
-                      {step.rewardMode === 'SPECIFIC_PROBABILITY' ? (
-                        <select
-                          value={step.rewardProbabilityDefinitionId}
-                          onChange={(event) =>
-                            updateRule(rule.key, {
-                              steps: rule.steps.map((item) =>
-                                item.key === step.key
-                                  ? { ...item, rewardProbabilityDefinitionId: event.target.value }
-                                  : item,
-                              ),
-                            })
-                          }
-                          disabled={disabled}
-                          className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
-                        >
-                          <option value="">{text.selectProbability}</option>
-                          {configuredDefinitions.map((definition) => (
-                            <option key={definition.id} value={definition.id}>
-                              {localizedName(definition.nameJson, locale)}
-                            </option>
+                {rule.steps.map((step, stepIndex) => {
+                  const total = distributionTotal(step.rewardProbabilities);
+                  return (
+                    <div key={step.key} className="min-w-0 space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-sm font-bold text-[var(--foreground)]">#{stepIndex + 1}</div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const copy = duplicateBonusStep(step);
+                              updateRule(rule.key, {
+                                steps: [
+                                  ...rule.steps.slice(0, stepIndex + 1),
+                                  copy,
+                                  ...rule.steps.slice(stepIndex + 1),
+                                ],
+                              });
+                            }}
+                            disabled={disabled}
+                            title={text.duplicate}
+                            aria-label={text.duplicate}
+                            className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300 disabled:opacity-50"
+                          >
+                            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            {text.duplicate}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateRule(rule.key, { steps: rule.steps.filter((item) => item.key !== step.key) })}
+                            disabled={disabled || rule.steps.length === 1}
+                            aria-label={text.removeStep}
+                            className="rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300 disabled:opacity-30"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid min-w-0 gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                        <label className="flex min-w-0 flex-col gap-2">
+                          <span className="text-xs text-[var(--foreground-soft)]">{text.chance}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={step.activationChancePercent}
+                            onChange={(event) =>
+                              updateRule(rule.key, {
+                                steps: rule.steps.map((item) =>
+                                  item.key === step.key ? { ...item, activationChancePercent: event.target.value } : item,
+                                ),
+                              })
+                            }
+                            disabled={disabled}
+                            className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
+                          />
+                        </label>
+                        <label className="flex min-w-0 flex-col gap-2">
+                          <span className="text-xs text-[var(--foreground-soft)]">{text.rewardMode}</span>
+                          <select
+                            value={step.rewardMode}
+                            onChange={(event) =>
+                              updateRule(rule.key, {
+                                steps: rule.steps.map((item) =>
+                                  item.key === step.key
+                                    ? {
+                                        ...item,
+                                        rewardMode: event.target.value as BonusRewardMode,
+                                        rewardProbabilities: [],
+                                      }
+                                    : item,
+                                ),
+                              })
+                            }
+                            disabled={disabled}
+                            className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
+                          >
+                            <option value="MAIN_ROLL">{text.mainRoll}</option>
+                            <option value="CUSTOM_DISTRIBUTION">{text.customDistribution}</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      {step.rewardMode === 'CUSTOM_DISTRIBUTION' ? (
+                        <div className="space-y-3 rounded-xl border border-violet-400/20 bg-violet-400/5 p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs text-[var(--foreground-soft)]">{text.distributionHint}</div>
+                              <div className={`mt-1 text-sm font-bold ${Math.abs(total - 100) < 0.001 ? 'text-emerald-300' : 'text-fuchsia-300'}`}>
+                                {text.distributionTotal}: {total.toFixed(2).replace(/\.00$/, '')}%
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updateRule(rule.key, {
+                                steps: rule.steps.map((item) => item.key === step.key
+                                  ? { ...item, rewardProbabilities: [...item.rewardProbabilities, emptyRewardProbability()] }
+                                  : item),
+                              })}
+                              disabled={disabled}
+                              className="inline-flex items-center gap-2 rounded-lg border border-violet-400/25 bg-violet-400/10 px-3 py-2 text-xs font-semibold text-violet-200 disabled:opacity-50"
+                            >
+                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                              {text.addRewardProbability}
+                            </button>
+                          </div>
+
+                          {step.rewardProbabilities.map((reward, rewardIndex) => (
+                            <div key={reward.key} className="grid min-w-0 gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 md:grid-cols-[minmax(0,1fr)_150px_auto]">
+                              <label className="flex min-w-0 flex-col gap-2">
+                                <span className="text-xs text-[var(--foreground-soft)]">{text.rewardProbability}</span>
+                                <select
+                                  value={reward.probabilityDefinitionId}
+                                  onChange={(event) => updateRule(rule.key, {
+                                    steps: rule.steps.map((item) => item.key === step.key
+                                      ? {
+                                          ...item,
+                                          rewardProbabilities: item.rewardProbabilities.map((entry) => entry.key === reward.key
+                                            ? { ...entry, probabilityDefinitionId: event.target.value }
+                                            : entry),
+                                        }
+                                      : item),
+                                  })}
+                                  disabled={disabled}
+                                  className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
+                                >
+                                  <option value="">{text.selectProbability}</option>
+                                  {configuredDefinitions.map((definition) => (
+                                    <option key={definition.id} value={definition.id}>
+                                      {localizedName(definition.nameJson, locale)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="flex min-w-0 flex-col gap-2">
+                                <span className="text-xs text-[var(--foreground-soft)]">{text.rewardPercent}</span>
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  max="100"
+                                  step="0.01"
+                                  value={reward.valuePercent}
+                                  onChange={(event) => updateRule(rule.key, {
+                                    steps: rule.steps.map((item) => item.key === step.key
+                                      ? {
+                                          ...item,
+                                          rewardProbabilities: item.rewardProbabilities.map((entry) => entry.key === reward.key
+                                            ? { ...entry, valuePercent: event.target.value }
+                                            : entry),
+                                        }
+                                      : item),
+                                  })}
+                                  disabled={disabled}
+                                  className="w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none"
+                                />
+                              </label>
+                              <div className="flex items-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => updateRule(rule.key, {
+                                    steps: rule.steps.map((item) => item.key === step.key
+                                      ? {
+                                          ...item,
+                                          rewardProbabilities: [
+                                            ...item.rewardProbabilities.slice(0, rewardIndex + 1),
+                                            { ...reward, key: crypto.randomUUID() },
+                                            ...item.rewardProbabilities.slice(rewardIndex + 1),
+                                          ],
+                                        }
+                                      : item),
+                                  })}
+                                  disabled={disabled}
+                                  title={text.duplicate}
+                                  aria-label={text.duplicate}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2.5 text-xs font-semibold text-cyan-300 disabled:opacity-50"
+                                >
+                                  <Copy className="h-4 w-4" aria-hidden="true" />
+                                  {text.duplicate}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateRule(rule.key, {
+                                    steps: rule.steps.map((item) => item.key === step.key
+                                      ? {
+                                          ...item,
+                                          rewardProbabilities: item.rewardProbabilities.filter((entry) => entry.key !== reward.key),
+                                        }
+                                      : item),
+                                  })}
+                                  disabled={disabled}
+                                  aria-label={text.removeStep}
+                                  className="rounded-lg border border-red-400/20 bg-red-400/10 p-2.5 text-red-300 disabled:opacity-50"
+                                >
+                                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                              </div>
+                            </div>
                           ))}
-                        </select>
+                        </div>
                       ) : null}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => updateRule(rule.key, { steps: rule.steps.filter((item) => item.key !== step.key) })}
-                      disabled={disabled || rule.steps.length === 1}
-                      aria-label={text.removeStep}
-                      className="self-center rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300 disabled:opacity-30"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
 
               {rule.steps.length > 1 ? (

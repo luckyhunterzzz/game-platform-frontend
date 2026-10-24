@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import DictionaryModal from '@/components/heroes/admin/DictionaryModal';
@@ -151,9 +151,11 @@ function createFormFromSummon(summon: SummonAdminDetails): SummonFormState {
         key: step.id,
         activationChancePercent: String(step.activationChancePercent),
         rewardMode: step.rewardMode,
-        rewardProbabilityDefinitionId: step.rewardProbabilityId
-          ? probabilityDefinitionById.get(step.rewardProbabilityId) ?? ''
-          : '',
+        rewardProbabilities: step.rewardProbabilities.map((reward) => ({
+          key: `${step.id}-${reward.probabilityId}`,
+          probabilityDefinitionId: probabilityDefinitionById.get(reward.probabilityId) ?? '',
+          valuePercent: String(reward.valuePercent),
+        })),
       })),
     })),
   };
@@ -232,6 +234,7 @@ export default function CreateSummonModal({
             probabilities: 'Вероятности',
             probabilityHint: 'Каждая вероятность содержит процент и собственный пул героев.',
             addProbability: 'Добавить вероятность',
+            duplicateProbability: 'Дублировать вероятность',
             removeProbability: 'Удалить вероятность',
             definition: 'Название вероятности',
             selectDefinition: 'Выберите существующее определение',
@@ -290,6 +293,7 @@ export default function CreateSummonModal({
             probabilities: 'Probabilities',
             probabilityHint: 'Each probability has a percentage and its own hero pool.',
             addProbability: 'Add probability',
+            duplicateProbability: 'Duplicate probability',
             removeProbability: 'Remove probability',
             definition: 'Probability name',
             selectDefinition: 'Select an existing definition',
@@ -343,9 +347,16 @@ export default function CreateSummonModal({
     [rarities],
   );
 
-  useEffect(() => {
-    if (!open) return;
+  const initializationKeyRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    if (!open) {
+      initializationKeyRef.current = null;
+      return;
+    }
+    const initializationKey = summon?.id ?? 'new';
+    if (initializationKeyRef.current === initializationKey) return;
+    initializationKeyRef.current = initializationKey;
     setForm(summon ? createFormFromSummon(summon) : createEmptyForm());
     setErrorMessage(null);
     setSlugManuallyChanged(Boolean(summon));
@@ -353,7 +364,10 @@ export default function CreateSummonModal({
     setDefinitionName({ ...EMPTY_LOCALIZED_TEXT });
     setDefinitionDescription({ ...EMPTY_LOCALIZED_TEXT });
     setDefinitionError(null);
+  }, [open, summon]);
 
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     const loadOptions = async () => {
       try {
@@ -390,7 +404,7 @@ export default function CreateSummonModal({
     return () => {
       cancelled = true;
     };
-  }, [apiJson, open, summon, text.fallbackError]);
+  }, [apiJson, open, text.fallbackError]);
 
   const handleNameChange = (name: LocalizedText) => {
     setForm((previous) => ({
@@ -426,6 +440,27 @@ export default function CreateSummonModal({
         item.key === key ? { ...item, ...changes } : item,
       ),
     }));
+  };
+
+  const duplicateProbability = (key: string) => {
+    setForm((previous) => {
+      const index = previous.probabilities.findIndex((item) => item.key === key);
+      if (index < 0) return previous;
+      const source = previous.probabilities[index];
+      const copy: ProbabilityFormItem = {
+        ...source,
+        key: crypto.randomUUID(),
+        heroIds: [...source.heroIds],
+      };
+      return {
+        ...previous,
+        probabilities: [
+          ...previous.probabilities.slice(0, index + 1),
+          copy,
+          ...previous.probabilities.slice(index + 1),
+        ],
+      };
+    });
   };
 
   const removeProbability = (key: string) => {
@@ -547,11 +582,25 @@ export default function CreateSummonModal({
       for (const step of rule.steps) {
         const chance = percentageToHundredths(step.activationChancePercent);
         if (chance === null || chance < 0 || chance > 10_000) return text.incompleteBonus;
-        if (
-          step.rewardMode === 'SPECIFIC_PROBABILITY'
-          && (!step.rewardProbabilityDefinitionId
-            || !configuredDefinitionIds.has(step.rewardProbabilityDefinitionId))
-        ) {
+        if (step.rewardMode === 'CUSTOM_DISTRIBUTION') {
+          if (step.rewardProbabilities.length === 0) return text.incompleteBonus;
+          const rewardDefinitionIds = new Set<string>();
+          let rewardTotal = 0;
+          for (const reward of step.rewardProbabilities) {
+            const rewardPercent = percentageToHundredths(reward.valuePercent);
+            if (
+              !reward.probabilityDefinitionId
+              || !configuredDefinitionIds.has(reward.probabilityDefinitionId)
+              || rewardDefinitionIds.has(reward.probabilityDefinitionId)
+              || rewardPercent === null
+              || rewardPercent <= 0
+              || rewardPercent > 10_000
+            ) return text.incompleteBonus;
+            rewardDefinitionIds.add(reward.probabilityDefinitionId);
+            rewardTotal += rewardPercent;
+          }
+          if (rewardTotal !== 10_000) return text.incompleteBonus;
+        } else if (step.rewardProbabilities.length > 0) {
           return text.incompleteBonus;
         }
       }
@@ -613,10 +662,13 @@ export default function CreateSummonModal({
           position: index + 1,
           activationChancePercent: Number(step.activationChancePercent),
           rewardMode: step.rewardMode,
-          rewardProbabilityDefinitionId:
-            step.rewardMode === 'SPECIFIC_PROBABILITY'
-              ? step.rewardProbabilityDefinitionId
-              : null,
+          rewardProbabilities: step.rewardMode === 'CUSTOM_DISTRIBUTION'
+            ? step.rewardProbabilities.map((reward, rewardIndex) => ({
+                probabilityDefinitionId: reward.probabilityDefinitionId,
+                valuePercent: Number(reward.valuePercent),
+                position: rewardIndex + 1,
+              }))
+            : [],
         })),
       })),
     };
@@ -788,15 +840,28 @@ export default function CreateSummonModal({
                 <article key={probability.key} className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm font-bold text-[var(--foreground)]">#{index + 1}</div>
-                    <button
-                      type="button"
-                      onClick={() => removeProbability(probability.key)}
-                      disabled={saving}
-                      aria-label={text.removeProbability}
-                      className="rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300 transition hover:bg-red-400/15 disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => duplicateProbability(probability.key)}
+                        disabled={saving}
+                        aria-label={text.duplicateProbability}
+                        title={text.duplicateProbability}
+                        className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-400/15 disabled:opacity-50"
+                      >
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                        {text.duplicateProbability}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeProbability(probability.key)}
+                        disabled={saving}
+                        aria-label={text.removeProbability}
+                        className="rounded-lg border border-red-400/20 bg-red-400/10 p-2 text-red-300 transition hover:bg-red-400/15 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px_180px]">
