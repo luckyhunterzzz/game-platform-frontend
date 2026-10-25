@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Archive,
   CalendarClock,
   CalendarPlus,
   ChevronDown,
@@ -53,6 +54,7 @@ export default function SummonsWorkspace() {
   const [editingVariant, setEditingVariant] = useState<SummonVariant | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [variantHistory, setVariantHistory] = useState<SummonVariantPageResponse | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -88,6 +90,9 @@ export default function SummonsWorkspace() {
             pastVariants: 'Прошедшие версии',
             pastVariantsHint: 'Скрыты по умолчанию и отсортированы от новых к старым.',
             noPastVariants: 'Прошедших версий пока нет.',
+            archivedVariants: 'Архивные версии',
+            archivedVariantsHint: 'Исключены из текущих и будущих версий.',
+            noArchivedVariants: 'Архивных версий пока нет.',
             historyLoadError: 'Не удалось загрузить прошедшие версии.',
             loadMore: 'Показать ещё',
             probabilities: 'Вероятности',
@@ -126,6 +131,9 @@ export default function SummonsWorkspace() {
             pastVariants: 'Past versions',
             pastVariantsHint: 'Hidden by default and sorted from newest to oldest.',
             noPastVariants: 'No past versions yet.',
+            archivedVariants: 'Archived versions',
+            archivedVariantsHint: 'Excluded from current and upcoming versions.',
+            noArchivedVariants: 'No archived versions yet.',
             historyLoadError: 'Failed to load past versions.',
             loadMore: 'Load more',
             probabilities: 'Probabilities',
@@ -232,6 +240,7 @@ export default function SummonsWorkspace() {
 
   useEffect(() => {
     setHistoryOpen(false);
+    setArchiveOpen(false);
     setVariantHistory(null);
     setHistoryError(null);
   }, [selectedId]);
@@ -271,6 +280,23 @@ export default function SummonsWorkspace() {
       cancelled = true;
     };
   }, [apiJson, selectedId, text.loadError]);
+
+  const activeScheduledVariants = useMemo(
+    () => details?.scheduledVariants.filter((variant) => variant.status !== 'ARCHIVED') ?? [],
+    [details],
+  );
+
+  const activeDefaultVariant = details?.defaultVariant.status === 'ARCHIVED'
+    ? null
+    : details?.defaultVariant ?? null;
+
+  const archivedVariants = useMemo(
+    () => details
+      ? [details.defaultVariant, ...details.scheduledVariants]
+        .filter((variant) => variant.status === 'ARCHIVED')
+      : [],
+    [details],
+  );
 
   const renderVariant = (variant: SummonVariant, title: string) => (
     <article key={variant.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-5">
@@ -521,7 +547,7 @@ export default function SummonsWorkspace() {
                 ))}
               </div>
 
-              {renderVariant(details.defaultVariant, text.defaultVariant)}
+              {activeDefaultVariant ? renderVariant(activeDefaultVariant, text.defaultVariant) : null}
 
               <div>
                 <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -538,9 +564,9 @@ export default function SummonsWorkspace() {
                     {text.addScheduledVariant}
                   </button>
                 </div>
-                {details.scheduledVariants?.length ? (
+                {activeScheduledVariants.length ? (
                   <div className="space-y-4">
-                    {details.scheduledVariants.map((variant, index) =>
+                    {activeScheduledVariants.map((variant, index) =>
                       renderVariant(variant, `${text.calendarVariant} #${index + 1}`),
                     )}
                   </div>
@@ -549,6 +575,52 @@ export default function SummonsWorkspace() {
                     {text.noScheduledVariants}
                   </div>
                 )}
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]">
+                <button
+                  type="button"
+                  onClick={() => setArchiveOpen((open) => !open)}
+                  className="flex w-full items-center gap-3 p-5 text-left transition hover:bg-[var(--surface-hover)]"
+                  aria-expanded={archiveOpen}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-amber-300">
+                    <Archive className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 text-base font-bold text-[var(--foreground)]">
+                      {text.archivedVariants}
+                      <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-xs font-semibold text-[var(--foreground-soft)]">
+                        {archivedVariants.length}
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-xs text-[var(--foreground-soft)]">
+                      {text.archivedVariantsHint}
+                    </span>
+                  </span>
+                  {archiveOpen
+                    ? <ChevronUp className="h-5 w-5 shrink-0 text-[var(--foreground-muted)]" aria-hidden="true" />
+                    : <ChevronDown className="h-5 w-5 shrink-0 text-[var(--foreground-muted)]" aria-hidden="true" />}
+                </button>
+
+                {archiveOpen ? (
+                  <div className="space-y-4 border-t border-[var(--border)] p-5">
+                    {archivedVariants.length ? (
+                      archivedVariants.map((variant, index) =>
+                        renderVariant(
+                          variant,
+                          variant.variantType === 'DEFAULT'
+                            ? text.defaultVariant
+                            : `${text.archivedVariants} #${index + 1}`,
+                        ),
+                      )
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[var(--border)] p-4 text-sm text-[var(--foreground-soft)]">
+                        {text.noArchivedVariants}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]">

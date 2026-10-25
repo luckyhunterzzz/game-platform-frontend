@@ -4,17 +4,21 @@ import { CalendarDays, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 
+import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 import SummonsAdminLinkBadge from './SummonsAdminLinkBadge';
 import SummonsCalendar from './SummonsCalendar';
 import SummonsPageShell from './SummonsPageShell';
+import SummonsSimulator from './SummonsSimulator';
 
 type SummonsTab = 'calendar' | 'simulator';
 
 export default function SummonsPageClient() {
+  const { authenticated, loading: authLoading } = useAuth();
   const { locale } = useI18n();
   const [activeTab, setActiveTab] = useState<SummonsTab>('calendar');
+  const [accessMessage, setAccessMessage] = useState<string | null>(null);
 
   const text = useMemo(
     () =>
@@ -28,9 +32,8 @@ export default function SummonsPageClient() {
             emptyCalendarTitle: 'Нет информации о будущих призывах',
             emptyCalendarDescription:
               'Когда появятся известные даты и рекомендованные герои, они будут показаны здесь.',
-            simulatorTitle: 'Имитация призывов пока недоступна',
-            simulatorDescription:
-              'Здесь можно будет выбрать призыв и проверить результат для 1, 10 или 30 попыток.',
+            simulatorAuthRequired: 'Имитация призывов доступна только зарегистрированным пользователям.',
+            checkingAuth: 'Проверяем авторизацию. Попробуйте ещё раз через несколько секунд.',
           }
         : {
             title: 'Summons',
@@ -41,9 +44,8 @@ export default function SummonsPageClient() {
             emptyCalendarTitle: 'No upcoming summon information',
             emptyCalendarDescription:
               'Known dates and featured heroes will appear here when they are available.',
-            simulatorTitle: 'Summon simulator is not available yet',
-            simulatorDescription:
-              'You will be able to select a summon and try 1, 10, or 30 pulls here.',
+            simulatorAuthRequired: 'Summon simulation is available to registered users only.',
+            checkingAuth: 'Checking your session. Please try again in a moment.',
           },
     [locale],
   );
@@ -52,6 +54,17 @@ export default function SummonsPageClient() {
     { id: 'calendar' as const, label: text.calendar, icon: CalendarDays },
     { id: 'simulator' as const, label: text.simulator, icon: Sparkles },
   ];
+
+  const selectTab = (tab: SummonsTab) => {
+    if (tab === 'simulator' && !authenticated) {
+      setAccessMessage(authLoading ? text.checkingAuth : text.simulatorAuthRequired);
+      return;
+    }
+    setAccessMessage(null);
+    setActiveTab(tab);
+  };
+  const effectiveActiveTab = authenticated ? activeTab : 'calendar';
+  const visibleAccessMessage = authenticated ? null : accessMessage;
 
   return (
     <SummonsPageShell>
@@ -89,13 +102,13 @@ export default function SummonsPageClient() {
       <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-sm">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const active = activeTab === tab.id;
+          const active = effectiveActiveTab === tab.id;
 
           return (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition ${
                 active
                   ? 'bg-fuchsia-500/15 text-fuchsia-300 shadow-sm'
@@ -109,16 +122,16 @@ export default function SummonsPageClient() {
         })}
       </div>
 
-      {activeTab === 'calendar' ? (
+      {visibleAccessMessage ? (
+        <div role="alert" className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-medium text-amber-200">
+          {visibleAccessMessage}
+        </div>
+      ) : null}
+
+      {effectiveActiveTab === 'calendar' ? (
         <SummonsCalendar />
       ) : (
-        <section className="rounded-[2rem] border border-dashed border-[var(--border)] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_55%),var(--surface)] p-8 text-center shadow-sm md:p-12">
-          <Sparkles className="mx-auto h-10 w-10 text-blue-300" aria-hidden="true" />
-          <h2 className="mt-4 text-2xl font-bold text-[var(--foreground)]">{text.simulatorTitle}</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-[var(--foreground-soft)]">
-            {text.simulatorDescription}
-          </p>
-        </section>
+        <SummonsSimulator />
       )}
     </SummonsPageShell>
   );
