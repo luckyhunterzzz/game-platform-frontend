@@ -87,6 +87,14 @@ function toIso(value: string) {
   return new Date(value).toISOString();
 }
 
+function defaultVariantPeriod() {
+  const startsAt = new Date();
+  startsAt.setHours(11, 0, 0, 0);
+  const endsAt = new Date(startsAt);
+  endsAt.setDate(endsAt.getDate() + 4);
+  return { startsAt, endsAt };
+}
+
 function conditionFromResponse(
   condition: { type: BonusResultConditionType; rarityId?: number | null; probabilityId?: string | null } | null | undefined,
   probabilityDefinitionById: Map<string, string>,
@@ -293,10 +301,9 @@ export default function ScheduledVariantModal({
     const initializationKey = variant?.id ?? `new:${summonId}`;
     if (initializationKeyRef.current === initializationKey) return;
     initializationKeyRef.current = initializationKey;
-    const now = new Date();
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    setStartsAt(toLocalInput(variant?.startsAt ?? now.toISOString()));
-    setEndsAt(toLocalInput(variant?.endsAt ?? tomorrow.toISOString()));
+    const defaultPeriod = defaultVariantPeriod();
+    setStartsAt(toLocalInput(variant?.startsAt ?? defaultPeriod.startsAt.toISOString()));
+    setEndsAt(toLocalInput(variant?.endsAt ?? defaultPeriod.endsAt.toISOString()));
     setStatus(variant?.status === 'HIDDEN' ? 'DRAFT' : variant?.status ?? 'DRAFT');
     setSourceVariantId(initialSourceVariantId);
     setProbabilities(variant ? probabilityForms(variant) : []);
