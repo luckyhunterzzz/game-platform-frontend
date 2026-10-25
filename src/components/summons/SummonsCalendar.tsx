@@ -4,6 +4,11 @@ import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, History, ImageIc
 import { useCallback, useEffect, useState } from 'react';
 
 import DictionaryModal from '@/components/heroes/admin/DictionaryModal';
+import PublicHeroDetailsModal, {
+  type PublicHeroCardItem,
+  type PublicHeroDetailsItem,
+  type PublicHeroVariantsItem,
+} from '@/components/heroes/admin/PublicHeroDetailsModal';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import type {
   SummonCalendarFeed,
@@ -30,6 +35,34 @@ function featuredHeroes(item: SummonPublicItem) {
   return item.variant.probabilities
     .filter((probability) => probability.userSelectionEnabled)
     .flatMap((probability) => probability.heroes);
+}
+
+function toHeroCard(hero: SummonHeroPreview, locale: 'ru' | 'en'): PublicHeroCardItem {
+  return {
+    id: hero.id,
+    slug: hero.slug,
+    name: localizedValue(hero.nameJson, locale, hero.slug),
+    imageUrl: hero.previewUrl ?? null,
+    previewUrl: hero.previewUrl ?? null,
+    elementName: '',
+    rarityName: '',
+    rarityStars: hero.rarityStars ?? 0,
+    heroClassName: '',
+    manaSpeedName: '',
+  };
+}
+
+function toFallbackHeroDetails(hero: SummonHeroPreview, locale: 'ru' | 'en'): PublicHeroDetailsItem {
+  return {
+    id: hero.id,
+    slug: hero.slug,
+    name: localizedValue(hero.nameJson, locale, hero.slug),
+    rarity: hero.rarityStars == null ? null : { id: 0, stars: hero.rarityStars },
+    passiveSkills: [],
+    costumes: [],
+    imageUrl: hero.previewUrl ?? null,
+    previewUrl: hero.previewUrl ?? null,
+  };
 }
 
 function HeroPreview({ hero, locale }: { hero: SummonHeroPreview; locale: 'ru' | 'en' }) {
@@ -123,9 +156,11 @@ function CalendarCard({
 function SummonDetailsModal({
   item,
   onClose,
+  onOpenHero,
 }: {
   item: SummonPublicItem | null;
   onClose: () => void;
+  onOpenHero: (hero: SummonHeroPreview) => void;
 }) {
   const { locale } = useI18n();
   const text = locale === 'ru'
@@ -195,7 +230,12 @@ function SummonDetailsModal({
           {heroes.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
               {heroes.map((hero) => (
-                <div key={hero.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center">
+                <button
+                  key={hero.id}
+                  type="button"
+                  onClick={() => onOpenHero(hero)}
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
+                >
                   <div className="mx-auto h-24 w-24 overflow-hidden rounded-xl bg-black/15">
                     {hero.previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -205,7 +245,7 @@ function SummonDetailsModal({
                     )}
                   </div>
                   <div className="mt-2 truncate text-sm font-semibold text-[var(--foreground)]">{hero.slug}</div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -251,6 +291,78 @@ export default function SummonsCalendar() {
   const [historyPage, setHistoryPage] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selected, setSelected] = useState<SummonPublicItem | null>(null);
+  const [selectedHero, setSelectedHero] = useState<SummonHeroPreview | null>(null);
+  const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
+  const [selectedHeroDetails, setSelectedHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
+  const [selectedHeroVariants, setSelectedHeroVariants] = useState<PublicHeroVariantsItem | null>(null);
+  const [selectedHeroLoading, setSelectedHeroLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedHero) {
+      setSelectedHeroCard(null);
+      setSelectedHeroDetails(null);
+      setSelectedHeroVariants(null);
+      setSelectedHeroLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fallbackDetails = toFallbackHeroDetails(selectedHero, locale);
+    const fallbackCard = toHeroCard(selectedHero, locale);
+    setSelectedHeroCard(fallbackCard);
+    setSelectedHeroDetails(fallbackDetails);
+    setSelectedHeroVariants({
+      currentHero: fallbackDetails,
+      baseHero: {
+        id: selectedHero.id,
+        slug: selectedHero.slug,
+        name: fallbackDetails.name,
+        imageUrl: fallbackDetails.imageUrl,
+        previewUrl: fallbackDetails.previewUrl,
+        rarityStars: selectedHero.rarityStars,
+      },
+      costumes: [],
+    });
+    setSelectedHeroLoading(true);
+
+    const loadHero = async () => {
+      try {
+        const response = await apiJson<PublicHeroVariantsItem>(
+          `${PUBLIC_SUMMONS_API}/heroes/${encodeURIComponent(selectedHero.slug)}/variants?language=${locale === 'ru' ? 'RU' : 'EN'}`,
+        );
+        if (cancelled) return;
+        const currentHero = response.currentHero;
+        setSelectedHeroDetails(currentHero);
+        setSelectedHeroVariants(response);
+        setSelectedHeroCard({
+          id: currentHero.id,
+          slug: currentHero.slug,
+          name: currentHero.name,
+          imageUrl: currentHero.imageUrl ?? response.baseHero?.imageUrl ?? fallbackCard.imageUrl,
+          previewUrl: currentHero.previewUrl ?? response.baseHero?.previewUrl ?? fallbackCard.previewUrl,
+          elementName: currentHero.element?.name ?? '',
+          rarityName: '',
+          rarityStars: currentHero.rarity?.stars ?? selectedHero.rarityStars ?? 0,
+          heroClassName: currentHero.heroClass?.name ?? '',
+          manaSpeedName: currentHero.manaSpeed?.name ?? '',
+          familyName: currentHero.family?.name ?? null,
+          alphaTalentName: currentHero.alphaTalent?.name ?? null,
+          baseAttack: currentHero.baseAttack ?? null,
+          baseArmor: currentHero.baseArmor ?? null,
+          baseHp: currentHero.baseHp ?? null,
+        });
+      } catch {
+        // Keep the lightweight preview card when full hero details are unavailable.
+      } finally {
+        if (!cancelled) setSelectedHeroLoading(false);
+      }
+    };
+
+    void loadHero();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiJson, locale, selectedHero]);
 
   const text = locale === 'ru'
     ? {
@@ -424,7 +536,31 @@ export default function SummonsCalendar() {
         ) : null}
       </section>
 
-      <SummonDetailsModal item={selected} onClose={() => setSelected(null)} />
+      <SummonDetailsModal
+        item={selected}
+        onClose={() => {
+          setSelected(null);
+          setSelectedHero(null);
+        }}
+        onOpenHero={setSelectedHero}
+      />
+
+      <PublicHeroDetailsModal
+        open={selectedHero !== null}
+        locale={locale === 'ru' ? 'RU' : 'EN'}
+        includeDrafts
+        heroCard={selectedHeroCard}
+        heroDetails={selectedHeroDetails}
+        heroVariants={selectedHeroVariants}
+        loading={selectedHeroLoading}
+        error={null}
+        onClose={() => setSelectedHero(null)}
+        onOpenRelatedHero={(slug) => setSelectedHero({
+          id: 0,
+          slug,
+          nameJson: { ru: slug, en: slug },
+        })}
+      />
     </div>
   );
 }

@@ -41,6 +41,11 @@ const FIVE_STAR_HOLD_DELAY_MS = 1_000;
 const BETWEEN_REVEALS_DELAY_MS = 240;
 const PULL_COUNT_INTRO_DELAY_MS = 1_500;
 const COMPLETION_MESSAGE_DELAY_MS = 1_500;
+const RESULT_IMAGE_PRELOAD_TIMEOUT_MS = 2_500;
+const BACKGROUND_IMAGE_PRELOAD_LIMIT = 24;
+const IMAGE_PRELOAD_CACHE_LIMIT = 200;
+
+const imagePreloadCache = new Map<string, Promise<void>>();
 
 type SavedSelections = {
   probabilityHeroSelections: Record<string, number[]>;
@@ -93,6 +98,36 @@ function toFallbackHeroDetails(hero: SummonSimulationHero, locale: 'ru' | 'en'):
 
 function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function preloadImage(url: string) {
+  const cached = imagePreloadCache.get(url);
+  if (cached) return cached;
+
+  const promise = new Promise<void>((resolve) => {
+    const image = new window.Image();
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = url;
+    if (image.complete) resolve();
+  });
+  if (imagePreloadCache.size >= IMAGE_PRELOAD_CACHE_LIMIT) {
+    const oldestUrl = imagePreloadCache.keys().next().value;
+    if (oldestUrl) imagePreloadCache.delete(oldestUrl);
+  }
+  imagePreloadCache.set(url, promise);
+  return promise;
+}
+
+async function preloadImages(urls: string[], timeoutMs?: number) {
+  const uniqueUrls = [...new Set(urls.filter(Boolean))];
+  if (uniqueUrls.length === 0) return;
+  const loading = Promise.allSettled(uniqueUrls.map(preloadImage));
+  if (timeoutMs === undefined) {
+    await loading;
+    return;
+  }
+  await Promise.race([loading, wait(timeoutMs)]);
 }
 
 function SummonChoiceCard({
@@ -447,12 +482,7 @@ export default function SummonsSimulator() {
           : [];
       });
 
-    const selectableRuleIds = new Set(
-      nextConfig.bonusRules.filter((rule) => rule.userSelectable).map((rule) => rule.id),
-    );
-    const nextEnabledRuleIds = saved
-      ? saved.enabledBonusRuleIds.filter((id) => selectableRuleIds.has(id))
-      : [...selectableRuleIds];
+    const nextEnabledRuleIds: string[] = [];
     const activeRuleIds = new Set([
       ...nextConfig.bonusRules.filter((rule) => !rule.userSelectable).map((rule) => rule.id),
       ...nextEnabledRuleIds,
@@ -561,6 +591,18 @@ export default function SummonsSimulator() {
     if (deckIndex >= previewDeck.length) setDeckIndex(0);
   }, [deckIndex, previewDeck.length]);
 
+  useEffect(() => {
+    if (!config) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      void preloadImages(
+        previewDeck
+          .slice(0, BACKGROUND_IMAGE_PRELOAD_LIMIT)
+          .map((hero) => heroImage(hero, locale)),
+      );
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [config, locale, previewDeck]);
+
   const activeRuleIds = useMemo(() => new Set([
     ...(config?.bonusRules.filter((rule) => !rule.userSelectable).map((rule) => rule.id) ?? []),
     ...enabledRuleIds,
@@ -639,12 +681,17 @@ export default function SummonsSimulator() {
     };
 
     try {
-      const [response] = await Promise.all([
-        apiPostJson<SummonSimulationRequest, SummonSimulationResponse>(
-          `${PUBLIC_SUMMONS_API}/${config.summonId}/variants/${config.variantId}/simulate`,
-          request,
+      const introDelay = wait(PULL_COUNT_INTRO_DELAY_MS);
+      const response = await apiPostJson<SummonSimulationRequest, SummonSimulationResponse>(
+        `${PUBLIC_SUMMONS_API}/${config.summonId}/variants/${config.variantId}/simulate`,
+        request,
+      );
+      await Promise.all([
+        introDelay,
+        preloadImages(
+          response.results.map((result) => heroImage(result.hero, locale)),
+          RESULT_IMAGE_PRELOAD_TIMEOUT_MS,
         ),
-        wait(PULL_COUNT_INTRO_DELAY_MS),
       ]);
       if (animationRunRef.current !== runId) return;
       setIntroPullCount(null);
