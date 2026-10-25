@@ -246,3 +246,92 @@ export interface SummonVariantPageResponse {
   totalPages: number;
   hasNext: boolean;
 }
+
+export interface SummonSimulationHero {
+  id: number;
+  slug: string;
+  nameJson: LocalizedText;
+  previewUrl?: string | null;
+  imageUrlJson?: LocalizedText | null;
+  rarityStars?: number | null;
+}
+
+export interface SummonSimulationProbability {
+  id: string;
+  definition: SummonProbabilityDefinition;
+  valuePercent: number;
+  position: number;
+  userSelectionEnabled: boolean;
+  defaultSelectedHeroCount?: number | null;
+  configuredHeroes: SummonSimulationHero[];
+}
+
+export interface SummonSimulationBonusStep {
+  id: string;
+  position: number;
+  activationChancePercent: number;
+  rewardMode: BonusRewardMode;
+  userHeroSelectionEnabled: boolean;
+  fixedHero?: SummonSimulationHero | null;
+}
+
+export interface SummonSimulationBonusRule {
+  id: string;
+  definition: SummonProbabilityDefinition;
+  kind: SummonBonusKind;
+  userSelectable: boolean;
+  steps: SummonSimulationBonusStep[];
+}
+
+export interface SummonSimulationConfig {
+  summonId: string;
+  slug: string;
+  nameJson: LocalizedText;
+  descriptionJson?: LocalizedText | null;
+  imageUrl?: string | null;
+  backgroundImageUrl?: string | null;
+  variantId: string;
+  variantVersion: number;
+  variantType: 'DEFAULT' | 'SCHEDULED';
+  startsAt?: string | null;
+  endsAt?: string | null;
+  probabilities: SummonSimulationProbability[];
+  bonusRules: SummonSimulationBonusRule[];
+  selectableFiveStarHeroes: SummonSimulationHero[];
+}
+
+export interface SummonSimulationRequest {
+  variantVersion: number;
+  pullCount: 1 | 10 | 30;
+  probabilityHeroSelections: Array<{
+    probabilityId: string;
+    heroIds: number[];
+  }>;
+  bonusStepHeroSelections: Array<{
+    bonusStepId: string;
+    heroId: number;
+  }>;
+  enabledBonusRuleIds: string[];
+}
+
+export type SummonSimulationResultSource = 'BASE' | 'CONDITIONAL_BONUS' | 'INDEPENDENT_BONUS';
+
+export interface SummonSimulationResultItem {
+  sequence: number;
+  rootPullNumber: number;
+  parentResultSequence?: number | null;
+  source: SummonSimulationResultSource;
+  probabilityId?: string | null;
+  bonusRuleId?: string | null;
+  bonusStepId?: string | null;
+  hero: SummonSimulationHero;
+}
+
+export interface SummonSimulationResponse {
+  summonId: string;
+  variantId: string;
+  variantVersion: number;
+  requestedPullCount: number;
+  totalResultCount: number;
+  results: SummonSimulationResultItem[];
+}
