@@ -16,6 +16,7 @@ import type {
   SummonCreateRequest,
   SummonFamilyOption,
   SummonHeroOption,
+  SummonHeroVariantMode,
   SummonProbabilityDefinition,
   SummonProbabilityDefinitionCreateRequest,
   SummonProbabilityKind,
@@ -24,7 +25,9 @@ import type {
 import { ApiError, useApi } from '@/lib/use-api';
 
 import SummonHeroPoolField from './SummonHeroPoolField';
+import SummonHeroVariantModeField from './SummonHeroVariantModeField';
 import SummonImageUploadField, { type SummonImageValue } from './SummonImageUploadField';
+import { normalizeHeroIdsForMode, resolveHeroOptionsForMode } from './summon-hero-variants';
 import SummonBonusRulesEditor, {
   emptyBonusCondition,
   type BonusConditionForm,
@@ -44,6 +47,9 @@ type HeroAdminResponse = {
   status: SummonContentStatus;
   familyId?: number | null;
   rarityId?: number | null;
+  isCostume?: boolean;
+  baseHeroId?: number | null;
+  costumeIndex?: number | null;
 };
 
 type ProbabilityFormItem = {
@@ -52,6 +58,7 @@ type ProbabilityFormItem = {
   kind: SummonProbabilityKind;
   valuePercent: string;
   heroIds: number[];
+  heroVariantMode: SummonHeroVariantMode;
   userSelectionEnabled: boolean;
   defaultSelectedHeroCount: string;
 };
@@ -137,6 +144,7 @@ function createFormFromSummon(summon: SummonAdminDetails): SummonFormState {
       kind: 'MAIN',
       valuePercent: String(probability.valuePercent),
       heroIds: probability.heroIds,
+      heroVariantMode: probability.heroVariantMode ?? 'EXACT',
       userSelectionEnabled: probability.userSelectionEnabled,
       defaultSelectedHeroCount: String(probability.defaultSelectedHeroCount ?? 2),
     })),
@@ -376,13 +384,26 @@ export default function CreateSummonModal({
         ]);
         if (!cancelled) {
           setDefinitions(definitionResponse);
-          setHeroes(heroResponse.map(({ id, slug, nameJson, status, familyId, rarityId }) => ({
+          setHeroes(heroResponse.map(({
             id,
             slug,
             nameJson,
             status,
             familyId,
             rarityId,
+            isCostume,
+            baseHeroId,
+            costumeIndex,
+          }) => ({
+            id,
+            slug,
+            nameJson,
+            status,
+            familyId,
+            rarityId,
+            isCostume,
+            baseHeroId,
+            costumeIndex,
           })));
           setFamilies(familyResponse);
           setRarities(rarityResponse);
@@ -421,6 +442,7 @@ export default function CreateSummonModal({
           kind: 'MAIN',
           valuePercent: '',
           heroIds: [],
+          heroVariantMode: 'ORIGINAL',
           userSelectionEnabled: false,
           defaultSelectedHeroCount: '2',
         },
@@ -656,6 +678,7 @@ export default function CreateSummonModal({
         valuePercent: Number(item.valuePercent),
         position: index + 1,
         heroIds: item.heroIds,
+        heroVariantMode: item.heroVariantMode,
         userSelectionEnabled: item.userSelectionEnabled,
         defaultSelectedHeroCount: item.userSelectionEnabled
           ? Number(item.defaultSelectedHeroCount)
@@ -1001,9 +1024,19 @@ export default function CreateSummonModal({
                     ) : null}
                   </div>
 
+                  <SummonHeroVariantModeField
+                    locale={locale}
+                    value={probability.heroVariantMode}
+                    onChange={(heroVariantMode) => updateProbability(probability.key, {
+                      heroVariantMode,
+                      heroIds: normalizeHeroIdsForMode(probability.heroIds, heroVariantMode, heroes),
+                    })}
+                    disabled={saving}
+                  />
+
                   <SummonHeroPoolField
                     locale={locale}
-                    heroes={heroes}
+                    heroes={resolveHeroOptionsForMode(heroes, probability.heroVariantMode)}
                     families={families}
                     rarities={rarities}
                     selectedIds={probability.heroIds}

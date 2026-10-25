@@ -2,6 +2,7 @@ import type { LocalizedText } from './hero';
 
 export type SummonContentStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
 export type SummonProbabilityKind = 'MAIN' | 'BONUS';
+export type SummonHeroVariantMode = 'EXACT' | 'ORIGINAL' | 'LATEST_COSTUME';
 export type SummonBonusKind = 'INDEPENDENT' | 'CONDITIONAL';
 export type BonusResultConditionType = 'ANY_RESULT' | 'RARITY' | 'PROBABILITY';
 export type BonusRewardMode = 'MAIN_ROLL' | 'CUSTOM_DISTRIBUTION' | 'SPECIFIC_HERO_POOL';
@@ -32,6 +33,7 @@ export interface SummonProbability {
   heroIds: number[];
   userSelectionEnabled: boolean;
   defaultSelectedHeroCount?: number | null;
+  heroVariantMode: SummonHeroVariantMode;
 }
 
 export interface SummonBonusCondition {
@@ -101,6 +103,9 @@ export interface SummonHeroOption {
   status: SummonContentStatus;
   familyId?: number | null;
   rarityId?: number | null;
+  isCostume?: boolean;
+  baseHeroId?: number | null;
+  costumeIndex?: number | null;
 }
 
 export interface SummonFamilyOption {
@@ -122,6 +127,7 @@ export interface SummonProbabilityCreateRequest {
   heroIds: number[];
   userSelectionEnabled: boolean;
   defaultSelectedHeroCount?: number | null;
+  heroVariantMode: SummonHeroVariantMode;
 }
 
 export interface SummonBonusConditionRequest {

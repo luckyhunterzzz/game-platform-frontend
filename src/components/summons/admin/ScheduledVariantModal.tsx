@@ -14,6 +14,7 @@ import type {
   SummonContentStatus,
   SummonFamilyOption,
   SummonHeroOption,
+  SummonHeroVariantMode,
   SummonProbabilityCreateRequest,
   SummonProbabilityDefinition,
   SummonProbabilityDefinitionCreateRequest,
@@ -31,6 +32,8 @@ import SummonBonusRulesEditor, {
   type BonusRuleForm,
 } from './SummonBonusRulesEditor';
 import SummonHeroPoolField from './SummonHeroPoolField';
+import SummonHeroVariantModeField from './SummonHeroVariantModeField';
+import { normalizeHeroIdsForMode, resolveHeroOptionsForMode } from './summon-hero-variants';
 
 const PROBABILITY_DEFINITIONS_API = '/api/v1/admin/summon-probability-definitions';
 const ADMIN_HEROES_API = '/api/v1/admin/heroes';
@@ -44,6 +47,9 @@ type HeroAdminResponse = {
   status: SummonContentStatus;
   familyId?: number | null;
   rarityId?: number | null;
+  isCostume?: boolean;
+  baseHeroId?: number | null;
+  costumeIndex?: number | null;
 };
 
 type ProbabilityFormItem = {
@@ -52,6 +58,7 @@ type ProbabilityFormItem = {
   kind: SummonProbabilityKind;
   valuePercent: string;
   heroIds: number[];
+  heroVariantMode: SummonHeroVariantMode;
   userSelectionEnabled: boolean;
   defaultSelectedHeroCount: string;
 };
@@ -101,6 +108,7 @@ function probabilityForms(variant: SummonVariant): ProbabilityFormItem[] {
     kind: 'MAIN',
     valuePercent: String(probability.valuePercent),
     heroIds: probability.heroIds,
+    heroVariantMode: probability.heroVariantMode ?? 'EXACT',
     userSelectionEnabled: probability.userSelectionEnabled,
     defaultSelectedHeroCount: String(probability.defaultSelectedHeroCount ?? 2),
   }));
@@ -478,6 +486,7 @@ export default function ScheduledVariantModal({
     valuePercent: Number(item.valuePercent),
     position: index + 1,
     heroIds: item.heroIds,
+    heroVariantMode: item.heroVariantMode,
     userSelectionEnabled: item.userSelectionEnabled,
     defaultSelectedHeroCount: item.userSelectionEnabled ? Number(item.defaultSelectedHeroCount) : null,
   }));
@@ -691,6 +700,7 @@ export default function ScheduledVariantModal({
                     kind: 'MAIN',
                     valuePercent: '',
                     heroIds: [],
+                    heroVariantMode: 'ORIGINAL',
                     userSelectionEnabled: false,
                     defaultSelectedHeroCount: '2',
                   }, ...current])}
@@ -830,9 +840,19 @@ export default function ScheduledVariantModal({
                         ) : null}
                       </div>
 
+                      <SummonHeroVariantModeField
+                        locale={locale}
+                        value={probability.heroVariantMode}
+                        onChange={(heroVariantMode) => updateProbability(probability.key, {
+                          heroVariantMode,
+                          heroIds: normalizeHeroIdsForMode(probability.heroIds, heroVariantMode, heroes),
+                        })}
+                        disabled={saving}
+                      />
+
                       <SummonHeroPoolField
                         locale={locale}
-                        heroes={heroes}
+                        heroes={resolveHeroOptionsForMode(heroes, probability.heroVariantMode)}
                         families={families}
                         rarities={rarities}
                         selectedIds={probability.heroIds}
