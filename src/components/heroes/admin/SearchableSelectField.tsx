@@ -146,7 +146,7 @@ export default function SearchableSelectField({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-20 mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+        <div className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
           <SearchField
             value={resolvedSearchQuery}
             onChange={setResolvedSearchQuery}
