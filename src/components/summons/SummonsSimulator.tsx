@@ -205,6 +205,7 @@ function HeroTile({
   onClick?: () => void;
 }) {
   const name = localizedValue(hero.nameJson, locale, hero.slug);
+  const legendary = hero.rarityStars === 5;
   return (
     <button
       type="button"
@@ -213,10 +214,14 @@ function HeroTile({
       className={`relative flex min-w-0 flex-col items-center overflow-hidden rounded-lg border p-1.5 text-center transition ${
         selected
           ? 'border-cyan-300 bg-cyan-400/15 shadow-[0_0_28px_rgba(34,211,238,0.18)]'
+          : legendary
+          ? 'border-amber-300/70 bg-amber-300/10 shadow-[0_0_24px_rgba(250,204,21,0.38)]'
           : 'border-[var(--border)] bg-black/15 hover:border-fuchsia-300/40'
       }`}
     >
-      <div className="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-black/25">
+      <div className={`h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-black/25 ${
+        legendary ? 'ring-2 ring-amber-200/80 shadow-[0_0_20px_rgba(250,204,21,0.65)]' : ''
+      }`}>
         {hero.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero.previewUrl} alt={name} className="h-full w-full object-cover" />
