@@ -210,13 +210,13 @@ function HeroTile({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`relative overflow-hidden rounded-2xl border p-2 text-left transition ${
+      className={`relative flex min-w-0 flex-col items-center overflow-hidden rounded-lg border p-1.5 text-center transition ${
         selected
           ? 'border-cyan-300 bg-cyan-400/15 shadow-[0_0_28px_rgba(34,211,238,0.18)]'
           : 'border-[var(--border)] bg-black/15 hover:border-fuchsia-300/40'
       }`}
     >
-      <div className="aspect-square overflow-hidden rounded-xl bg-black/25">
+      <div className="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-black/25">
         {hero.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero.previewUrl} alt={name} className="h-full w-full object-cover" />
@@ -224,8 +224,10 @@ function HeroTile({
           <div className="flex h-full items-center justify-center"><UserRound /></div>
         )}
       </div>
-      <div className="mt-2 truncate text-xs font-semibold text-[var(--foreground)]">{name}</div>
-      <div className="truncate text-[10px] text-[var(--foreground-muted)]">{hero.slug}</div>
+      <div className="mt-1 w-full min-w-0">
+        <div className="truncate text-[10px] font-semibold leading-tight text-[var(--foreground)]">{name}</div>
+        <div className="mt-0.5 truncate text-[9px] leading-tight text-[var(--foreground-muted)]">{hero.slug}</div>
+      </div>
       {selected ? (
         <span className="absolute right-3 top-3 rounded-full bg-cyan-300 p-1 text-slate-950">
           <Check className="h-3 w-3" />
@@ -989,7 +991,7 @@ export default function SummonsSimulator() {
             {simulationFinished && revealedResults.length > 0 ? (
               <section className="space-y-5">
                 <h3 className="text-2xl font-black text-[var(--foreground)]">{text.result}</h3>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
                   {baseResults.map((result) => (
                     <HeroTile
                       key={result.sequence}
@@ -1002,7 +1004,7 @@ export default function SummonsSimulator() {
                 {bonusResults.length > 0 ? (
                   <div className="rounded-2xl border border-amber-300/25 bg-amber-300/5 p-4">
                     <h4 className="mb-3 font-black uppercase tracking-wider text-amber-200">{text.bonusRound}</h4>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
                       {bonusResults.map((result) => (
                         <HeroTile
                           key={result.sequence}

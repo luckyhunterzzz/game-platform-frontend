@@ -68,7 +68,10 @@ function toFallbackHeroDetails(hero: SummonHeroPreview, locale: 'ru' | 'en'): Pu
 function HeroPreview({ hero, locale }: { hero: SummonHeroPreview; locale: 'ru' | 'en' }) {
   const name = localizedValue(hero.nameJson, locale, hero.slug);
   return (
-    <div className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-fuchsia-300/25 bg-black/20 shadow-[0_8px_24px_rgba(0,0,0,0.2)] sm:h-16 sm:w-16">
+    <div
+      className="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg border border-fuchsia-300/25 bg-black/20 shadow-sm"
+      title={name}
+    >
       {hero.previewUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={hero.previewUrl} alt={name} className="h-full w-full object-cover" />
@@ -77,9 +80,6 @@ function HeroPreview({ hero, locale }: { hero: SummonHeroPreview; locale: 'ru' |
           <UserRound className="h-6 w-6 text-[var(--foreground-muted)]" aria-hidden="true" />
         </div>
       )}
-      <span className="pointer-events-none absolute inset-x-1 bottom-1 truncate rounded bg-black/70 px-1 py-0.5 text-center text-[9px] text-white opacity-0 transition group-hover:opacity-100">
-        {hero.slug}
-      </span>
     </div>
   );
 }
@@ -140,7 +140,7 @@ function CalendarCard({
         </div>
 
         {heroes.length > 0 ? (
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+          <div className="mt-5 flex flex-wrap gap-1.5">
             {heroes.map((hero) => <HeroPreview key={hero.id} hero={hero} locale={locale} />)}
           </div>
         ) : (
@@ -228,23 +228,26 @@ function SummonDetailsModal({
         <section>
           <h4 className="mb-3 text-lg font-bold text-[var(--foreground)]">{text.heroes}</h4>
           {heroes.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            <div className="flex flex-wrap gap-2">
               {heroes.map((hero) => (
                 <button
                   key={hero.id}
                   type="button"
                   onClick={() => onOpenHero(hero)}
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-3 text-center transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
+                  title={localizedValue(hero.nameJson, locale, hero.slug)}
+                  className="flex w-[84px] min-w-0 flex-col items-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 text-center transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
                 >
-                  <div className="mx-auto h-24 w-24 overflow-hidden rounded-xl bg-black/15">
+                  <div className="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-black/15">
                     {hero.previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={hero.previewUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full items-center justify-center"><UserRound /></div>
+                      <div className="flex h-full items-center justify-center"><UserRound className="h-6 w-6" /></div>
                     )}
                   </div>
-                  <div className="mt-2 truncate text-sm font-semibold text-[var(--foreground)]">{hero.slug}</div>
+                  <div className="mt-1.5 w-full truncate text-xs font-semibold text-[var(--foreground)]">
+                    {localizedValue(hero.nameJson, locale, hero.slug)}
+                  </div>
                 </button>
               ))}
             </div>
