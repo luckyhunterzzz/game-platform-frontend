@@ -19,6 +19,7 @@ export type CsrfToken = {
 };
 
 const csrfTokens = new Map<string, Promise<CsrfToken>>();
+const sessionVerifications = new Map<string, Promise<BffSession | null>>();
 
 export function gatewayUrl(apiBaseUrl: string, path: string): string {
   return `${apiBaseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
@@ -47,6 +48,22 @@ export async function fetchBffSession(
   }
 
   return response.json() as Promise<BffSession>;
+}
+
+export function verifyBffSession(apiBaseUrl: string): Promise<BffSession | null> {
+  const cacheKey = apiBaseUrl.replace(/\/$/, '');
+  const activeVerification = sessionVerifications.get(cacheKey);
+
+  if (activeVerification) {
+    return activeVerification;
+  }
+
+  const verification = fetchBffSession(apiBaseUrl)
+    .catch(() => null)
+    .finally(() => sessionVerifications.delete(cacheKey));
+
+  sessionVerifications.set(cacheKey, verification);
+  return verification;
 }
 
 export function getCsrfToken(apiBaseUrl: string): Promise<CsrfToken> {
