@@ -6,6 +6,7 @@ import {
   getCsrfToken,
   isUnsafeMethod,
   notifyAuthenticationRequired,
+  verifyBffSession,
 } from '@/lib/bff-auth';
 import { useRuntimeConfig } from '@/lib/runtime-config/context';
 import type { ErrorResponse } from '@/lib/types/publication';
@@ -77,6 +78,18 @@ export function useApi() {
           headers.set('X-Request-Id', crypto.randomUUID());
           res = await performRequest();
         }
+
+        if (isGatewayRequest && res.status === 401) {
+          clearCsrfToken(apiBaseUrl);
+          const verifiedSession = await verifyBffSession(apiBaseUrl);
+
+          if (verifiedSession?.authenticated && !isUnsafeMethod(init.method)) {
+            headers.set('X-Request-Id', crypto.randomUUID());
+            res = await performRequest();
+          } else if (verifiedSession && !verifiedSession.authenticated) {
+            notifyAuthenticationRequired();
+          }
+        }
       } catch (error) {
         const apiHost = (() => {
           try {
@@ -97,10 +110,6 @@ export function useApi() {
 
       if (isGatewayRequest && (res.status === 401 || res.status === 403)) {
         clearCsrfToken(apiBaseUrl);
-      }
-
-      if (isGatewayRequest && res.status === 401) {
-        notifyAuthenticationRequired();
       }
 
       return {
