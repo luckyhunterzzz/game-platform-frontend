@@ -4,8 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { eventGuideItems } from '@/lib/static/events';
@@ -89,7 +89,7 @@ function useRotatingPreview(slug: string) {
 }
 
 export default function EventsPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const ninjaTowerPreview = useRotatingPreview('ninja-tower');
   const windfallTemplePreview = useRotatingPreview('windfall-temple');
   const { locale, messages } = useI18n();
@@ -108,9 +108,7 @@ export default function EventsPage() {
       : 'A collection of game events.';
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}

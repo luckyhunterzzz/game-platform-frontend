@@ -1,14 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import HeroCoachPageClient from '@/components/hero-coach/HeroCoachPageClient';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 export default function HeroCoachPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const router = useRouter();
   const { messages } = useI18n();
 
@@ -26,12 +25,7 @@ export default function HeroCoachPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar
-        onMenuClick={() => setSidebarOpen((prev) => !prev)}
-        onHomeClick={navigateHome}
-      />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}
