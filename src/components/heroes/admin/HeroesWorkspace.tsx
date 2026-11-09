@@ -814,6 +814,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const editPreviewImageInputRef = useRef<HTMLInputElement | null>(null);
   const publicFiltersPanelRef = useRef<HTMLDivElement | null>(null);
   const publicHeroSlugRef = useRef<string | null>(null);
+  const publicHeroLocaleRef = useRef<HeroLocale | null>(null);
   const publicCatalogAbortRef = useRef<AbortController | null>(null);
   const publicCatalogRequestSequenceRef = useRef(0);
   const publicHeroAbortRef = useRef<AbortController | null>(null);
@@ -1565,6 +1566,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         variants.costumes.find((item) => item.slug === details.slug)?.elementName ??
         variants.baseHero.elementName ??
         '',
+      elementImageUrl: details.element?.imageUrl ?? null,
       rarityName:
         variants.costumes.find((item) => item.slug === details.slug)?.rarityName ??
         variants.baseHero.rarityName ??
@@ -1575,6 +1577,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
         variants.baseHero.rarityStars ??
         0,
       heroClassName: details.heroClass?.name ?? '',
+      heroClassImageUrl: details.heroClass?.imageUrl ?? null,
       manaSpeedName: details.manaSpeed?.name ?? '',
       familyName: details.family?.name ?? null,
       alphaTalentName: details.alphaTalent?.name ?? null,
@@ -1633,6 +1636,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       }
 
       publicHeroSlugRef.current = null;
+      publicHeroLocaleRef.current = null;
       setPublicDetailsError(error instanceof Error ? error.message : 'Failed to load hero');
       setSelectedPublicHeroDetails(null);
       setSelectedPublicHeroVariants(null);
@@ -1669,6 +1673,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const closePublicHeroState = useCallback(() => {
     publicHeroAbortRef.current?.abort();
     publicHeroSlugRef.current = null;
+    publicHeroLocaleRef.current = null;
     setPublicDetailsOpen(false);
     setSelectedPublicHero(null);
     setSelectedPublicHeroDetails(null);
@@ -1686,6 +1691,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
     const alreadyLoadingSameHero =
       publicHeroSlugRef.current === normalizedSlug &&
+      publicHeroLocaleRef.current === locale &&
       (loadingPublicDetails || selectedPublicHeroDetails?.slug === normalizedSlug);
 
     if (alreadyLoadingSameHero && isPublicDetailsOpen) {
@@ -1693,6 +1699,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
 
     publicHeroSlugRef.current = normalizedSlug;
+    publicHeroLocaleRef.current = locale;
 
     if (heroCard) {
       setSelectedPublicHero(heroCard);
@@ -1703,7 +1710,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setPublicDetailsError(null);
     setPublicDetailsOpen(true);
     await loadPublicVariants(normalizedSlug);
-  }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, selectedPublicHeroDetails?.slug]);
+  }, [isPublicDetailsOpen, loadPublicVariants, loadingPublicDetails, locale, selectedPublicHeroDetails?.slug]);
 
   useEffect(() => {
     if (adminMode) {
@@ -1765,7 +1772,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     }
 
     const currentOpenSlug = selectedPublicHeroDetails?.slug ?? publicHeroSlugRef.current;
-    if (currentOpenSlug === heroSlugFromQuery && isPublicDetailsOpen) {
+    if (
+      currentOpenSlug === heroSlugFromQuery &&
+      publicHeroLocaleRef.current === locale &&
+      isPublicDetailsOpen
+    ) {
       return;
     }
 
@@ -1775,6 +1786,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     closePublicHeroState,
     findBaseHeroCardBySlug,
     isPublicDetailsOpen,
+    locale,
     openPublicHeroBySlug,
     searchParams,
     selectedPublicHeroDetails?.slug,
@@ -3724,8 +3736,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(112px,1fr))]">
                   {publicItems.map((hero) => {
                     const previewImageUrl = hero.previewUrl ?? hero.imageUrl ?? null;
-                    const elementImageUrl = publicElementImageByName.get(hero.elementName) ?? null;
-                    const heroClassImageUrl = publicHeroClassImageByName.get(hero.heroClassName) ?? null;
+                    const elementImageUrl = hero.elementImageUrl ?? publicElementImageByName.get(hero.elementName) ?? null;
+                    const heroClassImageUrl = hero.heroClassImageUrl ?? publicHeroClassImageByName.get(hero.heroClassName) ?? null;
                     const elementKey = resolveElementKeyFromSources(hero.elementName, elementImageUrl);
                     const previewAccentClass = getPreviewAccentClassByKey(elementKey);
 
