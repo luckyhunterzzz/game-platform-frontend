@@ -9,6 +9,7 @@ import { RuntimeConfigProvider } from '@/lib/runtime-config/context';
 import { resolveLocaleFromHeaders } from '@/lib/server/site-context';
 import { resolveRuntimeConfigFromHeaders } from '@/lib/runtime-config/server';
 import { ThemeProvider } from '@/lib/theme/theme-context';
+import AppShell from '@/components/AppShell';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
 
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export default async function RootLayout({
           <AuthProvider>
             <I18nProvider initialLocale={initialLocale}>
               <ThemeProvider>
-                {children}
+                <AppShell>{children}</AppShell>
                 <ScrollToTopButton />
               </ThemeProvider>
             </I18nProvider>

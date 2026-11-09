@@ -3,8 +3,8 @@
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import ScrollToTopButton from '@/components/ScrollToTopButton';
 import { useI18n } from '@/lib/i18n/i18n-context';
@@ -64,7 +64,7 @@ type SectionBase = Omit<LocalizedSection, 'subtitle' | 'guideCards' | 'avatarBlo
 const hardLine = (value: string, hardLabel: string) => `${value} (${hardLabel})`;
 
 export default function ChestsPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const { locale, messages } = useI18n();
 
   const t = useMemo(() => {
@@ -334,8 +334,7 @@ export default function ChestsPage() {
   );
 
   return (
-    <div className="flex min-h-screen scroll-smooth flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
+    <div className="flex flex-1 scroll-smooth flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu isOpen={isSidebarOpen} items={sidebarItems} onClose={() => setSidebarOpen(false)} title={messages.home.menuTitle} />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-10 md:px-6">
