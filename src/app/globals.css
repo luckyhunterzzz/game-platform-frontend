@@ -464,10 +464,10 @@ select optgroup {
 
 @keyframes supporters-ticker-scroll {
   from {
-    transform: translateX(0);
+    transform: translateX(var(--supporters-ticker-start, 100vw));
   }
   to {
-    transform: translateX(-50%);
+    transform: translateX(-100%);
   }
 }
 
@@ -479,8 +479,14 @@ select optgroup {
   display: flex;
   width: max-content;
   white-space: nowrap;
-  animation: supporters-ticker-scroll 100s linear infinite;
+  opacity: 0;
+  transform: translateX(var(--supporters-ticker-start, 100vw));
   will-change: transform;
+}
+
+.supporters-ticker-track--ready {
+  opacity: 1;
+  animation: supporters-ticker-scroll var(--supporters-ticker-duration, 100s) linear infinite;
 }
 
 .supporters-ticker:hover .supporters-ticker-track {
@@ -489,6 +495,7 @@ select optgroup {
 
 @media (prefers-reduced-motion: reduce) {
   .supporters-ticker-track {
+    opacity: 1;
     animation: none;
     transform: none;
   }

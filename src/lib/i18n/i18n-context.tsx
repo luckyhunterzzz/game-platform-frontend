@@ -13,7 +13,7 @@ import type { Locale, Messages } from './types';
 import { enMessages } from './messages/en';
 import { ruMessages } from './messages/ru';
 
-const LOCALE_STORAGE_KEY = 'game-platform-locale';
+export const LOCALE_STORAGE_KEY = 'game-platform-locale';
 const LOCALE_CHANGE_EVENT = 'game-platform-locale-change';
 
 const messagesMap: Record<Locale, Messages> = {

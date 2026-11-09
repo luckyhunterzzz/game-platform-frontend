@@ -32,9 +32,11 @@ export type PublicHeroCardItem = {
   imageUrl?: string | null;
   previewUrl?: string | null;
   elementName: string;
+  elementImageUrl?: string | null;
   rarityName: string;
   rarityStars: number;
   heroClassName: string;
+  heroClassImageUrl?: string | null;
   manaSpeedName: string;
   familyName?: string | null;
   alphaTalentName?: string | null;
