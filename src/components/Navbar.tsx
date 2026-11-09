@@ -20,6 +20,7 @@ import { useI18n } from '@/lib/i18n/i18n-context';
 import type { Locale } from '@/lib/i18n/types';
 import { useTheme, type ThemeMode } from '@/lib/theme/theme-context';
 import PurchaseHelpNavbarNotice from '@/components/joint-purchases/PurchaseHelpNavbarNotice';
+import SupportersTicker from '@/components/supporters/SupportersTicker';
 
 export const Navbar = ({
   onMenuClick,
@@ -146,7 +147,8 @@ export const Navbar = ({
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-[var(--border)] bg-[var(--surface-strong)] px-2 py-2 text-[var(--foreground)] backdrop-blur sm:px-4 sm:py-3">
+      <nav className="sticky top-0 z-50 w-full border-b border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] backdrop-blur">
+      <div className="relative z-10 flex w-full items-center justify-between px-2 py-2 sm:px-4 sm:py-3">
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
         <button
           onClick={onMenuClick}
@@ -213,7 +215,7 @@ export const Navbar = ({
           </button>
 
           {isThemeMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
+            <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
               <button
                 type="button"
                 onClick={() => handleThemeSelect('light')}
@@ -264,7 +266,7 @@ export const Navbar = ({
           </button>
 
           {isLanguageMenuOpen && (
-            <div className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
+            <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-2xl">
               <button
                 type="button"
                 onClick={() => handleLanguageSelect('ru')}
@@ -330,7 +332,8 @@ export const Navbar = ({
           </button>
         )}
       </div>
-
+      </div>
+      <SupportersTicker />
       </nav>
       {authError ? (
         <div className="border-b border-amber-400/25 bg-amber-400/10 px-3 py-2 text-center text-xs text-amber-100 sm:px-4">
