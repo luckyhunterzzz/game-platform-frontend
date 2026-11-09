@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import DictionaryModal from '@/components/heroes/admin/DictionaryModal';
 import HeroInfoPopover from '@/components/heroes/admin/HeroInfoPopover';
@@ -599,7 +599,7 @@ function TroopPreviewCard({
 }
 
 export default function TroopsPageClient() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const [selectedTier, setSelectedTier] = useState<TroopTierKey>('legendary');
   const [selectedElement, setSelectedElement] = useState<TroopElementKey | 'ALL'>('ALL');
   const [selectedClass, setSelectedClass] = useState<HeroClassKey | 'ALL'>('ALL');
@@ -737,9 +737,7 @@ export default function TroopsPageClient() {
         : 'All epic troops in one place. Filter by element and enhancement.';
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}

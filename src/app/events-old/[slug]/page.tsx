@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { notFound, useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { getEventGuideBySlug } from '@/lib/static/events';
 
@@ -2356,7 +2356,7 @@ function EventSectionCard({
 }
 
 export default function EventDetailsPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const { locale, messages } = useI18n();
   const sidebarItems: SidebarMenuItem[] = [
     { key: 'home', href: '/', label: messages.home.menuPageOne },
@@ -2545,9 +2545,7 @@ export default function EventDetailsPage() {
       : 'Content for this page will be added in the next step.';
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}

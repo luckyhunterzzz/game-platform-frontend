@@ -1,18 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
 import JointPurchasesPageClient from '@/components/joint-purchases/JointPurchasesPageClient';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 
 export default function JointPurchasesPage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const router = useRouter();
   const { messages } = useI18n();
   const { authenticated, loading, login } = useAuth();
@@ -36,12 +34,7 @@ export default function JointPurchasesPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar
-        onMenuClick={() => setSidebarOpen((prev) => !prev)}
-        onHomeClick={navigateHome}
-      />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}

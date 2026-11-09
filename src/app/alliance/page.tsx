@@ -1,15 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-
+import { useAppSidebar } from '@/components/AppShell';
 import AppSidebarMenu, { type SidebarMenuItem } from '@/components/AppSidebarMenu';
-import { Navbar } from '@/components/Navbar';
 import PageQuickLinksToolbar from '@/components/PageQuickLinksToolbar';
 import PublicationsSection from '@/components/publications/PublicationsSection';
 import { useI18n } from '@/lib/i18n/i18n-context';
 
 export default function AlliancePage() {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useAppSidebar();
   const { messages } = useI18n();
   const sidebarItems: SidebarMenuItem[] = [
     { key: 'home', href: '/', label: messages.home.menuPageOne },
@@ -20,9 +18,7 @@ export default function AlliancePage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
-      <Navbar onMenuClick={() => setSidebarOpen((prev) => !prev)} />
-
+    <div className="flex flex-1 flex-col bg-[var(--background)] font-sans text-[var(--foreground)]">
       <AppSidebarMenu
         isOpen={isSidebarOpen}
         items={sidebarItems}
