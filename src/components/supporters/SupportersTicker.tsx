@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { useI18n } from '@/lib/i18n/i18n-context';
 import type { Supporter, SupporterFontStyle } from '@/lib/types/supporter';
 import { useApi } from '@/lib/use-api';
 
 const PUBLIC_SUPPORTERS_API = '/api/v1/public/supporters';
+const TICKER_SPEED_PX_PER_SECOND = 20;
 
 const FONT_CLASSES: Record<SupporterFontStyle, string> = {
   ELEGANT: 'font-serif italic tracking-wide',
@@ -21,6 +22,9 @@ export default function SupportersTicker() {
   const { apiJson } = useApi();
   const { locale } = useI18n();
   const [supporters, setSupporters] = useState<Supporter[]>(cachedSupporters ?? []);
+  const [motion, setMotion] = useState<{ startPx: number; durationSeconds: number } | null>(null);
+  const tickerRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,17 +49,68 @@ export default function SupportersTicker() {
     };
   }, [apiJson]);
 
+  const gratitude = locale === 'ru' ? 'Спасибо за вашу поддержку!' : 'Thank you for your support!';
+
+  useEffect(() => {
+    const ticker = tickerRef.current;
+    const track = trackRef.current;
+
+    if (!ticker || !track) {
+      return;
+    }
+
+    const updateMotion = () => {
+      const startPx = ticker.clientWidth;
+      const trackWidth = track.scrollWidth;
+
+      if (startPx <= 0 || trackWidth <= 0) {
+        return;
+      }
+
+      const durationSeconds = (startPx + trackWidth) / TICKER_SPEED_PX_PER_SECOND;
+      setMotion((current) => {
+        if (
+          current &&
+          current.startPx === startPx &&
+          Math.abs(current.durationSeconds - durationSeconds) < 0.05
+        ) {
+          return current;
+        }
+
+        return { startPx, durationSeconds };
+      });
+    };
+
+    const animationFrame = window.requestAnimationFrame(updateMotion);
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateMotion);
+    resizeObserver?.observe(ticker);
+    resizeObserver?.observe(track);
+    window.addEventListener('resize', updateMotion);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateMotion);
+    };
+  }, [gratitude, supporters]);
+
+  const trackStyle = motion
+    ? ({
+        '--supporters-ticker-start': `${motion.startPx}px`,
+        '--supporters-ticker-duration': `${motion.durationSeconds}s`,
+      } as CSSProperties)
+    : undefined;
+
   if (supporters.length === 0) {
     return null;
   }
 
-  const gratitude = locale === 'ru' ? 'Спасибо за вашу поддержку!' : 'Thank you for your support!';
-
-  const renderSequence = (duplicate: boolean) => (
-    <span className="inline-flex shrink-0 items-center gap-5 pr-5" aria-hidden={duplicate || undefined}>
+  const renderSequence = () => (
+    <span className="inline-flex shrink-0 items-center gap-5">
+      <span aria-hidden="true" className="text-amber-400/70">✦</span>
       <span className="font-medium text-[var(--foreground-soft)]">{gratitude}</span>
       {supporters.map((supporter) => (
-        <span key={`${duplicate ? 'duplicate' : 'primary'}-${supporter.id}`} className="inline-flex items-center gap-5">
+        <span key={supporter.id} className="inline-flex items-center gap-5">
           <span aria-hidden="true" className="text-amber-400/70">✦</span>
           <span
             className={`text-base drop-shadow-sm ${FONT_CLASSES[supporter.fontStyle]}`}
@@ -71,12 +126,16 @@ export default function SupportersTicker() {
 
   return (
     <div
+      ref={tickerRef}
       className="supporters-ticker border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] py-1.5 text-sm"
       aria-label={gratitude}
     >
-      <div className="supporters-ticker-track">
-        {renderSequence(false)}
-        {renderSequence(true)}
+      <div
+        ref={trackRef}
+        className={`supporters-ticker-track${motion ? ' supporters-ticker-track--ready' : ''}`}
+        style={trackStyle}
+      >
+        {renderSequence()}
       </div>
     </div>
   );

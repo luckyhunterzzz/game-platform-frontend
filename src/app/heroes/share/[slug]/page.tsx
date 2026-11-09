@@ -111,6 +111,7 @@ export default async function HeroSharePage({ params, searchParams }: HeroShareP
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const language = resolveLanguage(resolvedSearchParams?.locale);
+  const locale = language === 'RU' ? 'ru' : 'en';
   const variants = await getHeroVariantsBySlug(slug, language);
 
   if (!variants?.currentHero) {
@@ -124,7 +125,7 @@ export default async function HeroSharePage({ params, searchParams }: HeroShareP
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#08111f] px-4 py-10 text-white">
-      <HeroShareRedirect targetUrl={targetUrl} />
+      <HeroShareRedirect targetUrl={targetUrl} locale={locale} />
       <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div className="flex items-start gap-4">
           {previewUrl ? (
