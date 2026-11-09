@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n/i18n-context';
+import SupportersAdminSection from '@/components/supporters/SupportersAdminSection';
 import PublicationsSection from './PublicationsSection';
 
 export default function AdminPublicationsHomeSection() {
@@ -54,6 +55,8 @@ export default function AdminPublicationsHomeSection() {
           </div>
         </div>
       </div>
+
+      <SupportersAdminSection />
 
       <PublicationsSection
         title={heroText.sectionTitle}
