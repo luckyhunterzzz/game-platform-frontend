@@ -461,3 +461,35 @@ select optgroup {
 .summon-completion-message {
   animation: summon-status-message 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+@keyframes supporters-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.supporters-ticker {
+  overflow: hidden;
+}
+
+.supporters-ticker-track {
+  display: flex;
+  width: max-content;
+  white-space: nowrap;
+  animation: supporters-ticker-scroll 100s linear infinite;
+  will-change: transform;
+}
+
+.supporters-ticker:hover .supporters-ticker-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supporters-ticker-track {
+    animation: none;
+    transform: none;
+  }
+}

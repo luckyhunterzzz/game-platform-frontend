@@ -26,6 +26,9 @@ export type PublicHeroCardItem = {
   id: number;
   slug: string;
   name: string;
+  baseHeroId?: number | null;
+  isCostume?: boolean;
+  costumeIndex?: number | null;
   imageUrl?: string | null;
   previewUrl?: string | null;
   elementName: string;
@@ -137,7 +140,7 @@ type HeroBugReportCreateRequest = {
   description: string;
 };
 
-type LimitBreakElementKey = 'nature' | 'ice' | 'fire' | 'dark' | 'holy';
+export type LimitBreakElementKey = 'nature' | 'ice' | 'fire' | 'dark' | 'holy';
 
 type LimitBreakRequirementItem = {
   imageUrl: string;
@@ -1512,7 +1515,7 @@ function getSpecialSkillOverlayClass(elementName: string | null | undefined) {
   return 'border-white/20 bg-gradient-to-br from-slate-900/96 via-slate-800/92 to-slate-950/96';
 }
 
-function resolveElementKeyFromSources(
+export function resolveElementKeyFromSources(
   elementName: string | null | undefined,
   elementImageUrl?: string | null,
 ): LimitBreakElementKey | null {
@@ -1541,7 +1544,7 @@ function resolveElementKeyFromSources(
   return resolveLimitBreakElementKey(elementName);
 }
 
-function getPreviewAccentClassByKey(elementKey: LimitBreakElementKey | null) {
+export function getPreviewAccentClassByKey(elementKey: LimitBreakElementKey | null) {
   if (elementKey === 'ice') {
     return 'border-sky-300/60 bg-gradient-to-b from-sky-400/72 via-sky-400/28 to-sky-950/12 shadow-[0_0_28px_rgba(56,189,248,0.32)]';
   }
@@ -3497,8 +3500,19 @@ export default function PublicHeroDetailsModal({
         </div>
       ) : null}
       <div className="min-w-0 flex flex-1 items-center gap-2">
-        <div className="min-w-0 truncate text-[1.35rem] font-bold text-[var(--foreground)] md:text-[1.5rem]">
-          {heroDetails?.name ?? heroCard?.name ?? t.title}
+        <div className="min-w-0">
+          <div className="truncate text-[1.35rem] font-bold text-[var(--foreground)] md:text-[1.5rem]">
+            {heroDetails?.name ?? heroCard?.name ?? t.title}
+          </div>
+          <div className={`mt-0.5 w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+            currentHeroIsCostume
+              ? 'border-violet-400/35 bg-violet-400/10 text-violet-300'
+              : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+          }`}>
+            {currentHeroIsCostume
+              ? (locale === 'RU' ? 'Костюмная версия' : 'Costume version')
+              : (locale === 'RU' ? 'Базовый герой' : 'Base hero')}
+          </div>
         </div>
         {currentHeroSlug ? (
           <div className="relative inline-flex shrink-0">

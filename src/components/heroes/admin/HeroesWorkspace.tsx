@@ -68,6 +68,8 @@ import LocalizedTextareaFields from './LocalizedTextareaFields';
 import SearchField from './SearchField';
 import SearchableSelectField from './SearchableSelectField';
 import PublicHeroDetailsModal, {
+  getPreviewAccentClassByKey,
+  resolveElementKeyFromSources,
   type PublicHeroCardItem,
   type PublicHeroDetailsItem,
   type PublicHeroVariantSummaryItem,
@@ -98,6 +100,7 @@ const HERO_TAGS_API = '/api/v1/admin/heroes/tags';
 const PASSIVE_SKILLS_API = '/api/v1/admin/heroes/passive-skills';
 const HERO_IMAGE_UPLOAD_API = '/api/v1/admin/media/images/heroes';
 const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
+const PUBLIC_CARD_VIEW_SESSION_KEY = 'public-hero-card-view';
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const DEFAULT_HERO_IMPORT_SOURCE_URL =
@@ -109,6 +112,7 @@ type HeroStatus = 'DRAFT' | 'READY' | 'HIDDEN' | 'ARCHIVED';
 type AdminHeroFiltersState = {
   rarityIds: number[];
   statuses: HeroStatus[];
+  openBugReportsOnly: boolean;
 };
 
 type PublicVisibilityFilter = 'READY_ONLY' | 'READY_AND_DRAFT';
@@ -484,6 +488,7 @@ const EMPTY_PUBLIC_FILTER_SEARCH: PublicCatalogFilterSearchState = {
 const EMPTY_ADMIN_FILTERS: AdminHeroFiltersState = {
   rarityIds: [],
   statuses: [],
+  openBugReportsOnly: false,
 };
 
 const DEFAULT_HERO_IMPORT_FORM: HeroImportFormState = {
@@ -824,6 +829,13 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     useState<PublicCatalogFilterSearchState>(EMPTY_PUBLIC_FILTER_SEARCH);
   const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
   const [publicFiltersExpanded, setPublicFiltersExpanded] = useState(false);
+  const [publicCardView, setPublicCardView] = useState<'FULL' | 'PREVIEW'>(() => {
+    if (typeof window === 'undefined') return 'FULL';
+    return window.sessionStorage.getItem(PUBLIC_CARD_VIEW_SESSION_KEY) === 'PREVIEW' ? 'PREVIEW' : 'FULL';
+  });
+  const [isMobilePublicCatalog, setIsMobilePublicCatalog] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  );
   const [loadingMorePublic, setLoadingMorePublic] = useState(false);
   const [selectedPublicHero, setSelectedPublicHero] = useState<PublicHeroCardItem | null>(null);
   const [selectedPublicHeroDetails, setSelectedPublicHeroDetails] = useState<PublicHeroDetailsItem | null>(null);
@@ -936,6 +948,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [adminFiltersExpanded, setAdminFiltersExpanded] = useState(false);
   const defaultCreateRarityId = useMemo(() => getDefaultCreateRarityId(rarities), [rarities]);
   const isSuperAdmin = roles.includes('ROLE_superadmin');
+  const isPreviewCatalogView = isMobilePublicCatalog || publicCardView === 'PREVIEW';
 
   const t = useMemo(
     () =>
@@ -1020,6 +1033,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             adminStatusReady: '\u0413\u043e\u0442\u043e\u0432',
             adminStatusHidden: '\u0421\u043a\u0440\u044b\u0442',
             adminStatusArchived: '\u0410\u0440\u0445\u0438\u0432',
+            adminOpenBugReportsOnly: '\u0422\u043e\u043b\u044c\u043a\u043e \u0441 \u043d\u0435\u0437\u0430\u043a\u0440\u044b\u0442\u044b\u043c\u0438 bug reports',
+            fullCardView: '\u041f\u043e\u043b\u043d\u044b\u0435 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438',
+            previewCardView: '\u041f\u0440\u0435\u0432\u044c\u044e',
             resetFilters: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b',
             loadMore: '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0435\u0449\u0435',
             noResults: '\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e',
@@ -1137,6 +1153,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             adminStatusReady: 'Ready',
             adminStatusHidden: 'Hidden',
             adminStatusArchived: 'Archived',
+            adminOpenBugReportsOnly: 'Only heroes with open bug reports',
+            fullCardView: 'Full cards',
+            previewCardView: 'Previews',
             showFilters: 'Show filters',
             hideFilters: 'Hide filters',
             resetFilters: 'Reset filters',
@@ -1249,7 +1268,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     (page: number) => {
       const params = new URLSearchParams({
         page: String(page),
-        size: '12',
+        size: isPreviewCatalogView ? '50' : '12',
         language: locale,
       });
 
@@ -1276,7 +1295,7 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       return `${PUBLIC_API}?${params.toString()}`;
     },
-    [debouncedPublicSearch, isSuperAdmin, locale, publicFilters, publicVisibilityFilter],
+    [debouncedPublicSearch, isPreviewCatalogView, isSuperAdmin, locale, publicFilters, publicVisibilityFilter],
   );
 
   const fetchPublicCatalogPage = useCallback(
@@ -1331,6 +1350,9 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
 
       adminFilters.rarityIds.forEach((id) => params.append('rarityIds', String(id)));
       adminFilters.statuses.forEach((status) => params.append('statuses', status));
+      if (adminFilters.openBugReportsOnly) {
+        params.set('openBugReportsOnly', 'true');
+      }
 
       const response = await apiJson<AdminHeroPageResponse>(`${ADMIN_CATALOG_API}?${params.toString()}`);
       const mapped = response.items.map(mapHero);
@@ -1559,6 +1581,10 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       baseAttack: null,
       baseArmor: null,
       baseHp: null,
+      baseHeroId: details.baseHeroId ?? null,
+      isCostume: details.baseHeroId != null,
+      costumeIndex: variants.costumes.find((item) => item.slug === details.slug)?.costumeIndex ?? null,
+      previewUrl: details.previewUrl ?? variants.baseHero.previewUrl ?? null,
     }),
     [],
   );
@@ -1694,8 +1720,17 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   }, [adminMode, publicSearch]);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsMobilePublicCatalog(event.matches);
+
+    setIsMobilePublicCatalog(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
     void loadListRef.current();
-  }, [adminMode, adminFilters, adminSearch, debouncedPublicSearch, publicFilters, publicVisibilityFilter, locale]);
+  }, [adminMode, adminFilters, adminSearch, debouncedPublicSearch, publicFilters, publicVisibilityFilter, locale, isPreviewCatalogView]);
 
   useEffect(() => {
     if (adminMode) {
@@ -2288,6 +2323,14 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
       Object.values(publicFilters).some((value) => value.length > 0),
     [publicFilters, publicSearch],
   );
+  const publicElementImageByName = useMemo(
+    () => new Map((publicFilterOptions?.elements ?? []).map((item) => [item.name, item.imageUrl ?? null])),
+    [publicFilterOptions],
+  );
+  const publicHeroClassImageByName = useMemo(
+    () => new Map((publicFilterOptions?.heroClasses ?? []).map((item) => [item.name, item.imageUrl ?? null])),
+    [publicFilterOptions],
+  );
 
   const currentAuditLabel = userEmail ?? displayName ?? userId ?? null;
   const isAdminSelectionReady =
@@ -2403,6 +2446,11 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
     setPublicFilterSearch(EMPTY_PUBLIC_FILTER_SEARCH);
     setOpenPublicFilterKey(null);
     setPublicFiltersExpanded(false);
+  };
+
+  const handlePublicCardViewChange = (view: 'FULL' | 'PREVIEW') => {
+    setPublicCardView(view);
+    window.sessionStorage.setItem(PUBLIC_CARD_VIEW_SESSION_KEY, view);
   };
 
   const validateForm = (form: HeroFormState): string | null => {
@@ -3648,47 +3696,158 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
             <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-sm text-[var(--foreground-soft)]">{hasActivePublicFilters ? t.noResults : t.empty}</div>
           ) : (
             <div className="space-y-4">
-              <div className="text-sm text-[var(--foreground-soft)]">
-                {t.heroesCountSummary
-                  .replace('{shown}', String(publicItems.length))
-                  .replace('{total}', String(publicPage?.totalElements ?? publicItems.length))}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-[var(--foreground-soft)]">
+                  {t.heroesCountSummary
+                    .replace('{shown}', String(publicItems.length))
+                    .replace('{total}', String(publicPage?.totalElements ?? publicItems.length))}
+                </div>
+                <div className="hidden items-center gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 md:flex">
+                  {([['FULL', t.fullCardView], ['PREVIEW', t.previewCardView]] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => handlePublicCardViewChange(value)}
+                      aria-pressed={publicCardView === value}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        publicCardView === value
+                          ? 'bg-cyan-400/15 text-cyan-300'
+                          : 'text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {publicItems.map((hero) => (
-                  <button
-                    key={hero.id}
-                    type="button"
-                    onClick={() => void handleOpenPublicHero(hero)}
-                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
-                  >
-                    <div className="mb-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(59,130,246,0.18),rgba(15,23,42,0.06))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                      {hero.imageUrl ? (
-                        <div className="relative aspect-[3/4] w-full overflow-hidden">
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={hero.imageUrl}
-                            alt={hero.name}
-                            className="relative z-10 h-full w-full scale-[0.94] object-contain object-top"
-                          />
-                          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
+              {isPreviewCatalogView ? (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(112px,1fr))]">
+                  {publicItems.map((hero) => {
+                    const previewImageUrl = hero.previewUrl ?? hero.imageUrl ?? null;
+                    const elementImageUrl = publicElementImageByName.get(hero.elementName) ?? null;
+                    const heroClassImageUrl = publicHeroClassImageByName.get(hero.heroClassName) ?? null;
+                    const elementKey = resolveElementKeyFromSources(hero.elementName, elementImageUrl);
+                    const previewAccentClass = getPreviewAccentClassByKey(elementKey);
+
+                    return (
+                      <button
+                        key={hero.id}
+                        type="button"
+                        onClick={() => void handleOpenPublicHero(hero)}
+                        className="group min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 text-center transition hover:border-cyan-400/40 hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+                      >
+                        <div className={`aspect-square w-full overflow-hidden rounded-lg border p-[2px] transition ${previewAccentClass}`}>
+                          <div className="relative h-full w-full overflow-hidden rounded-[6px] bg-[linear-gradient(180deg,rgba(59,130,246,0.18),rgba(15,23,42,0.06))]">
+                            {previewImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={previewImageUrl}
+                                alt={hero.name}
+                                className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center px-2 text-[10px] text-[var(--foreground-muted)]">
+                                Hero image
+                              </div>
+                            )}
+
+                            <div className="pointer-events-none absolute left-1 top-1 z-10 flex flex-col gap-1">
+                              <DictionaryMiniIcon
+                                imageUrl={heroClassImageUrl}
+                                label={hero.heroClassName}
+                                size={24}
+                                className="border-white/25 bg-slate-950/80 shadow-lg"
+                              />
+                              {hero.isCostume ? (
+                                <DictionaryMiniIcon
+                                  imageUrl="/dictionary-icons/costume.png"
+                                  label={locale === 'RU' ? 'Костюм' : 'Costume'}
+                                  size={24}
+                                  className="border-white/25 bg-slate-950/80 shadow-lg"
+                                  fallbackToLetter={false}
+                                />
+                              ) : null}
+                            </div>
+
+                            <div className="pointer-events-none absolute bottom-1 right-1 z-10">
+                              <DictionaryMiniIcon
+                                imageUrl={elementImageUrl}
+                                label={hero.elementName}
+                                size={26}
+                                className="border-white/25 bg-slate-950/80 shadow-lg"
+                              />
+                            </div>
+                          </div>
                         </div>
-                      ) : (
-                        <div className="flex aspect-[3/4] w-full items-center justify-center px-4 text-center text-sm text-[var(--foreground-muted)]">
-                          Hero image
+
+                        <div
+                          className="mt-1 flex min-h-3.5 items-center justify-center gap-px"
+                          aria-label={`${hero.rarityStars} stars`}
+                        >
+                          {Array.from({ length: hero.rarityStars }).map((_, index) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={`${hero.id}-preview-star-${index}`}
+                              src={HERO_STAR_ASSET}
+                              alt=""
+                              className="h-3 w-3 object-contain sm:h-3.5 sm:w-3.5"
+                            />
+                          ))}
                         </div>
-                      )}
-                    </div>
-                    <div className="text-xl font-semibold text-[var(--foreground)] md:text-2xl">{hero.name}</div>
-                    <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
-                      <div>{t.element}: {hero.elementName}</div>
-                      <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
-                      <div>{t.heroClass}: {hero.heroClassName}</div>
-                      <div>{t.manaSpeed}: {hero.manaSpeedName}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                        <div className="mt-0.5 min-h-8 overflow-hidden text-center text-[11px] font-semibold leading-4 text-[var(--foreground)] sm:text-xs">
+                          {hero.name}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {publicItems.map((hero) => (
+                    <button
+                      key={hero.id}
+                      type="button"
+                      onClick={() => void handleOpenPublicHero(hero)}
+                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-cyan-400/40 hover:bg-[var(--surface-hover)]"
+                    >
+                      <div className="mb-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(59,130,246,0.18),rgba(15,23,42,0.06))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                        {hero.imageUrl ? (
+                          <div className="relative aspect-[3/4] w-full overflow-hidden">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_58%)]" />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={hero.imageUrl}
+                              alt={hero.name}
+                              className="relative z-10 h-full w-full scale-[0.94] object-contain object-top"
+                            />
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/18 to-transparent" />
+                          </div>
+                        ) : (
+                          <div className="flex aspect-[3/4] w-full items-center justify-center px-4 text-center text-sm text-[var(--foreground-muted)]">
+                            Hero image
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xl font-semibold text-[var(--foreground)] md:text-2xl">{hero.name}</div>
+                      <div className={`mt-1 w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        hero.isCostume
+                          ? 'border-violet-400/35 bg-violet-400/10 text-violet-300'
+                          : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+                      }`}>
+                        {hero.isCostume
+                          ? (locale === 'RU' ? 'Костюмная версия' : 'Costume version')
+                          : (locale === 'RU' ? 'Базовый герой' : 'Base hero')}
+                      </div>
+                      <div className="mt-3 space-y-1 text-xs text-[var(--foreground-soft)]">
+                        <div>{t.element}: {hero.elementName}</div>
+                        <div>{t.rarity}: {hero.rarityName} ({hero.rarityStars}*)</div>
+                        <div>{t.heroClass}: {hero.heroClassName}</div>
+                        <div>{t.manaSpeed}: {hero.manaSpeedName}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
               {publicPage?.hasNext ? (
                 <div className="flex justify-center">
                   <button
@@ -4078,6 +4237,20 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                 })}
               </div>
             </div>
+            <label className="mb-3 flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground-soft)]">
+              <input
+                type="checkbox"
+                checked={adminFilters.openBugReportsOnly}
+                onChange={(event) =>
+                  setAdminFilters((prev) => ({
+                    ...prev,
+                    openBugReportsOnly: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-[var(--border)] bg-[var(--surface)] text-cyan-400"
+              />
+              <span>{t.adminOpenBugReportsOnly}</span>
+            </label>
             {isSuperAdmin ? (
               <div className="mb-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--foreground-muted)]">{t.publicVisibility}</div>
