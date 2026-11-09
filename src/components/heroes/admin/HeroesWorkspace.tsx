@@ -830,8 +830,8 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
   const [openPublicFilterKey, setOpenPublicFilterKey] = useState<keyof PublicCatalogFiltersState | null>(null);
   const [publicFiltersExpanded, setPublicFiltersExpanded] = useState(false);
   const [publicCardView, setPublicCardView] = useState<'FULL' | 'PREVIEW'>(() => {
-    if (typeof window === 'undefined') return 'FULL';
-    return window.sessionStorage.getItem(PUBLIC_CARD_VIEW_SESSION_KEY) === 'PREVIEW' ? 'PREVIEW' : 'FULL';
+    if (typeof window === 'undefined') return 'PREVIEW';
+    return window.sessionStorage.getItem(PUBLIC_CARD_VIEW_SESSION_KEY) === 'FULL' ? 'FULL' : 'PREVIEW';
   });
   const [isMobilePublicCatalog, setIsMobilePublicCatalog] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
@@ -3751,30 +3751,33 @@ export default function HeroesWorkspace({ adminMode = false }: { adminMode?: boo
                               </div>
                             )}
 
-                            <div className="pointer-events-none absolute left-1 top-1 z-10 flex flex-col gap-1">
+                            <div className="pointer-events-none absolute left-0.5 top-0.5 z-10 flex flex-col gap-0.5">
                               <DictionaryMiniIcon
                                 imageUrl={heroClassImageUrl}
                                 label={hero.heroClassName}
                                 size={24}
-                                className="border-white/25 bg-slate-950/80 shadow-lg"
+                                chromeless
+                                className="drop-shadow-[0_0_1px_rgba(0,0,0,1)] drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)]"
                               />
                               {hero.isCostume ? (
                                 <DictionaryMiniIcon
                                   imageUrl="/dictionary-icons/costume.png"
                                   label={locale === 'RU' ? 'Костюм' : 'Costume'}
                                   size={24}
-                                  className="border-white/25 bg-slate-950/80 shadow-lg"
+                                  chromeless
+                                  className="drop-shadow-[0_0_1px_rgba(0,0,0,1)] drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)]"
                                   fallbackToLetter={false}
                                 />
                               ) : null}
                             </div>
 
-                            <div className="pointer-events-none absolute bottom-1 right-1 z-10">
+                            <div className="pointer-events-none absolute bottom-0.5 right-0.5 z-10">
                               <DictionaryMiniIcon
                                 imageUrl={elementImageUrl}
                                 label={hero.elementName}
                                 size={26}
-                                className="border-white/25 bg-slate-950/80 shadow-lg"
+                                chromeless
+                                className="drop-shadow-[0_0_1px_rgba(0,0,0,1)] drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)]"
                               />
                             </div>
                           </div>
