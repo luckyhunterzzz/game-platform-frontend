@@ -20,6 +20,8 @@ export type CsrfToken = {
 
 const csrfTokens = new Map<string, Promise<CsrfToken>>();
 const sessionVerifications = new Map<string, Promise<BffSession | null>>();
+const AUTH_REFRESH_PENDING_HEADER = 'X-Auth-Refresh-Pending';
+const AUTH_REFRESH_RETRY_DELAY_MS = 1000;
 
 export function gatewayUrl(apiBaseUrl: string, path: string): string {
   return `${apiBaseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
@@ -34,7 +36,7 @@ export async function fetchBffSession(
   apiBaseUrl: string,
   signal?: AbortSignal,
 ): Promise<BffSession> {
-  const response = await fetch(gatewayUrl(apiBaseUrl, '/api/session'), {
+  const performRequest = () => fetch(gatewayUrl(apiBaseUrl, '/api/session'), {
     cache: 'no-store',
     credentials: 'include',
     headers: {
@@ -42,6 +44,16 @@ export async function fetchBffSession(
     },
     signal,
   });
+
+  let response = await performRequest();
+
+  if (
+    response.status === 503 &&
+    response.headers.get(AUTH_REFRESH_PENDING_HEADER) === 'true'
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, AUTH_REFRESH_RETRY_DELAY_MS));
+    response = await performRequest();
+  }
 
   if (!response.ok) {
     throw new Error(`Session request failed with status ${response.status}`);
