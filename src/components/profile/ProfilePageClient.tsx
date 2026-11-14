@@ -2427,10 +2427,10 @@ export default function ProfilePageClient() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareExpiresInDays, setShareExpiresInDays] = useState<1 | 3 | 7 | null>(3);
   const [shareLocale, setShareLocale] = useState<'ru' | 'en'>(locale === 'ru' ? 'ru' : 'en');
-  const [generatedShareUrl, setGeneratedShareUrl] = useState<string | null>(null);
+  const [generatedShareUrls, setGeneratedShareUrls] = useState<{ main: string; ru: string } | null>(null);
   const [creatingShare, setCreatingShare] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState<'main' | 'ru' | null>(null);
   const [shareCooldownSeconds, setShareCooldownSeconds] = useState(0);
   const [heroFiltersExpanded, setHeroFiltersExpanded] = useState(true);
   const [heroModalOpen, setHeroModalOpen] = useState(false);
@@ -4196,9 +4196,9 @@ export default function ProfilePageClient() {
     setShareModalOpen(true);
     setShareExpiresInDays(3);
     setShareLocale(locale === 'ru' ? 'ru' : 'en');
-    setGeneratedShareUrl(null);
+    setGeneratedShareUrls(null);
     setShareError(null);
-    setShareCopied(false);
+    setShareCopied(null);
   };
 
   const handleCreateHeroShare = async () => {
@@ -4208,7 +4208,7 @@ export default function ProfilePageClient() {
 
     setCreatingShare(true);
     setShareError(null);
-    setShareCopied(false);
+    setShareCopied(null);
 
     try {
       const response = await apiPostJson<PlayerProfileHeroShareCreateRequest, PlayerProfileHeroShareResponse>(
@@ -4218,9 +4218,17 @@ export default function ProfilePageClient() {
           expiresInDays: shareExpiresInDays,
         },
       );
-      setGeneratedShareUrl(
-        `${window.location.origin}/profile/heroes/share/${response.token}?locale=${shareLocale}`,
-      );
+      const isProductionSite =
+        window.location.hostname === 'gameops-platform.dev' ||
+        window.location.hostname === 'ru.gameops-platform.dev';
+      const mainOrigin = isProductionSite ? 'https://gameops-platform.dev' : window.location.origin;
+      const ruOrigin = isProductionSite ? 'https://ru.gameops-platform.dev' : window.location.origin;
+      const sharePath = `/profile/heroes/share/${encodeURIComponent(response.token)}?locale=${shareLocale}`;
+
+      setGeneratedShareUrls({
+        main: `${mainOrigin}${sharePath}`,
+        ru: `${ruOrigin}${sharePath}`,
+      });
       const cooldownUntil = Date.now() + HERO_SHARE_COOLDOWN_MS;
       shareCooldownUntilRef.current = cooldownUntil;
       try {
@@ -4242,14 +4250,10 @@ export default function ProfilePageClient() {
     }
   };
 
-  const handleCopyShareUrl = async () => {
-    if (!generatedShareUrl) {
-      return;
-    }
-
+  const handleCopyShareUrl = async (url: string, target: 'main' | 'ru') => {
     try {
-      await navigator.clipboard.writeText(generatedShareUrl);
-      setShareCopied(true);
+      await navigator.clipboard.writeText(url);
+      setShareCopied(target);
     } catch {
       setShareError(locale === 'ru' ? 'Не удалось скопировать ссылку' : 'Could not copy the link');
     }
@@ -6493,8 +6497,8 @@ export default function ProfilePageClient() {
                         type="button"
                         onClick={() => {
                           setShareLocale(option.value);
-                          setGeneratedShareUrl(null);
-                          setShareCopied(false);
+                          setGeneratedShareUrls(null);
+                          setShareCopied(null);
                         }}
                         className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${
                           shareLocale === option.value
@@ -6524,8 +6528,8 @@ export default function ProfilePageClient() {
                         type="button"
                         onClick={() => {
                           setShareExpiresInDays(option.value);
-                          setGeneratedShareUrl(null);
-                          setShareCopied(false);
+                          setGeneratedShareUrls(null);
+                          setShareCopied(null);
                         }}
                         className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${
                           shareExpiresInDays === option.value
@@ -6539,31 +6543,55 @@ export default function ProfilePageClient() {
                   </div>
                 </div>
 
-                {generatedShareUrl ? (
-                  <div className="mt-4 space-y-2">
-                    <label className="block text-xs font-medium text-[var(--foreground-soft)]" htmlFor="generated-hero-share-url">
-                      {locale === 'ru' ? 'Готовая ссылка' : 'Generated link'}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        id="generated-hero-share-url"
-                        readOnly
-                        value={generatedShareUrl}
-                        onFocus={(event) => event.currentTarget.select()}
-                        className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleCopyShareUrl()}
-                        className="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 text-cyan-200 transition hover:bg-cyan-400/15"
-                        aria-label={locale === 'ru' ? 'Скопировать ссылку' : 'Copy link'}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                    </div>
-                    {shareCopied ? (
-                      <p className="text-xs text-emerald-300">{locale === 'ru' ? 'Ссылка скопирована' : 'Link copied'}</p>
-                    ) : null}
+                {generatedShareUrls ? (
+                  <div className="mt-4 space-y-3">
+                    {([
+                      {
+                        key: 'main',
+                        label: locale === 'ru' ? 'Обычная версия' : 'Main version',
+                        url: generatedShareUrls.main,
+                        recommended: false,
+                      },
+                      {
+                        key: 'ru',
+                        label: locale === 'ru' ? 'RU-версия без VPN' : 'RU version without VPN',
+                        url: generatedShareUrls.ru,
+                        recommended: true,
+                      },
+                    ] as const).map((item) => (
+                      <div key={item.key} className={`rounded-xl border p-3 ${item.recommended ? 'border-cyan-400/35 bg-cyan-400/5' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <label className="text-xs font-medium text-[var(--foreground-soft)]" htmlFor={`generated-hero-share-url-${item.key}`}>
+                            {item.label}
+                          </label>
+                          {item.recommended ? (
+                            <span className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                              {locale === 'ru' ? 'Рекомендуется' : 'Recommended'}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            id={`generated-hero-share-url-${item.key}`}
+                            readOnly
+                            value={item.url}
+                            onFocus={(event) => event.currentTarget.select()}
+                            className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyShareUrl(item.url, item.key)}
+                            className="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 text-cyan-200 transition hover:bg-cyan-400/15"
+                            aria-label={locale === 'ru' ? `Скопировать: ${item.label}` : `Copy: ${item.label}`}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {shareCopied === item.key ? (
+                          <p className="mt-2 text-xs text-emerald-300">{locale === 'ru' ? 'Ссылка скопирована' : 'Link copied'}</p>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
                 ) : null}
 
@@ -6581,7 +6609,7 @@ export default function ProfilePageClient() {
                       ? locale === 'ru'
                         ? `Новая ссылка через 00:${String(shareCooldownSeconds).padStart(2, '0')}`
                         : `New link in 00:${String(shareCooldownSeconds).padStart(2, '0')}`
-                      : generatedShareUrl
+                      : generatedShareUrls
                       ? locale === 'ru'
                         ? 'Создать новую ссылку'
                         : 'Create another link'
