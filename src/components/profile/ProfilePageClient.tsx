@@ -2413,7 +2413,7 @@ export default function ProfilePageClient() {
 
   const [profileHeroes, setProfileHeroes] = useState<PlayerProfileHeroResponse[]>([]);
   const [loadingProfileHeroes, setLoadingProfileHeroes] = useState(false);
-  const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('createdAt');
+  const [heroSortField, setHeroSortField] = useState<HeroRosterSortField>('power');
   const [heroSortOrder, setHeroSortOrder] = useState<HeroRosterSortOrder>('desc');
   const [rarityFilters, setRarityFilters] = useState<string[]>([]);
   const [powerGradeFilters, setPowerGradeFilters] = useState<HeroPowerGrade[]>([]);
@@ -2426,6 +2426,7 @@ export default function ProfilePageClient() {
   const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareExpiresInDays, setShareExpiresInDays] = useState<1 | 3 | 7 | null>(3);
+  const [shareLocale, setShareLocale] = useState<'ru' | 'en'>(locale === 'ru' ? 'ru' : 'en');
   const [generatedShareUrl, setGeneratedShareUrl] = useState<string | null>(null);
   const [creatingShare, setCreatingShare] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -4194,6 +4195,7 @@ export default function ProfilePageClient() {
   const openShareModal = () => {
     setShareModalOpen(true);
     setShareExpiresInDays(3);
+    setShareLocale(locale === 'ru' ? 'ru' : 'en');
     setGeneratedShareUrl(null);
     setShareError(null);
     setShareCopied(false);
@@ -4216,7 +4218,9 @@ export default function ProfilePageClient() {
           expiresInDays: shareExpiresInDays,
         },
       );
-      setGeneratedShareUrl(`${window.location.origin}/profile/heroes/share/${response.token}`);
+      setGeneratedShareUrl(
+        `${window.location.origin}/profile/heroes/share/${response.token}?locale=${shareLocale}`,
+      );
       const cooldownUntil = Date.now() + HERO_SHARE_COOLDOWN_MS;
       shareCooldownUntilRef.current = cooldownUntil;
       try {
@@ -6473,6 +6477,35 @@ export default function ProfilePageClient() {
                   >
                     <X className="h-4 w-4" />
                   </button>
+                </div>
+
+                <div className="mt-5">
+                  <div className="mb-2 text-xs font-medium text-[var(--foreground-soft)]">
+                    {locale === 'ru' ? 'Язык страницы' : 'Page language'}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'ru', label: 'Русский' },
+                      { value: 'en', label: 'English' },
+                    ] as const).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setShareLocale(option.value);
+                          setGeneratedShareUrl(null);
+                          setShareCopied(false);
+                        }}
+                        className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                          shareLocale === option.value
+                            ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-200'
+                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-5">
