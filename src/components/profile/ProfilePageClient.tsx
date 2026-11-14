@@ -70,6 +70,7 @@ type PublicHeroCatalogItem = {
   baseHeroId?: number | null;
   isCostume?: boolean | null;
   costumeIndex?: number | null;
+  availableCostumeCount?: number | null;
   previewUrl?: string | null;
   imageUrl?: string | null;
   elementName: string;
@@ -113,6 +114,8 @@ type RosterHeroCard = {
   baseHeroId: number | null;
   powerGrade: HeroPowerGrade;
   talentLevel: number;
+  costumeCount: number;
+  availableCostumeCount: number;
   slug: string;
   name: string;
   rarityStars: number;
@@ -134,6 +137,7 @@ type PlayerProfileHeroPowerGradeUpdateRequest = {
 type PlayerProfileHeroCreateRequest = {
   heroId: number;
   powerGrade: HeroPowerGrade;
+  costumeCount: number;
 };
 
 type PlayerWarStatAttackTeamsReorderRequest = {
@@ -142,6 +146,10 @@ type PlayerWarStatAttackTeamsReorderRequest = {
 
 type PlayerProfileHeroTalentLevelUpdateRequest = {
   talentLevel: number;
+};
+
+type PlayerProfileHeroCostumeCountUpdateRequest = {
+  costumeCount: number;
 };
 
 type PowerGradeOption = {
@@ -207,6 +215,8 @@ type WarStatSummary = {
 const POWER_GRADE_ASSET_BASE = '/heroes/power-grades';
 const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
+const WITHOUT_COSTUME_ICON_URL = '/heroes/costumes/without_costume.webp';
+const FULL_COSTUME_ICON_URL = '/heroes/costumes/full_costume.webp';
 const WAR_MODE_ICON_BY_CODE: Record<string, string> = {
   SKYFIRE: '/war-modes/skyfire.png',
   RUSH_ATTACK: '/war-modes/rush_attack.png',
@@ -604,41 +614,194 @@ function CornerIconBadge({
 }
 
 function CostumeCollectionBadge({
-  level,
+  count,
+  availableCount,
   locale,
   className,
+  interactive = false,
+  disabled = false,
+  onChange,
   sizeClassName = 'h-3.5 w-3.5 sm:h-5 sm:w-5',
   textClassName = 'text-[7px] sm:text-[8px]',
 }: {
-  level: number;
+  count: number;
+  availableCount: number;
   locale: HeroLocale;
   className: string;
+  interactive?: boolean;
+  disabled?: boolean;
+  onChange?: (nextCount: number) => void;
   sizeClassName?: string;
   textClassName?: string;
 }) {
-  if (level <= 0) {
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const popoverPanelRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const normalizedCount = Math.max(0, count);
+  const normalizedAvailableCount = Math.max(0, availableCount);
+  const selectionMaximum = Math.max(normalizedCount, normalizedAvailableCount);
+  const isFull = normalizedAvailableCount > 0 && normalizedCount >= normalizedAvailableCount;
+  const imageUrl =
+    normalizedCount === 0
+      ? WITHOUT_COSTUME_ICON_URL
+      : isFull
+        ? FULL_COSTUME_ICON_URL
+        : COSTUME_ICON_URL;
+  const badgeLabel = locale === 'RU'
+    ? `Костюмы: ${normalizedCount} из ${normalizedAvailableCount}`
+    : `Costumes: ${normalizedCount} of ${normalizedAvailableCount}`;
+  const options = Array.from(
+    { length: Math.max(0, selectionMaximum - normalizedCount + 1) },
+    (_, index) => normalizedCount + index,
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setPopoverStyle(
+        buildFloatingPopoverStyle({
+          triggerRect: triggerRef.current.getBoundingClientRect(),
+          preferredWidth: 208,
+          estimatedHeight: Math.min(320, 82 + options.length * 48),
+          align: 'left',
+        }),
+      );
+    };
+
+    updatePopoverPosition();
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const targetNode = event.target as Node;
+      if (
+        !popoverRef.current?.contains(targetNode) &&
+        !popoverPanelRef.current?.contains(targetNode)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
+    };
+  }, [open, options.length]);
+
+  if (normalizedAvailableCount <= 0) {
     return null;
   }
 
-  const badgeLabel =
-    level > 1
-      ? `${locale === 'RU' ? 'Костюмы' : 'Costumes'} x${level}`
-      : locale === 'RU'
-        ? 'Костюм'
-        : 'Costume';
+  const badgeContent = (
+    <div className={`relative flex items-center justify-center ${sizeClassName}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt={badgeLabel}
+        className="h-full w-full object-contain [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.98))_drop-shadow(0_0_2px_rgba(0,0,0,0.92))_drop-shadow(0_2px_4px_rgba(15,23,42,0.8))]"
+      />
+      {normalizedCount > 1 && !isFull ? (
+        <span className={`absolute bottom-[-1px] right-[-1px] z-20 flex min-w-[0.9em] items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
+          {`x${normalizedCount}`}
+        </span>
+      ) : null}
+    </div>
+  );
 
   return (
-    <div className={`pointer-events-none absolute z-10 ${className}`} aria-label={badgeLabel} title={badgeLabel}>
-      <CornerIconBadge
-        imageUrl={COSTUME_ICON_URL}
-        alt={badgeLabel}
-        className=""
-        sizeClassName={sizeClassName}
-      />
-      {level > 1 ? (
-        <span className={`absolute bottom-[-1px] right-[-1px] z-20 flex min-w-[0.9em] items-center justify-center font-extrabold leading-none text-white [text-shadow:0_0_1px_rgba(0,0,0,1),0_0_3px_rgba(0,0,0,0.95),1px_0_0_rgba(0,0,0,0.95),-1px_0_0_rgba(0,0,0,0.95),0_1px_0_rgba(0,0,0,0.95),0_-1px_0_rgba(0,0,0,0.95)] ${textClassName}`}>
-          {`x${level}`}
-        </span>
+    <div
+      ref={popoverRef}
+      className={`absolute z-20 ${interactive ? '' : 'pointer-events-none'} ${className}`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {interactive ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          disabled={disabled}
+          aria-label={badgeLabel}
+          title={badgeLabel}
+          className="transition hover:scale-[1.04] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {badgeContent}
+        </button>
+      ) : (
+        <div aria-label={badgeLabel} title={badgeLabel}>{badgeContent}</div>
+      )}
+
+      {interactive && open && popoverStyle && typeof document !== 'undefined' ? createPortal(
+        <div
+          ref={popoverPanelRef}
+          className="fixed z-[220] rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 shadow-2xl backdrop-blur-sm"
+          style={{ top: popoverStyle.top, left: popoverStyle.left, width: popoverStyle.width }}
+        >
+          <div className="mb-1 flex items-center justify-between gap-2 px-2 text-sm font-semibold text-[var(--foreground)]">
+            <span>{locale === 'RU' ? 'Количество костюмов' : 'Costume count'}</span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md p-1 text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              aria-label={locale === 'RU' ? 'Закрыть' : 'Close'}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {options.map((option) => {
+              const selected = option === normalizedCount;
+              const optionIsFull = option >= normalizedAvailableCount;
+              const optionImageUrl = option === 0
+                ? WITHOUT_COSTUME_ICON_URL
+                : optionIsFull
+                  ? FULL_COSTUME_ICON_URL
+                  : COSTUME_ICON_URL;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    if (!selected) {
+                      onChange?.(option);
+                    }
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition ${
+                    selected
+                      ? 'bg-cyan-400/12 text-cyan-200'
+                      : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={optionImageUrl} alt="" className="h-8 w-8 object-contain" />
+                  <span className="min-w-0 flex-1">
+                    {optionIsFull
+                      ? (locale === 'RU' ? `Все костюмы (${option})` : `All costumes (${option})`)
+                      : option === 0
+                        ? (locale === 'RU' ? 'Только базовая версия' : 'Base version only')
+                        : (locale === 'RU' ? `Костюмов: ${option}` : `Costumes: ${option}`)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 px-2 text-xs text-[var(--foreground-soft)]">
+            {locale === 'RU' ? 'Количество можно только увеличить.' : 'The count can only be increased.'}
+          </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
@@ -1689,15 +1852,18 @@ function HeroPreviewTile({
   heroClassName,
   heroClassKey,
   powerGrade,
-  costumeCollectionLevel = 0,
+  costumeCount,
+  availableCostumeCount,
   locale,
   powerGradeOptions,
   powerGradeUpdating,
   talentLevel,
   talentLevelUpdating,
+  costumeCountUpdating,
   onClick,
   onPowerGradeChange,
   onTalentLevelChange,
+  onCostumeCountChange,
   onRemove,
   removeLabel,
 }: {
@@ -1709,15 +1875,18 @@ function HeroPreviewTile({
   heroClassName: string | null;
   heroClassKey: HeroClassKey | null;
   powerGrade: HeroPowerGrade;
-  costumeCollectionLevel?: number;
+  costumeCount: number;
+  availableCostumeCount: number;
   locale: HeroLocale;
   powerGradeOptions: PowerGradeOption[];
   powerGradeUpdating?: boolean;
   talentLevel: number;
   talentLevelUpdating?: boolean;
+  costumeCountUpdating?: boolean;
   onClick?: () => void;
   onPowerGradeChange: (profileHeroId: string, nextPowerGrade: HeroPowerGrade) => void;
   onTalentLevelChange: (profileHeroId: string, nextTalentLevel: number) => void;
+  onCostumeCountChange: (profileHeroId: string, nextCostumeCount: number) => void;
   onRemove?: () => void;
   removeLabel?: string;
 }) {
@@ -1736,15 +1905,17 @@ function HeroPreviewTile({
             sizeClassName="h-3 w-3 sm:h-5 sm:w-5"
           />
         ) : null}
-        {costumeCollectionLevel > 0 ? (
-          <CostumeCollectionBadge
-            level={costumeCollectionLevel}
-            locale={locale}
-            className="left-1 top-5 sm:left-1.5 sm:top-7"
-            sizeClassName="h-3 w-3 sm:h-5 sm:w-5"
-            textClassName="text-[6px] sm:text-[8px]"
-            />
-          ) : null}
+        <CostumeCollectionBadge
+          count={costumeCount}
+          availableCount={availableCostumeCount}
+          locale={locale}
+          interactive
+          disabled={costumeCountUpdating}
+          onChange={(nextCostumeCount) => onCostumeCountChange(profileHeroId, nextCostumeCount)}
+          className="left-1 top-5 sm:left-1.5 sm:top-7"
+          sizeClassName="h-3 w-3 sm:h-5 sm:w-5"
+          textClassName="text-[6px] sm:text-[8px]"
+        />
         <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -1820,11 +1991,9 @@ function HeroPreviewTile({
 function OverviewHeroTile({
   hero,
   locale,
-  costumeCollectionLevel,
 }: {
   hero: RosterHeroCard;
   locale: HeroLocale;
-  costumeCollectionLevel: number;
 }) {
   const accentClass = getHeroPreviewAccentClass(hero.elementName);
   const heroClassLabel = hero.heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
@@ -1840,15 +2009,14 @@ function OverviewHeroTile({
             sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
           />
         ) : null}
-        {costumeCollectionLevel > 0 ? (
-          <CostumeCollectionBadge
-            level={costumeCollectionLevel}
-            locale={locale}
-            className="left-1 top-4 sm:top-5"
-            sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-            textClassName="text-[6px] sm:text-[9px]"
-          />
-        ) : null}
+        <CostumeCollectionBadge
+          count={hero.costumeCount}
+          availableCount={hero.availableCostumeCount}
+          locale={locale}
+          className="left-1 top-4 sm:top-5"
+          sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
+          textClassName="text-[6px] sm:text-[9px]"
+        />
         <div className={`overflow-hidden rounded-md border p-[2px] ${accentClass}`}>
           {hero.previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -1909,7 +2077,6 @@ function WarHeroSlot({
   label,
   removeLabel,
   compact,
-  costumeCollectionLevel = 0,
   onClick,
   onRemove,
 }: {
@@ -1918,7 +2085,6 @@ function WarHeroSlot({
   label: string;
   removeLabel: string;
   compact: boolean;
-  costumeCollectionLevel?: number;
   onClick: () => void;
   onRemove?: () => void;
 }) {
@@ -1966,15 +2132,14 @@ function WarHeroSlot({
               sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
             />
           ) : null}
-          {costumeCollectionLevel > 0 ? (
-            <CostumeCollectionBadge
-              level={costumeCollectionLevel}
-              locale={locale}
-              className="left-1 top-7"
-              sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
-              textClassName={compact ? 'text-[6px] sm:text-[9px]' : 'text-[7px] sm:text-[11px] lg:text-[12px]'}
-            />
-          ) : null}
+          <CostumeCollectionBadge
+            count={hero.costumeCount}
+            availableCount={hero.availableCostumeCount}
+            locale={locale}
+            className="left-1 top-7"
+            sizeClassName={compact ? 'h-3 w-3 sm:h-4 sm:w-4' : 'h-3.5 w-3.5 sm:h-5 sm:w-5'}
+            textClassName={compact ? 'text-[6px] sm:text-[9px]' : 'text-[7px] sm:text-[11px] lg:text-[12px]'}
+          />
             <div className={`overflow-hidden rounded-2xl border p-[2px] ${accentClass}`}>
               {hero.previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -2069,6 +2234,7 @@ export default function ProfilePageClient() {
   const [removingProfileHeroId, setRemovingProfileHeroId] = useState<string | null>(null);
   const [updatingPowerGradeHeroId, setUpdatingPowerGradeHeroId] = useState<string | null>(null);
   const [updatingTalentLevelHeroId, setUpdatingTalentLevelHeroId] = useState<string | null>(null);
+  const [updatingCostumeCountHeroId, setUpdatingCostumeCountHeroId] = useState<string | null>(null);
   const [rosterHeroMap, setRosterHeroMap] = useState<Map<number, PublicHeroCatalogItem>>(new Map());
   const [warModes, setWarModes] = useState<PlayerWarModeResponse[]>(buildDefaultWarModes);
   const [activeWarModeCode, setActiveWarModeCode] = useState('UNIVERSAL');
@@ -2707,6 +2873,11 @@ export default function ProfilePageClient() {
         baseHeroId: hero?.baseHeroId ?? null,
         powerGrade: item.powerGrade,
         talentLevel: item.talentLevel,
+        costumeCount: Math.max(
+          item.costumeCount ?? 0,
+          hero?.isCostume === true ? Math.max(hero.costumeIndex ?? 1, 1) : 0,
+        ),
+        availableCostumeCount: Math.max(hero?.availableCostumeCount ?? 0, 0),
         slug: hero?.slug ?? String(item.heroId),
         name: hero?.name ?? `Hero #${item.heroId}`,
         rarityStars,
@@ -2724,19 +2895,6 @@ export default function ProfilePageClient() {
       };
     });
   }, [profileHeroes, rarityImageUrlByStars, rosterHeroMap]);
-  const costumeCollectionLevelByGroup = useMemo(() => {
-    const next = new Map<number, number>();
-
-    for (const hero of rosterCards) {
-      const costumeGroupId = hero.baseHeroId ?? hero.heroId;
-      const currentLevel = next.get(costumeGroupId) ?? 0;
-      const heroLevel = hero.isCostume ? Math.max(hero.costumeIndex ?? 1, 1) : 0;
-      next.set(costumeGroupId, Math.max(currentLevel, heroLevel));
-    }
-
-    return next;
-  }, [rosterCards]);
-
   const filteredRosterCards = useMemo(() => {
     const normalizedSearchQuery = heroSearchQuery.trim().toLocaleLowerCase();
 
@@ -3760,11 +3918,15 @@ export default function ProfilePageClient() {
 
     try {
       const selectedHero = selectorResult?.items.find((item) => item.id === heroId) ?? null;
+      const initialCostumeCount = selectedHero?.isCostume === true
+        ? Math.max(selectedHero.costumeIndex ?? 1, 1)
+        : 0;
       const response = await apiPostJson<PlayerProfileHeroCreateRequest, PlayerProfileHeroResponse>(
         '/api/v1/profile/me/heroes',
         {
           heroId,
           powerGrade: getInitialPowerGradeForRarity(selectedHero?.rarityStars ?? 5),
+          costumeCount: initialCostumeCount,
         },
       );
 
@@ -3932,6 +4094,36 @@ export default function ProfilePageClient() {
       }
     } finally {
       setUpdatingTalentLevelHeroId(null);
+    }
+  };
+
+  const handleUpdateHeroCostumeCount = async (profileHeroId: string, nextCostumeCount: number) => {
+    const hero = rosterHeroCardMap.get(profileHeroId) ?? null;
+    if (!hero || nextCostumeCount <= hero.costumeCount || nextCostumeCount > hero.availableCostumeCount) {
+      return;
+    }
+
+    setUpdatingCostumeCountHeroId(profileHeroId);
+
+    try {
+      const response = await apiPutJson<
+        PlayerProfileHeroCostumeCountUpdateRequest,
+        PlayerProfileHeroResponse
+      >(`/api/v1/profile/me/heroes/${profileHeroId}/costume-count`, {
+        costumeCount: nextCostumeCount,
+      });
+
+      setProfileHeroes((current) =>
+        current.map((profileHero) => (profileHero.id === profileHeroId ? response : profileHero)),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setSaveError(error.message || messages.profile.saveError);
+      } else {
+        setSaveError(messages.profile.saveError);
+      }
+    } finally {
+      setUpdatingCostumeCountHeroId(null);
     }
   };
 
@@ -4374,11 +4566,13 @@ export default function ProfilePageClient() {
                     heroClassKey={hero.heroClassKey}
                     powerGrade={hero.powerGrade}
                     talentLevel={hero.talentLevel}
-                    costumeCollectionLevel={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
+                    costumeCount={hero.costumeCount}
+                    availableCostumeCount={hero.availableCostumeCount}
                     locale={heroLocale}
                     powerGradeOptions={buildPowerGradeOptions(heroLocale, hero.rarityStars)}
                     powerGradeUpdating={updatingPowerGradeHeroId === hero.profileHeroId}
                     talentLevelUpdating={updatingTalentLevelHeroId === hero.profileHeroId}
+                    costumeCountUpdating={updatingCostumeCountHeroId === hero.profileHeroId}
                     onClick={
                       hero.slug === String(hero.heroId)
                         ? undefined
@@ -4386,6 +4580,7 @@ export default function ProfilePageClient() {
                     }
                     onPowerGradeChange={handleUpdateHeroPowerGrade}
                     onTalentLevelChange={handleUpdateHeroTalentLevel}
+                    onCostumeCountChange={handleUpdateHeroCostumeCount}
                     onRemove={
                       removingProfileHeroId === hero.profileHeroId
                         ? undefined
@@ -4729,7 +4924,6 @@ export default function ProfilePageClient() {
                               hero={hero}
                               locale={heroLocale}
                               compact={warCompactMode}
-                              costumeCollectionLevel={hero ? (costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) : 0}
                               label={messages.profile.addHero}
                               removeLabel={messages.profile.removeHero}
                               onClick={
@@ -5013,7 +5207,6 @@ export default function ProfilePageClient() {
                             hero={hero}
                             locale={heroLocale}
                             compact={warCompactMode}
-                            costumeCollectionLevel={hero ? (costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) : 0}
                             label={messages.profile.addHero}
                             removeLabel={messages.profile.removeHero}
                             onClick={
@@ -5229,15 +5422,14 @@ export default function ProfilePageClient() {
                                 sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
                               />
                             ) : null}
-                            {(costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) > 0 ? (
-                              <CostumeCollectionBadge
-                                level={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
-                                locale={heroLocale}
-                                className="left-1 top-5"
-                                sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-                                textClassName="text-[6px] sm:text-[9px]"
-                              />
-                            ) : null}
+                            <CostumeCollectionBadge
+                              count={hero.costumeCount}
+                              availableCount={hero.availableCostumeCount}
+                              locale={heroLocale}
+                              className="left-1 top-5"
+                              sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
+                              textClassName="text-[6px] sm:text-[9px]"
+                            />
                             <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
                               {hero.previewUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
@@ -5621,15 +5813,14 @@ export default function ProfilePageClient() {
                               sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
                             />
                           ) : null}
-                          {(costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0) > 0 ? (
-                            <CostumeCollectionBadge
-                              level={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
-                              locale={heroLocale}
-                              className="left-1 top-5"
-                              sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
-                              textClassName="text-[6px] sm:text-[9px]"
-                            />
-                          ) : null}
+                          <CostumeCollectionBadge
+                            count={hero.costumeCount}
+                            availableCount={hero.availableCostumeCount}
+                            locale={heroLocale}
+                            className="left-1 top-5"
+                            sizeClassName="h-3 w-3 sm:h-4 sm:w-4"
+                            textClassName="text-[6px] sm:text-[9px]"
+                          />
                           <div className={`overflow-hidden rounded-2xl border p-[2px] ${getHeroPreviewAccentClass(hero.elementName)}`}>
                             {hero.previewUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -5874,7 +6065,6 @@ export default function ProfilePageClient() {
                       key={`overview-${hero.profileHeroId}`}
                       hero={hero}
                       locale={heroLocale}
-                      costumeCollectionLevel={costumeCollectionLevelByGroup.get(hero.baseHeroId ?? hero.heroId) ?? 0}
                     />
                   ))}
                 </div>

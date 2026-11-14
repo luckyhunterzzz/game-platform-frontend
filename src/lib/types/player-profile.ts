@@ -37,6 +37,7 @@ export type PlayerProfileHeroResponse = {
   heroId: number;
   powerGrade: HeroPowerGrade;
   talentLevel: number;
+  costumeCount: number;
   createdAt: string;
 };
 
