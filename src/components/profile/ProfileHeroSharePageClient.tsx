@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { LoaderCircle, RotateCcw, X } from 'lucide-react';
+import { ChevronDown, LoaderCircle, RotateCcw, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import PublicHeroDetailsModal, {
@@ -36,10 +36,16 @@ type ShareSortField = 'snapshot' | Exclude<HeroRosterSortField, 'createdAt'>;
 
 const PAGE_SIZE = 48;
 
-export default function ProfileHeroSharePageClient({ token }: { token: string }) {
+type ProfileHeroSharePageClientProps = {
+  token: string;
+  localeOverride?: 'ru' | 'en';
+};
+
+export default function ProfileHeroSharePageClient({ token, localeOverride }: ProfileHeroSharePageClientProps) {
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale: currentLocale } = useI18n();
   const { apiJson, apiPostJson } = useApi();
+  const locale = localeOverride ?? currentLocale;
   const heroLocale: HeroLocale = locale === 'ru' ? 'RU' : 'EN';
 
   const [share, setShare] = useState<PlayerProfileHeroShareResponse | null>(null);
@@ -54,6 +60,7 @@ export default function ProfileHeroSharePageClient({ token }: { token: string })
   const [powerGrades, setPowerGrades] = useState<string[]>([]);
   const [elements, setElements] = useState<string[]>([]);
   const [heroClasses, setHeroClasses] = useState<string[]>([]);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [selectedHeroSlug, setSelectedHeroSlug] = useState<string | null>(null);
   const [selectedHeroCard, setSelectedHeroCard] = useState<PublicHeroCardItem | null>(null);
@@ -373,74 +380,112 @@ export default function ProfileHeroSharePageClient({ token }: { token: string })
                   : locale === 'ru' ? 'Без срока действия' : 'No expiration'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-              aria-label={locale === 'ru' ? 'Закрыть и перейти на главную' : 'Close and go home'}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-              <span>{locale === 'ru' ? 'Сортировка' : 'Sort by'}</span>
-              <select
-                value={sortField}
-                onChange={(event) => setSortField(event.target.value as ShareSortField)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-1">
+                {(['ru', 'en'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => router.replace(`/profile/heroes/share/${encodeURIComponent(token)}?locale=${option}`)}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase transition ${
+                      locale === option
+                        ? 'bg-cyan-400/15 text-cyan-200'
+                        : 'text-[var(--foreground-soft)] hover:text-[var(--foreground)]'
+                    }`}
+                    aria-label={option === 'ru' ? 'Русский язык' : 'English language'}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                aria-label={locale === 'ru' ? 'Закрыть и перейти на главную' : 'Close and go home'}
               >
-                <option value="snapshot">{locale === 'ru' ? 'Исходный порядок' : 'Shared order'}</option>
-                <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
-                <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
-                <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
-                <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
-                <option value="power">{locale === 'ru' ? 'По силе' : 'By power'}</option>
-                <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
-              <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
-              <select
-                value={sortOrder}
-                onChange={(event) => setSortOrder(event.target.value as HeroRosterSortOrder)}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded((current) => !current)}
+            className="mt-6 flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-3 text-left transition hover:bg-[var(--surface-hover)]"
+            aria-expanded={filtersExpanded}
+          >
+            <span>
+              <span className="block text-sm font-semibold text-[var(--foreground)]">
+                {locale === 'ru' ? 'Фильтры и сортировка' : 'Filters and sorting'}
+              </span>
+              <span className="block text-xs text-[var(--foreground-soft)]">
+                {locale === 'ru' ? `Найдено: ${filteredCards.length}` : `Found: ${filteredCards.length}`}
+              </span>
+            </span>
+            <ChevronDown className={`h-5 w-5 text-[var(--foreground-soft)] transition ${filtersExpanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          <div className={filtersExpanded ? 'block' : 'hidden'}>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                <span>{locale === 'ru' ? 'Сортировка' : 'Sort by'}</span>
+                <select
+                  value={sortField}
+                  onChange={(event) => setSortField(event.target.value as ShareSortField)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                >
+                  <option value="snapshot">{locale === 'ru' ? 'Исходный порядок' : 'Shared order'}</option>
+                  <option value="name">{locale === 'ru' ? 'По имени' : 'By name'}</option>
+                  <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
+                  <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
+                  <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                  <option value="power">{locale === 'ru' ? 'По силе' : 'By power'}</option>
+                  <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)]">
+                <span>{locale === 'ru' ? 'Порядок' : 'Order'}</span>
+                <select
+                  value={sortOrder}
+                  onChange={(event) => setSortOrder(event.target.value as HeroRosterSortOrder)}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                >
+                  <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
+                  <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)] xl:col-span-2">
+                <span>{locale === 'ru' ? 'Поиск по имени' : 'Search by name'}</span>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={locale === 'ru' ? 'Введите имя героя' : 'Type hero name'}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <IconFilterSelect label={locale === 'ru' ? 'Редкость' : 'Rarity'} values={rarities} allLabel={locale === 'ru' ? 'Все редкости' : 'All rarities'} options={rarityOptions} onChange={setRarities} locale={heroLocale} />
+              <IconFilterSelect label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'} values={powerGrades} allLabel={locale === 'ru' ? 'Все уровни' : 'All levels'} options={powerGradeOptions} onChange={setPowerGrades} locale={heroLocale} />
+              <IconFilterSelect label={locale === 'ru' ? 'Элемент' : 'Element'} values={elements} allLabel={locale === 'ru' ? 'Все элементы' : 'All elements'} options={elementOptions} onChange={setElements} locale={heroLocale} />
+              <IconFilterSelect label={locale === 'ru' ? 'Класс героя' : 'Hero class'} values={heroClasses} allLabel={locale === 'ru' ? 'Все классы' : 'All classes'} options={classOptions} onChange={setHeroClasses} locale={heroLocale} />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-[var(--foreground-soft)]">
+                {locale === 'ru' ? `Найдено: ${filteredCards.length}` : `Found: ${filteredCards.length}`}
+              </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs font-semibold transition hover:bg-[var(--surface-hover)]"
               >
-                <option value="asc">{locale === 'ru' ? 'По возрастанию' : 'Ascending'}</option>
-                <option value="desc">{locale === 'ru' ? 'По убыванию' : 'Descending'}</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-[var(--foreground-soft)] xl:col-span-2">
-              <span>{locale === 'ru' ? 'Поиск по имени' : 'Search by name'}</span>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={locale === 'ru' ? 'Введите имя героя' : 'Type hero name'}
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none"
-              />
-            </label>
-          </div>
-
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <IconFilterSelect label={locale === 'ru' ? 'Редкость' : 'Rarity'} values={rarities} allLabel={locale === 'ru' ? 'Все редкости' : 'All rarities'} options={rarityOptions} onChange={setRarities} locale={heroLocale} />
-            <IconFilterSelect label={locale === 'ru' ? 'Уровень перерождения' : 'Reborn level'} values={powerGrades} allLabel={locale === 'ru' ? 'Все уровни' : 'All levels'} options={powerGradeOptions} onChange={setPowerGrades} locale={heroLocale} />
-            <IconFilterSelect label={locale === 'ru' ? 'Элемент' : 'Element'} values={elements} allLabel={locale === 'ru' ? 'Все элементы' : 'All elements'} options={elementOptions} onChange={setElements} locale={heroLocale} />
-            <IconFilterSelect label={locale === 'ru' ? 'Класс героя' : 'Hero class'} values={heroClasses} allLabel={locale === 'ru' ? 'Все классы' : 'All classes'} options={classOptions} onChange={setHeroClasses} locale={heroLocale} />
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-[var(--foreground-soft)]">
-              {locale === 'ru' ? `Найдено: ${filteredCards.length}` : `Found: ${filteredCards.length}`}
-            </p>
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-xs font-semibold transition hover:bg-[var(--surface-hover)]"
-            >
-              <RotateCcw className="h-4 w-4" />
-              {locale === 'ru' ? 'Сбросить' : 'Reset'}
-            </button>
+                <RotateCcw className="h-4 w-4" />
+                {locale === 'ru' ? 'Сбросить' : 'Reset'}
+              </button>
+            </div>
           </div>
         </div>
 
