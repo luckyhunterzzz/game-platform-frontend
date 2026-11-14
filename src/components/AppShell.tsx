@@ -42,7 +42,8 @@ export function useAppSidebar(): [boolean, Dispatch<SetStateAction<boolean>>] {
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const menuRequestListenersRef = useRef(new Set<() => void>());
-  const isHeroSharePage = pathname.startsWith('/heroes/share/');
+  const isHeroSharePage =
+    pathname.startsWith('/heroes/share/') || pathname.startsWith('/profile/heroes/share/');
   const subscribeToMenuRequests = useCallback((listener: () => void) => {
     const listeners = menuRequestListenersRef.current;
     listeners.add(listener);
