@@ -41,6 +41,26 @@ export type PlayerProfileHeroResponse = {
   createdAt: string;
 };
 
+export type PlayerProfileHeroShareCreateRequest = {
+  profileHeroIds: string[];
+  expiresInDays: 1 | 3 | 7 | null;
+};
+
+export type PlayerProfileHeroShareItemResponse = {
+  heroId: number;
+  powerGrade: HeroPowerGrade;
+  talentLevel: number;
+  costumeCount: number;
+  order: number;
+};
+
+export type PlayerProfileHeroShareResponse = {
+  token: string;
+  createdAt: string;
+  expiresAt: string | null;
+  heroes: PlayerProfileHeroShareItemResponse[];
+};
+
 export type PlayerWarAttackSlotResponse = {
   slot: number;
   playerProfileHeroId: string | null;

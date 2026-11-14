@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Eraser, FilePlus2, GripVertical, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Copy, Eraser, FilePlus2, GripVertical, History, LoaderCircle, Monitor, Plus, RotateCcw, Save, Share2, Shield, ShieldAlert, Trash2, X } from 'lucide-react';
 
 import PublicHeroDetailsModal, {
   type PublicHeroCardItem,
@@ -13,9 +13,12 @@ import { useApi, ApiError } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n/i18n-context';
 import { getHeroPreviewAccentClass } from '@/lib/hero-preview';
+import { calculateHeroPower } from '@/lib/hero-power';
 import type {
   HeroPowerGrade,
   PlayerProfileHeroResponse,
+  PlayerProfileHeroShareCreateRequest,
+  PlayerProfileHeroShareResponse,
   PlayerProfileResponse,
   PlayerProfileUpdateRequest,
   PlayerWarAttackTeamResponse,
@@ -45,9 +48,10 @@ type ProfileFormState = {
 
 type ProfileTab = 'info' | 'heroes' | 'war' | 'warStats';
 
-type HeroLocale = 'RU' | 'EN';
-type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade' | 'releaseDate';
-type HeroRosterSortOrder = 'asc' | 'desc';
+export type HeroLocale = 'RU' | 'EN';
+export type HeroRosterSortField = 'createdAt' | 'name' | 'rarity' | 'element' | 'powerGrade' | 'power' | 'releaseDate';
+export type HeroRosterSortOrder = 'asc' | 'desc';
+type EvolutionStageCode = 'ASCENSION_4_80' | 'ASCENSION_4_85' | 'ASCENSION_4_90';
 type WarStatSortField = 'teamOrder' | 'successRate' | 'failedRate' | 'oneShotRate' | 'cleanupRate';
 type WarStatSortOrder = 'asc' | 'desc';
 type HeroClassKey =
@@ -63,7 +67,19 @@ type HeroClassKey =
   | 'wizard';
 type ElementKey = 'dark' | 'fire' | 'holy' | 'ice' | 'nature';
 
-type PublicHeroCatalogItem = {
+type HeroCostumeBonus = {
+  attack?: number | null;
+  armor?: number | null;
+  hp?: number | null;
+  mana?: number | null;
+};
+
+type HeroCostumeBonusSummary = {
+  costumeIndex: number;
+  bonus: HeroCostumeBonus;
+};
+
+export type PublicHeroCatalogItem = {
   id: number;
   slug: string;
   name: string;
@@ -71,6 +87,10 @@ type PublicHeroCatalogItem = {
   isCostume?: boolean | null;
   costumeIndex?: number | null;
   availableCostumeCount?: number | null;
+  baseAttack?: number | null;
+  baseArmor?: number | null;
+  baseHp?: number | null;
+  costumeBonuses?: HeroCostumeBonusSummary[];
   previewUrl?: string | null;
   imageUrl?: string | null;
   elementName: string;
@@ -90,13 +110,23 @@ type HeroRarityFilterOptionResponse = HeroFilterOptionResponse & {
   stars: number;
 };
 
-type HeroCatalogFiltersResponse = {
+export type HeroCatalogFiltersResponse = {
   elements: HeroFilterOptionResponse[];
   rarities: HeroRarityFilterOptionResponse[];
   heroClasses: HeroFilterOptionResponse[];
   families: HeroFilterOptionResponse[];
   manaSpeeds: HeroFilterOptionResponse[];
   alphaTalents: HeroFilterOptionResponse[];
+  evolutionMultipliers: HeroEvolutionMultiplierResponse[];
+};
+
+type HeroEvolutionMultiplierResponse = {
+  id: number;
+  rarityId: number;
+  stageCode: EvolutionStageCode;
+  attackMultiplier: number;
+  armorMultiplier: number;
+  hpMultiplier: number;
 };
 
 type PublicHeroPageResponse = {
@@ -108,7 +138,7 @@ type PublicHeroPageResponse = {
   hasNext: boolean;
 };
 
-type RosterHeroCard = {
+export type RosterHeroCard = {
   profileHeroId: string;
   heroId: number;
   baseHeroId: number | null;
@@ -128,6 +158,8 @@ type RosterHeroCard = {
   releaseDate: string | null;
   isCostume: boolean;
   costumeIndex: number | null;
+  power: number | null;
+  powerEstimated: boolean;
 };
 
 type PlayerProfileHeroPowerGradeUpdateRequest = {
@@ -158,10 +190,11 @@ type PowerGradeOption = {
   imageUrl: string;
 };
 
-type IconFilterOption = {
+export type IconFilterOption = {
   value: string;
   label: string;
   imageUrl?: string | null;
+  starCount?: number;
 };
 
 type WarStatSlotPickerState = {
@@ -217,6 +250,9 @@ const HERO_CLASS_ASSET_BASE = '/heroes/elements/classes';
 const COSTUME_ICON_URL = '/dictionary-icons/costume.png';
 const WITHOUT_COSTUME_ICON_URL = '/heroes/costumes/without_costume.webp';
 const FULL_COSTUME_ICON_URL = '/heroes/costumes/full_costume.webp';
+const HERO_STAR_ASSET = '/heroes/elements/star/symbol_star_big_small.webp';
+const HERO_SHARE_COOLDOWN_MS = 60_000;
+const HERO_SHARE_COOLDOWN_STORAGE_KEY = 'profile-hero-share-cooldown-until';
 const WAR_MODE_ICON_BY_CODE: Record<string, string> = {
   SKYFIRE: '/war-modes/skyfire.png',
   RUSH_ATTACK: '/war-modes/rush_attack.png',
@@ -244,7 +280,7 @@ const RARE_POWER_GRADE_IMAGE_BY_CODE: Record<HeroPowerGrade, string> = {
   FIRST_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_first_limit_broken_rare.webp`,
   SECOND_LIMIT_BROKEN: `${POWER_GRADE_ASSET_BASE}/power_grade_second_limit_broken_rare.webp`,
 };
-const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
+export const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   barbarian: `${HERO_CLASS_ASSET_BASE}/barbarian.png`,
   cleric: `${HERO_CLASS_ASSET_BASE}/cleric.png`,
   druid: `${HERO_CLASS_ASSET_BASE}/druid.png`,
@@ -256,7 +292,7 @@ const HERO_CLASS_ICON_BY_KEY: Record<HeroClassKey, string> = {
   sorcerer: `${HERO_CLASS_ASSET_BASE}/sorcerer.png`,
   wizard: `${HERO_CLASS_ASSET_BASE}/wizard.png`,
 };
-const HERO_ELEMENT_ICON_BY_KEY: Record<ElementKey, string> = {
+export const HERO_ELEMENT_ICON_BY_KEY: Record<ElementKey, string> = {
   dark: '/heroes/elements/elements/herald_purple.webp',
   fire: '/heroes/elements/elements/herald_red.webp',
   holy: '/heroes/elements/elements/herald_yellow.webp',
@@ -456,7 +492,7 @@ function getPowerGradeSortRank(powerGrade: HeroPowerGrade, rarityStars: number):
   return rank >= 0 ? rank : order.length;
 }
 
-function buildPowerGradeOptions(locale: HeroLocale, rarityStars: number): PowerGradeOption[] {
+export function buildPowerGradeOptions(locale: HeroLocale, rarityStars: number): PowerGradeOption[] {
   return getPowerGradeOrder(rarityStars).map((value) => ({
     value,
     label: getPowerGradeLabelForRarity(value, locale, rarityStars),
@@ -464,7 +500,7 @@ function buildPowerGradeOptions(locale: HeroLocale, rarityStars: number): PowerG
   }));
 }
 
-function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | null {
+export function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | null {
   const normalized = (value ?? '').trim().toLocaleLowerCase();
 
   if (normalized.includes('barbarian') || normalized.includes('варвар')) return 'barbarian';
@@ -481,7 +517,7 @@ function resolveHeroClassKey(value: string | null | undefined): HeroClassKey | n
   return null;
 }
 
-function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): HeroClassKey | null {
+export function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): HeroClassKey | null {
   const normalized = (value ?? '').trim().toLocaleLowerCase();
 
   for (const classKey of Object.keys(HERO_CLASS_ICON_BY_KEY) as HeroClassKey[]) {
@@ -497,7 +533,7 @@ function resolveHeroClassKeyFromImageUrl(value: string | null | undefined): Hero
   return null;
 }
 
-function resolveElementKey(value: string | null | undefined): ElementKey | null {
+export function resolveElementKey(value: string | null | undefined): ElementKey | null {
   const normalized = (value ?? '').trim().toLocaleLowerCase();
 
   if (normalized.includes('ice') || normalized.includes('лёд') || normalized.includes('лед')) return 'ice';
@@ -535,7 +571,7 @@ function getReleaseDateSortValue(value: string | null | undefined): number {
   return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
 }
 
-function sortRosterCardList(
+export function sortRosterCardList(
   cards: RosterHeroCard[],
   heroLocale: HeroLocale,
   heroSortField: HeroRosterSortField,
@@ -575,6 +611,13 @@ function sortRosterCardList(
           sensitivity: 'base',
         });
       }
+    } else if (heroSortField === 'power') {
+      result = (left.power ?? Number.NEGATIVE_INFINITY) - (right.power ?? Number.NEGATIVE_INFINITY);
+      if (result === 0) {
+        result = left.name.localeCompare(right.name, heroLocale === 'RU' ? 'ru' : 'en', {
+          sensitivity: 'base',
+        });
+      }
     } else if (heroSortField === 'releaseDate') {
       result = getReleaseDateSortValue(left.releaseDate) - getReleaseDateSortValue(right.releaseDate);
       if (result === 0) {
@@ -590,6 +633,126 @@ function sortRosterCardList(
   });
 
   return sorted;
+}
+
+export function calculateProfileHeroPower(params: {
+  baseAttack: number | null | undefined;
+  baseArmor: number | null | undefined;
+  baseHp: number | null | undefined;
+  rarityStars: number;
+  rarityId: number | null;
+  powerGrade: HeroPowerGrade;
+  talentLevel: number;
+  costumeCount: number;
+  isCostume: boolean;
+  costumeIndex: number | null;
+  costumeBonuses: HeroCostumeBonusSummary[];
+  multipliers: HeroEvolutionMultiplierResponse[];
+}): { power: number | null; estimated: boolean } {
+  const {
+    baseAttack,
+    baseArmor,
+    baseHp,
+    rarityStars,
+    rarityId,
+    powerGrade,
+    talentLevel,
+    costumeCount,
+    isCostume,
+    costumeIndex,
+    costumeBonuses,
+    multipliers,
+  } = params;
+
+  if (baseAttack == null || baseArmor == null || baseHp == null) {
+    return { power: null, estimated: false };
+  }
+
+  const estimated = powerGrade === 'FIRST_ASCENSION' || powerGrade === 'SECOND_ASCENSION';
+  const targetCostumeBonus = costumeBonuses.find((item) => item.costumeIndex === costumeCount)?.bonus ?? null;
+  const keepCurrentCostumeStats = isCostume && costumeIndex != null && costumeCount === costumeIndex;
+  const currentCostumeBonus = isCostume && costumeIndex != null
+    ? costumeBonuses.find((item) => item.costumeIndex === costumeIndex)?.bonus ?? null
+    : null;
+  const restoreStatWithoutCostume = (value: number, percent: number | null | undefined) => {
+    if (!percent) return value;
+    return Math.ceil(value / (1 + percent / 100));
+  };
+  const applyCostumeBonus = (value: number, percent: number | null | undefined) => {
+    if (!percent) return value;
+    return value + Math.floor(value * percent / 100);
+  };
+  const baseStatsWithoutCurrentCostume = isCostume && currentCostumeBonus && !keepCurrentCostumeStats
+    ? {
+        attack: restoreStatWithoutCostume(baseAttack, currentCostumeBonus.attack),
+        armor: restoreStatWithoutCostume(baseArmor, currentCostumeBonus.armor),
+        hp: restoreStatWithoutCostume(baseHp, currentCostumeBonus.hp),
+      }
+    : { attack: baseAttack, armor: baseArmor, hp: baseHp };
+  const effectiveBaseStats = targetCostumeBonus && !keepCurrentCostumeStats
+    ? {
+        attack: applyCostumeBonus(baseStatsWithoutCurrentCostume.attack, targetCostumeBonus.attack),
+        armor: applyCostumeBonus(baseStatsWithoutCurrentCostume.armor, targetCostumeBonus.armor),
+        hp: applyCostumeBonus(baseStatsWithoutCurrentCostume.hp, targetCostumeBonus.hp),
+      }
+    : baseStatsWithoutCurrentCostume;
+  let attack = effectiveBaseStats.attack;
+  let armor = effectiveBaseStats.armor;
+  let hp = effectiveBaseStats.hp;
+
+  if (powerGrade !== 'FULLY_ASCENDED') {
+    if (rarityId == null) {
+      return { power: null, estimated };
+    }
+
+    const multiplierByStage = new Map(
+      multipliers
+        .filter((item) => item.rarityId === rarityId)
+        .map((item) => [item.stageCode, item]),
+    );
+    const ascensionMultiplier = multiplierByStage.get('ASCENSION_4_80');
+    if (!ascensionMultiplier) {
+      return { power: null, estimated };
+    }
+
+    const minimumStats = {
+      attack: Math.ceil(effectiveBaseStats.attack / Number(ascensionMultiplier.attackMultiplier)),
+      armor: Math.ceil(effectiveBaseStats.armor / Number(ascensionMultiplier.armorMultiplier)),
+      hp: Math.ceil(effectiveBaseStats.hp / Number(ascensionMultiplier.hpMultiplier)),
+    };
+
+    if (
+      powerGrade === 'FIRST_TIER' ||
+      powerGrade === 'FIRST_ASCENSION' ||
+      powerGrade === 'SECOND_ASCENSION'
+    ) {
+      attack = minimumStats.attack;
+      armor = minimumStats.armor;
+      hp = minimumStats.hp;
+    } else {
+      const targetStage: EvolutionStageCode =
+        powerGrade === 'FIRST_LIMIT_BROKEN' ? 'ASCENSION_4_85' : 'ASCENSION_4_90';
+      const targetMultiplier = multiplierByStage.get(targetStage);
+      if (!targetMultiplier) {
+        return { power: null, estimated };
+      }
+
+      attack = Math.floor(minimumStats.attack * Number(targetMultiplier.attackMultiplier));
+      armor = Math.floor(minimumStats.armor * Number(targetMultiplier.armorMultiplier));
+      hp = Math.floor(minimumStats.hp * Number(targetMultiplier.hpMultiplier));
+    }
+  }
+
+  return {
+    power: calculateHeroPower({
+      attack,
+      armor,
+      hp,
+      rarityStars,
+      talentCount: Math.max(0, talentLevel),
+    }),
+    estimated,
+  };
 }
 
 function CornerIconBadge({
@@ -1186,7 +1349,7 @@ function TalentBadge({
   );
 }
 
-function IconFilterSelect({
+export function IconFilterSelect({
   label,
   values,
   allLabel,
@@ -1265,7 +1428,14 @@ function IconFilterSelect({
         className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition hover:bg-[var(--surface-hover)]"
       >
         <span className="flex min-w-0 items-center gap-2">
-          {selectedOptions[0]?.imageUrl ? (
+          {selectedOptions[0]?.starCount ? (
+            <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
+              {Array.from({ length: selectedOptions[0].starCount }).map((_, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={index} src={HERO_STAR_ASSET} alt="" className="h-3.5 w-3.5 object-contain" />
+              ))}
+            </span>
+          ) : selectedOptions[0]?.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={selectedOptions[0].imageUrl} alt={selectedOptions[0].label} className="h-5 w-5 object-contain" />
           ) : null}
@@ -1327,7 +1497,14 @@ function IconFilterSelect({
                           : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
                       }`}
                     >
-                      {option.imageUrl ? (
+                      {option.starCount ? (
+                        <span className="flex min-h-7 min-w-7 shrink-0 items-center gap-0.5" aria-hidden="true">
+                          {Array.from({ length: option.starCount }).map((_, index) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={index} src={HERO_STAR_ASSET} alt="" className="h-4 w-4 object-contain" />
+                          ))}
+                        </span>
+                      ) : option.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={option.imageUrl} alt={option.label} className="h-7 w-7 object-contain" />
                       ) : (
@@ -1843,6 +2020,18 @@ function countFilledContacts(form: ProfileFormState): number {
   return filledContacts;
 }
 
+function HeroPowerPill({ power, estimated }: { power: number | null; estimated: boolean }) {
+  if (power == null) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex items-center justify-center rounded-md border border-black bg-black/70 px-1.5 py-0.5 text-[8px] font-medium leading-none text-white shadow-sm sm:text-[10px]">
+      {`⚡ ${power}${estimated ? '*' : ''}`}
+    </span>
+  );
+}
+
 function HeroPreviewTile({
   profileHeroId,
   name,
@@ -1852,6 +2041,8 @@ function HeroPreviewTile({
   heroClassName,
   heroClassKey,
   powerGrade,
+  power,
+  powerEstimated,
   costumeCount,
   availableCostumeCount,
   locale,
@@ -1875,6 +2066,8 @@ function HeroPreviewTile({
   heroClassName: string | null;
   heroClassKey: HeroClassKey | null;
   powerGrade: HeroPowerGrade;
+  power: number | null;
+  powerEstimated: boolean;
   costumeCount: number;
   availableCostumeCount: number;
   locale: HeroLocale;
@@ -1954,6 +2147,7 @@ function HeroPreviewTile({
       <span className="line-clamp-2 min-h-[1.75rem] text-[10px] font-medium leading-tight text-[var(--foreground)] sm:min-h-[2.5rem] sm:text-sm">
         {name}
       </span>
+      <HeroPowerPill power={power} estimated={powerEstimated} />
     </>
   );
 
@@ -1988,18 +2182,25 @@ function HeroPreviewTile({
   );
 }
 
-function OverviewHeroTile({
+export function OverviewHeroTile({
   hero,
   locale,
+  onClick,
 }: {
   hero: RosterHeroCard;
   locale: HeroLocale;
+  onClick?: () => void;
 }) {
   const accentClass = getHeroPreviewAccentClass(hero.elementName);
   const heroClassLabel = hero.heroClassName ?? (locale === 'RU' ? 'Класс героя' : 'Hero class');
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 text-center shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 text-center shadow-sm transition enabled:hover:bg-[var(--surface-hover)] disabled:cursor-default"
+    >
       <div className="relative mx-auto w-fit overflow-visible">
         {hero.heroClassKey ? (
           <CornerIconBadge
@@ -2044,7 +2245,10 @@ function OverviewHeroTile({
       <div className="mt-1 line-clamp-2 min-h-[1.25rem] text-[8px] font-semibold leading-tight text-[var(--foreground)] sm:min-h-[1.45rem] sm:text-[9px]">
         {hero.name}
       </div>
-    </div>
+      <div className="mt-0.5 flex justify-center">
+        <HeroPowerPill power={hero.power} estimated={hero.powerEstimated} />
+      </div>
+    </button>
   );
 }
 
@@ -2220,6 +2424,13 @@ export default function ProfilePageClient() {
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [overviewPage, setOverviewPage] = useState(0);
   const [overviewViewport, setOverviewViewport] = useState({ width: 0, height: 0 });
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareExpiresInDays, setShareExpiresInDays] = useState<1 | 3 | 7 | null>(3);
+  const [generatedShareUrl, setGeneratedShareUrl] = useState<string | null>(null);
+  const [creatingShare, setCreatingShare] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCooldownSeconds, setShareCooldownSeconds] = useState(0);
   const [heroFiltersExpanded, setHeroFiltersExpanded] = useState(true);
   const [heroModalOpen, setHeroModalOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
@@ -2279,6 +2490,7 @@ export default function ProfilePageClient() {
   const selectorInputRef = useRef<HTMLInputElement | null>(null);
   const selectorScrollRef = useRef<HTMLDivElement | null>(null);
   const selectorScrollRestoreRef = useRef<number | null>(null);
+  const shareCooldownUntilRef = useRef(0);
   const warSaveQueuedRef = useRef<PlayerWarAttackTeamsUpdateRequest | null>(null);
   const warSaveInFlightRef = useRef(false);
 
@@ -2854,18 +3066,28 @@ export default function ProfilePageClient() {
     };
   }, [apiJson, heroLocale, messages.profile.loadError, rosterHeroMap, selectedHeroSlug]);
 
-  const rarityImageUrlByStars = useMemo(() => {
-    const next = new Map<number, string | null>();
-    for (const item of heroFilterOptions?.rarities ?? []) {
-      next.set(item.stars, item.imageUrl ?? null);
-    }
-    return next;
-  }, [heroFilterOptions]);
-
   const rosterCards = useMemo<RosterHeroCard[]>(() => {
     return profileHeroes.map((item) => {
       const hero = rosterHeroMap.get(item.heroId);
       const rarityStars = hero?.rarityStars ?? 0;
+      const rarityId = heroFilterOptions?.rarities.find((rarity) => rarity.stars === rarityStars)?.id ?? null;
+      const powerResult = calculateProfileHeroPower({
+        baseAttack: hero?.baseAttack,
+        baseArmor: hero?.baseArmor,
+        baseHp: hero?.baseHp,
+        rarityStars,
+        rarityId,
+        powerGrade: item.powerGrade,
+        talentLevel: item.talentLevel,
+        costumeCount: Math.max(
+          item.costumeCount ?? 0,
+          hero?.isCostume === true ? Math.max(hero.costumeIndex ?? 1, 1) : 0,
+        ),
+        isCostume: hero?.isCostume === true,
+        costumeIndex: hero?.costumeIndex ?? null,
+        costumeBonuses: hero?.costumeBonuses ?? [],
+        multipliers: heroFilterOptions?.evolutionMultipliers ?? [],
+      });
 
       return {
         profileHeroId: item.id,
@@ -2881,7 +3103,7 @@ export default function ProfilePageClient() {
         slug: hero?.slug ?? String(item.heroId),
         name: hero?.name ?? `Hero #${item.heroId}`,
         rarityStars,
-        rarityImageUrl: rarityImageUrlByStars.get(rarityStars) ?? null,
+        rarityImageUrl: null,
         createdAt: item.createdAt,
         previewUrl: hero?.previewUrl ?? hero?.imageUrl ?? null,
         elementName: hero?.elementName ?? null,
@@ -2892,9 +3114,11 @@ export default function ProfilePageClient() {
         releaseDate: hero?.releaseDate ?? null,
         isCostume: hero?.isCostume === true,
         costumeIndex: hero?.costumeIndex ?? null,
+        power: powerResult.power,
+        powerEstimated: powerResult.estimated,
       };
     });
-  }, [profileHeroes, rarityImageUrlByStars, rosterHeroMap]);
+  }, [heroFilterOptions, profileHeroes, rosterHeroMap]);
   const filteredRosterCards = useMemo(() => {
     const normalizedSearchQuery = heroSearchQuery.trim().toLocaleLowerCase();
 
@@ -2946,7 +3170,7 @@ export default function ProfilePageClient() {
         .map((option) => ({
           value: String(option.stars),
           label: `${option.stars}*`,
-          imageUrl: option.imageUrl ?? null,
+          starCount: option.stars,
         }));
     }
 
@@ -2955,9 +3179,9 @@ export default function ProfilePageClient() {
       .map((stars) => ({
         value: String(stars),
         label: `${stars}*`,
-        imageUrl: rarityImageUrlByStars.get(stars) ?? null,
+        starCount: stars,
       }));
-  }, [heroFilterOptions, rarityImageUrlByStars, rosterCards]);
+  }, [heroFilterOptions, rosterCards]);
   const elementFilterOptions = useMemo<IconFilterOption[]>(
     () =>
       Array.from(
@@ -2996,7 +3220,7 @@ export default function ProfilePageClient() {
   );
   const overviewTileWidth = overviewViewport.width > 0 && overviewViewport.width < 640 ? 72 : 84;
   const overviewTileGap = overviewViewport.width > 0 && overviewViewport.width < 640 ? 4 : 6;
-  const overviewTileHeight = overviewViewport.width > 0 && overviewViewport.width < 640 ? 92 : 106;
+  const overviewTileHeight = overviewViewport.width > 0 && overviewViewport.width < 640 ? 108 : 122;
   const overviewMaxColumns = Math.max(
     1,
     Math.floor(Math.max(overviewViewport.width - 48, overviewTileWidth) / (overviewTileWidth + overviewTileGap)),
@@ -3967,6 +4191,66 @@ export default function ProfilePageClient() {
     setHeroSearchQuery('');
   };
 
+  const openShareModal = () => {
+    setShareModalOpen(true);
+    setShareExpiresInDays(3);
+    setGeneratedShareUrl(null);
+    setShareError(null);
+    setShareCopied(false);
+  };
+
+  const handleCreateHeroShare = async () => {
+    if (shareCooldownSeconds > 0) {
+      return;
+    }
+
+    setCreatingShare(true);
+    setShareError(null);
+    setShareCopied(false);
+
+    try {
+      const response = await apiPostJson<PlayerProfileHeroShareCreateRequest, PlayerProfileHeroShareResponse>(
+        '/api/v1/profile/me/hero-shares',
+        {
+          profileHeroIds: sortedRosterCards.map((hero) => hero.profileHeroId),
+          expiresInDays: shareExpiresInDays,
+        },
+      );
+      setGeneratedShareUrl(`${window.location.origin}/profile/heroes/share/${response.token}`);
+      const cooldownUntil = Date.now() + HERO_SHARE_COOLDOWN_MS;
+      shareCooldownUntilRef.current = cooldownUntil;
+      try {
+        window.sessionStorage.setItem(HERO_SHARE_COOLDOWN_STORAGE_KEY, String(cooldownUntil));
+      } catch {
+        // The in-memory countdown still works when browser storage is unavailable.
+      }
+      setShareCooldownSeconds(Math.ceil(HERO_SHARE_COOLDOWN_MS / 1000));
+    } catch (error) {
+      setShareError(
+        error instanceof ApiError
+          ? error.message
+          : locale === 'ru'
+            ? 'Не удалось создать ссылку'
+            : 'Could not create the link',
+      );
+    } finally {
+      setCreatingShare(false);
+    }
+  };
+
+  const handleCopyShareUrl = async () => {
+    if (!generatedShareUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(generatedShareUrl);
+      setShareCopied(true);
+    } catch {
+      setShareError(locale === 'ru' ? 'Не удалось скопировать ссылку' : 'Could not copy the link');
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setHeroFiltersExpanded(false);
@@ -3974,9 +4258,48 @@ export default function ProfilePageClient() {
   }, []);
 
   useEffect(() => {
+    const updateShareCooldown = () => {
+      let storedValue: string | null = null;
+      try {
+        storedValue = window.sessionStorage.getItem(HERO_SHARE_COOLDOWN_STORAGE_KEY);
+      } catch {
+        // Browser storage is optional; the ref keeps the current tab countdown active.
+      }
+      const storedCooldownUntil = storedValue ? Number(storedValue) : 0;
+      if (Number.isFinite(storedCooldownUntil) && storedCooldownUntil > shareCooldownUntilRef.current) {
+        shareCooldownUntilRef.current = storedCooldownUntil;
+      }
+      const cooldownUntil = shareCooldownUntilRef.current;
+      const secondsLeft = Number.isFinite(cooldownUntil)
+        ? Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000))
+        : 0;
+      setShareCooldownSeconds(secondsLeft);
+      if (secondsLeft === 0) {
+        shareCooldownUntilRef.current = 0;
+      }
+      if (secondsLeft === 0 && storedValue) {
+        try {
+          window.sessionStorage.removeItem(HERO_SHARE_COOLDOWN_STORAGE_KEY);
+        } catch {
+          // Ignore storage cleanup failures.
+        }
+      }
+    };
+
+    updateShareCooldown();
+    const intervalId = window.setInterval(updateShareCooldown, 250);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
     if (!overviewOpen) {
       return;
     }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
 
     const updateViewport = () => {
       setOverviewViewport({
@@ -3990,7 +4313,15 @@ export default function ProfilePageClient() {
 
     return () => {
       window.removeEventListener('resize', updateViewport);
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscrollBehavior;
     };
+  }, [overviewOpen]);
+
+  useEffect(() => {
+    if (!overviewOpen) {
+      setShareModalOpen(false);
+    }
   }, [overviewOpen]);
 
   useEffect(() => {
@@ -4443,6 +4774,7 @@ export default function ProfilePageClient() {
                         <option value="rarity">{locale === 'ru' ? 'По редкости' : 'By rarity'}</option>
                         <option value="element">{locale === 'ru' ? 'По стихии' : 'By element'}</option>
                         <option value="powerGrade">{locale === 'ru' ? 'По уровню перерождения' : 'By reborn level'}</option>
+                        <option value="power">{locale === 'ru' ? 'По силе' : 'By power'}</option>
                         <option value="releaseDate">{locale === 'ru' ? 'По дате выхода' : 'By release date'}</option>
                       </select>
                     </label>
@@ -4565,6 +4897,8 @@ export default function ProfilePageClient() {
                     heroClassName={hero.heroClassName}
                     heroClassKey={hero.heroClassKey}
                     powerGrade={hero.powerGrade}
+                    power={hero.power}
+                    powerEstimated={hero.powerEstimated}
                     talentLevel={hero.talentLevel}
                     costumeCount={hero.costumeCount}
                     availableCostumeCount={hero.availableCostumeCount}
@@ -6044,14 +6378,24 @@ export default function ProfilePageClient() {
                   </h3>
                   <p className="mt-1 text-xs text-[var(--foreground-soft)] sm:text-sm">{overviewSubtitle}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOverviewOpen(false)}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                  aria-label={locale === 'ru' ? 'Закрыть' : 'Close'}
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openShareModal}
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/15"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">{locale === 'ru' ? 'Создать ссылку' : 'Create link'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOverviewOpen(false)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    aria-label={locale === 'ru' ? 'Закрыть' : 'Close'}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <div className="mt-2 overflow-auto">
                 <div
@@ -6097,6 +6441,125 @@ export default function ProfilePageClient() {
               ) : null}
             </div>
           </div>
+
+          {shareModalOpen ? (
+            <div
+              className="absolute inset-0 z-[200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+              onClick={(event) => {
+                event.stopPropagation();
+                setShareModalOpen(false);
+              }}
+            >
+              <div
+                className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-lg font-semibold text-[var(--foreground)]">
+                      {locale === 'ru' ? 'Поделиться героями' : 'Share heroes'}
+                    </h4>
+                    <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+                      {locale === 'ru'
+                        ? `В ссылку попадут герои: ${sortedRosterCards.length}`
+                        : `Heroes included in the link: ${sortedRosterCards.length}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShareModalOpen(false)}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground-soft)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    aria-label={locale === 'ru' ? 'Закрыть' : 'Close'}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-5">
+                  <div className="mb-2 text-xs font-medium text-[var(--foreground-soft)]">
+                    {locale === 'ru' ? 'Срок действия' : 'Link lifetime'}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {([
+                      { value: 1, label: locale === 'ru' ? '1 день' : '1 day' },
+                      { value: 3, label: locale === 'ru' ? '3 дня' : '3 days' },
+                      { value: 7, label: locale === 'ru' ? '7 дней' : '7 days' },
+                      { value: null, label: '∞' },
+                    ] as const).map((option) => (
+                      <button
+                        key={option.value ?? 'forever'}
+                        type="button"
+                        onClick={() => {
+                          setShareExpiresInDays(option.value);
+                          setGeneratedShareUrl(null);
+                          setShareCopied(false);
+                        }}
+                        className={`rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                          shareExpiresInDays === option.value
+                            ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-200'
+                            : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {generatedShareUrl ? (
+                  <div className="mt-4 space-y-2">
+                    <label className="block text-xs font-medium text-[var(--foreground-soft)]" htmlFor="generated-hero-share-url">
+                      {locale === 'ru' ? 'Готовая ссылка' : 'Generated link'}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="generated-hero-share-url"
+                        readOnly
+                        value={generatedShareUrl}
+                        onFocus={(event) => event.currentTarget.select()}
+                        className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyShareUrl()}
+                        className="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 text-cyan-200 transition hover:bg-cyan-400/15"
+                        aria-label={locale === 'ru' ? 'Скопировать ссылку' : 'Copy link'}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {shareCopied ? (
+                      <p className="text-xs text-emerald-300">{locale === 'ru' ? 'Ссылка скопирована' : 'Link copied'}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {shareError ? <p className="mt-3 text-sm text-red-300">{shareError}</p> : null}
+
+                <button
+                  type="button"
+                  onClick={() => void handleCreateHeroShare()}
+                  disabled={creatingShare || shareCooldownSeconds > 0 || sortedRosterCards.length === 0}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {creatingShare ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                  <span>
+                    {shareCooldownSeconds > 0
+                      ? locale === 'ru'
+                        ? `Новая ссылка через 00:${String(shareCooldownSeconds).padStart(2, '0')}`
+                        : `New link in 00:${String(shareCooldownSeconds).padStart(2, '0')}`
+                      : generatedShareUrl
+                      ? locale === 'ru'
+                        ? 'Создать новую ссылку'
+                        : 'Create another link'
+                      : locale === 'ru'
+                        ? 'Создать ссылку'
+                        : 'Create link'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
